@@ -22,8 +22,7 @@ module card_edge_passthrough(location, con_len=18.34, con_clearance=0.05, t=12.1
     con_cornerC = [-con_len/2-con_clearance, connector_width/2+con_clearance];
     con_cornerD = [con_len/2+con_clearance, -connector_width/2-con_clearance];
     
-    // calculate connector pocket fillet polyhedron coordinates
-
+    // calculations for fillet polyhedron thing
     fillet_corner0 = [con_cornerB[0] - fillet_length, con_cornerB[1] - fillet_length, -t];
     fillet_corner1 = [con_cornerC[0] - fillet_length, con_cornerC[1] + fillet_length, -t];
     fillet_corner2 = [con_cornerA[0] + fillet_length, con_cornerA[1] + fillet_length, -t];
@@ -32,6 +31,8 @@ module card_edge_passthrough(location, con_len=18.34, con_clearance=0.05, t=12.1
     fillet_corner5 = [con_cornerC[0], con_cornerC[1], -t + fillet_length];
     fillet_corner6 = [con_cornerA[0], con_cornerA[1], -t + fillet_length];
     fillet_corner7 = [con_cornerD[0], con_cornerD[1], -t + fillet_length];
+    p_points =[ fillet_corner0, fillet_corner1, fillet_corner2, fillet_corner3, fillet_corner4, fillet_corner5, fillet_corner6, fillet_corner7 ];
+    p_faces = [ [0,1,2,3], [4,5,1,0], [7,6,5,4], [5,6,2,1], [6,7,3,2], [7,4,0,3] ];
     
     // calculate some glue pocket parameters
     above_connector = t-connector_height; // space above the connector pocket
@@ -73,33 +74,8 @@ module card_edge_passthrough(location, con_len=18.34, con_clearance=0.05, t=12.1
             translate([con_cornerD[0]-r/sqrt(2),con_cornerD[1]+r/sqrt(2)]) cylinder(r=r,h=connector_height+con_clearance,center=true);
         } // end socket well union
         
-        // fabricate the fillet polyhedron
-//        polyhedron(
-//  points=[ fillet_corner0, fillet_corner1, fillet_corner2, fillet_corner3, // the four points at base
-//           fillet_corner4  ],                                 // the apex point 
-//  faces=[ [0,1,4],[1,2,4],[2,3,4],[3,0,4],              // each triangle side
-//              [1,0,3],[2,1,3] ]                         // two triangles for square base
-// );
-
-//        p_faces = [ [0,1,4],[1,2,4],[2,3,4],[3,0,4],              // each triangle side
-//              [1,0,3],[2,1,3] ];                         // two triangles for square base
-//        polyhedron(
-//  points=[ fillet_corner0, fillet_corner1, fillet_corner2, fillet_corner3, // the four points at base
-//           fillet_corner4  ],                                 // the apex point 
-//  faces=p_faces                       // two triangles for square base
-        
-        p_faces = [
-  [0,1,2,3],  // bottom
-  [4,5,1,0],  // front
-  [7,6,5,4],  // top
-  [5,6,2,1],  // right
-  [6,7,3,2],  // back
-  [7,4,0,3]]; // left
-        polyhedron(
-  points=[ fillet_corner0, fillet_corner1, fillet_corner2, fillet_corner3, // the four points at base
-           fillet_corner4, fillet_corner5, fillet_corner6, fillet_corner7  ],                                 // the apex point 
-  faces=p_faces                       // two triangles for square base
- );
+        // fabriate fillet guide base
+        polyhedron( points=p_points, faces=p_faces);
     } // end union top level union
 } // end module
 
