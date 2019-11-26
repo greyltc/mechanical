@@ -2,40 +2,43 @@
 //$fn = 60;
 
 
-// kinda like the built-in square() function except it will produce rounded corners with radius r, always centered for now
+// kinda like the built-in square() function except it will produce rounded corners with radius r
 // drill=true means the corners will be drilled out
-// TODO: implement center true/false keyword
-module square_rounded(size, r=1, drill=false){
-    if (drill == false){
-        difference(){// subtract away the corners to get rounds
-            square(size, center=true);
-            translate([size[0]/2-r,size[1]/2-r,0]) difference(){
-                translate([0,0,0]) square([r,r]);
-                circle(r=r);
+module square_rounded(size, r=1, drill=false, center=true){
+    offsetx =   center ? 0 : size[0]/2 ;
+    offsety =   center ? 0 : size[1]/2 ;
+    translate([offsetx, offsety, 0]){
+        if (drill == false){
+            difference(){// subtract away the corners to get rounds
+                square(size, center=true);
+                translate([size[0]/2-r,size[1]/2-r,0]) difference(){
+                    translate([0,0,0]) square([r,r]);
+                    circle(r=r);
+                }
+                translate([-size[0]/2+r,-size[1]/2+r,0]) difference(){
+                    translate([-r,-r,0]) square([r,r]);
+                    circle(r=r);
+                }
+                translate([-size[0]/2+r,size[1]/2-r,0]) difference(){
+                    translate([-r,0,0]) square([r,r]);
+                    circle(r=r);
+                }
+                translate([size[0]/2-r,-size[1]/2+r,0]) difference(){
+                    translate([0,-r,0]) square([r,r]);
+                    circle(r=r);
+                }
             }
-            translate([-size[0]/2+r,-size[1]/2+r,0]) difference(){
-                translate([-r,-r,0]) square([r,r]);
-                circle(r=r);
+        } else { // drill is true
+            union(){
+                square(size, center=true);
+                translate([size[0]/2-r/sqrt(2), size[1]/2-r/sqrt(2)]) circle(r=r);
+                translate([-size[0]/2+r/sqrt(2), -size[1]/2+r/sqrt(2)]) circle(r=r);
+                translate([-size[0]/2+r/sqrt(2), size[1]/2-r/sqrt(2)]) circle(r=r);
+                translate([size[0]/2-r/sqrt(2), -size[1]/2+r/sqrt(2)]) circle(r=r);
             }
-            translate([-size[0]/2+r,size[1]/2-r,0]) difference(){
-                translate([-r,0,0]) square([r,r]);
-                circle(r=r);
-            }
-            translate([size[0]/2-r,-size[1]/2+r,0]) difference(){
-                translate([0,-r,0]) square([r,r]);
-                circle(r=r);
-            }
-        }
-    } else { // drill is true
-        union(){
-            square(size, center=true);
-            translate([size[0]/2-r/sqrt(2), size[1]/2-r/sqrt(2)]) circle(r=r);
-            translate([-size[0]/2+r/sqrt(2), -size[1]/2+r/sqrt(2)]) circle(r=r);
-            translate([-size[0]/2+r/sqrt(2), size[1]/2-r/sqrt(2)]) circle(r=r);
-            translate([size[0]/2-r/sqrt(2), -size[1]/2+r/sqrt(2)]) circle(r=r);
-        }
-    }
-}
+        } // end drill or not
+    } // end translate
+} // end module
 
 // produces a shape to be subtracted from a plate for the PCB card-edge passthrough at [0,0,0]
 // t = plate thickness
@@ -74,7 +77,8 @@ module card_edge_passthrough(con_len=18.34, con_clearance=0.05, t=12.14, r=1, gp
     p_faces = [ [0,1,2,3], [4,5,1,0], [7,6,5,4], [5,6,2,1], [6,7,3,2], [7,4,0,3] ];
     
     // calculate some glue pocket parameters
-    above_connector = t-connector_height; // space above the connector pocket
+    above_connector = t-connector_height-con_clearance; // space above the connector pocket
+    echo(above_connector);
     gp_width = 2*gp_buffer + pcb_t; // width of glue pocket
     gp_len = 2*gp_buffer + pcb_len; // length of glue pocket
     glue_pocket_depth = above_connector/2; // depth of glue pocket
