@@ -52,7 +52,7 @@ module square_rounded(size, r=1, drill=false, center=true){
 // pcb_len = PCB tab length
 // pcb_clearance = clearance around PCB in its slot
 // length for allignment fillets
-module card_edge_passthrough(con_len=18.34, con_clearance=0.05, t=12.14, r=1, gp_buffer=2, pcb_t=1.6, pcb_len=11.91, r_pcb=0.5, pcb_clearance=0.1, fillet_length=1.5){
+module card_edge_passthrough(con_len=18.34, con_clearance=0.06, t=12, r=1, gp_buffer=2, pcb_t=1.6, pcb_len=11.91, r_pcb=0.5, pcb_clearance=0.1, fillet_length=1.5){
     connector_height=8.5; //mm SAMTEC MECF-XX-01-L-DV-NP-WT
     connector_width=5.60; //mm SAMTEC MECF-XX-01-L-DV-NP-WT
     
