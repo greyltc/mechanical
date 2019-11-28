@@ -1,6 +1,6 @@
 use <pcb_passthroughs.scad>;
 
-plate_thickness = 12.14;
+plate_thickness = 12;
 
 plate_dims=[168, 50];
 window_dims=[120,30];
