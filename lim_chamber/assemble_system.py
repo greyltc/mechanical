@@ -39,13 +39,13 @@ block_dowel_hole_d = 5
 block_dowel_hole_x = 6.5
 
 # build the block
-block = (cq.Workplane("XY").box(block_length, block_width, block_height))
-block = block.faces(">Y").workplane().center(pcb_mount_hole_x, pcb_mount_holeb_z).hole(m2_threaded_diameter)
-block = block.faces(">Y").workplane().center(pcb_mount_hole_x, pcb_mount_holea_z).hole(m2_threaded_diameter)
-block = block.faces(">Z").workplane().center(mount_hole_x,0).hole(m4_threaded_diameter)
-block = block.faces(">Z").workplane().center(block_dowel_hole_x,0).hole(block_dowel_hole_d)
-with open("block.step", "w") as fh:
-    cq.exporters.exportShape(block, cq.exporters.ExportTypes.STEP , fh)
+block = cq.Workplane("XY").box(block_length, block_width, block_height)
+block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').center(pcb_mount_hole_x, pcb_mount_holea_z).hole(m2_threaded_diameter)
+block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').center(pcb_mount_hole_x, pcb_mount_holeb_z).hole(m2_threaded_diameter)
+block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(mount_hole_x,0).hole(m4_threaded_diameter)
+block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(block_dowel_hole_x,0).hole(block_dowel_hole_d)
+#with open("block.step", "w") as fh:
+#    cq.exporters.exportShape(block, cq.exporters.ExportTypes.STEP , fh)
 
 #position it
 block = block.translate((block_length/2+1,passthrough_w/2,block_height/2+passthrough_t))
