@@ -18,40 +18,58 @@ passthrough_t = 12
 passthrough_w =50
 passthrough_l =168
 passthrough = cq.importers.importStep(passthrough_step_file)
-assembly.add(passthrough)
+
 
 # design end blocks
 pcb_thickness = 1.6
 adapter_width = 30
 block_width = adapter_width - pcb_thickness
-block_length = 23
-block_height = 20
+block_length = 12
+block_height = 19.48
 
 m2_threaded_diameter = 1.7
-pcb_mount_holea_z = 6.24
-pcb_mount_holeb_z = -6.76
-pcb_mount_hole_x = 8.5
+pcb_mount_holea_z = 6.5
+pcb_mount_holeb_z = -6.5
+pcb_mount_hole_depth = 7.5
+pcb_mount_hole_x_center_from_edge = 3
+pcb_mount_hole_x = block_length/2-pcb_mount_hole_x_center_from_edge
 
 m4_threaded_diameter = 3.3
-mount_hole_x = -3.5
+m4_clearance_diameter = 4.5
+m5_clearance_diameter = 5.5
+mount_hole_x = 0
 
-block_dowel_hole_d = 5
-block_dowel_hole_x = 6.5
+#block_dowel_hole_d = 5
+#block_dowel_hole_x = 6.5
 
 # build the block
 block = cq.Workplane("XY").box(block_length, block_width, block_height)
-block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').center(pcb_mount_hole_x, pcb_mount_holea_z).hole(m2_threaded_diameter)
-block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').center(pcb_mount_hole_x, pcb_mount_holeb_z).hole(m2_threaded_diameter)
-block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(mount_hole_x,0).hole(m4_threaded_diameter)
-block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(block_dowel_hole_x,0).hole(block_dowel_hole_d)
-#with open("block.step", "w") as fh:
-#    cq.exporters.exportShape(block, cq.exporters.ExportTypes.STEP , fh)
 
-#position it
-block = block.translate((block_length/2+1,passthrough_w/2,block_height/2+passthrough_t))
+block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').center(pcb_mount_hole_x, pcb_mount_holea_z).hole(m2_threaded_diameter, depth=pcb_mount_hole_depth)
+block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').center(pcb_mount_hole_x, pcb_mount_holeb_z).hole(m2_threaded_diameter, depth=pcb_mount_hole_depth)
+block = block.faces("<Y").workplane(centerOption='CenterOfBoundBox').center(-pcb_mount_hole_x, pcb_mount_holea_z).hole(m2_threaded_diameter, depth=pcb_mount_hole_depth)
+block = block.faces("<Y").workplane(centerOption='CenterOfBoundBox').center(-pcb_mount_hole_x, pcb_mount_holeb_z).hole(m2_threaded_diameter, depth=pcb_mount_hole_depth)
+# counter sunk hole for use with RS Stock No. 908-7532 machine screws
+block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(mount_hole_x,0).cskHole(m5_clearance_diameter,cskDiameter=block_length-1,cskAngle=82,clean=True)
+#block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(mount_hole_x,0).hole(m4_threaded_diameter)
+#block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(block_dowel_hole_x,0).hole(block_dowel_hole_d)
+with open("block.step", "w") as fh:
+    cq.exporters.exportShape(block, cq.exporters.ExportTypes.STEP , fh)
+
+#position the blocks
+block_offset_from_edge_of_passthrough = 1
+block = block.translate((block_length/2+block_offset_from_edge_of_passthrough,passthrough_w/2,block_height/2+passthrough_t))
 block2 = block.mirror('ZY',(passthrough_l/2,0,0))
 
+# drill mounting holes in passthrough
+block_mount_hole_center_offset_from_edge = block_offset_from_edge_of_passthrough+block_length/2
+block_mount_hole_x = passthrough_l/2-block_mount_hole_center_offset_from_edge
+# cbore holes for use with RS flangenut Stock No. 725-9650
+passthrough = passthrough.faces("<Z").workplane(centerOption='CenterOfBoundBox').center(block_mount_hole_x,0).cboreHole(m5_clearance_diameter, cboreDiameter=12, cboreDepth=6, clean=True)
+passthrough = passthrough.faces("<Z").workplane(centerOption='CenterOfBoundBox').center(-block_mount_hole_x,0).cboreHole(m5_clearance_diameter, cboreDiameter=12, cboreDepth=6, clean=True)
 
+
+assembly.add(passthrough)
 show_object(assembly)
 show_object(block)
 show_object(block2)
