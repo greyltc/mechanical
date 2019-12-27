@@ -4,6 +4,7 @@ import cadquery as cq
 
 import pathlib
 import os
+this_file = os.path.abspath('')
 
 # TODO: switch this design to CQ
 #passthrough_step_file = "pcb_passthroughs.step"
@@ -56,11 +57,12 @@ block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(moun
 #assembly.add(block)
 #
 #
-
+holder_step_file = pathlib.PurePath(pathlib.Path(this_file).parent.parent,'otter','cad','ref','otter_substrate_holder.step')
+#print(os.__file__)
 #holder_step_file = "../../otter/cad/ref/otter_substrate_holder.step"
-holder_step_file = ".."+os.path.sep+".."+os.path.sep+"otter"+os.path.sep+"cad"+os.path.sep+"ref"+os.path.sep+"otter_substrate_holder.step"
+#holder_step_file = ".."+os.path.sep+".."+os.path.sep+"otter"+os.path.sep+"cad"+os.path.sep+"ref"+os.path.sep+"otter_substrate_holder.step"
 #chamber_corner_offset = (107.267, 133.891, 137.882)
-holder = cq.importers.importStep(str(pathlib.PurePath(holder_step_file)))
+holder = cq.importers.importStep(str(holder_step_file))
 spacer_thickness = 0 # this is the spacer between their lid and ours
 holder = holder.translate((0,-spacer_thickness,0))
 #chamber = chamber.translate(chamber_corner_offset)
