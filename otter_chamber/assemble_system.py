@@ -2,6 +2,9 @@
 
 import cadquery as cq
 
+import pathlib
+import os
+
 # TODO: switch this design to CQ
 #passthrough_step_file = "pcb_passthroughs.step"
 passthrough_t = 12
@@ -35,8 +38,8 @@ mount_hole_x = 0
 block = cq.Workplane("XY").box(block_length, block_width, block_height)
 block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').center(pcb_mount_hole_x, pcb_mount_holea_z).hole(m2_threaded_diameter)
 block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').center(pcb_mount_hole_x, pcb_mount_holeb_z).hole(m2_threaded_diameter)
-#block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(mount_hole_x,0).cskHole(m4_clearance_diameter,cskDiameter=8,cskAngle=82,clean=True)
-block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(mount_hole_x,0).hole(m4_threaded_diameter)
+block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(mount_hole_x,0).cskHole(m4_clearance_diameter,cskDiameter=8,cskAngle=82,clean=True)
+#block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(mount_hole_x,0).hole(m4_threaded_diameter)
 #block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(block_dowel_hole_x,0).hole(block_dowel_hole_d)
 #with open("block.step", "w") as fh:
 #    cq.exporters.exportShape(block, cq.exporters.ExportTypes.STEP , fh)
@@ -56,7 +59,7 @@ block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(moun
 
 holder_step_file = "../../otter/cad/ref/otter_substrate_holder.step"
 #chamber_corner_offset = (107.267, 133.891, 137.882)
-holder = cq.importers.importStep(holder_step_file)
+holder = cq.importers.importStep(str(pathlib.Path(holder_step_file)))
 spacer_thickness = 0 # this is the spacer between their lid and ours
 holder = holder.translate((0,-spacer_thickness,0))
 #chamber = chamber.translate(chamber_corner_offset)
@@ -64,17 +67,18 @@ show_object(holder)
 
 
 
-window_support_step_file = "../../environment_chamber/window_support.step"
-base_step_file = "../../environment_chamber/base.step"
-base_length = 238.02
+window_support_step_file = "../../environment_chamber/build/support.step"
+base_step_file = "../../environment_chamber/build/base.step"
+#base_length = 238.02
 base_width=201.2
-chamber_y_offset=3.774
+chamber_y_offset=32.624-28.85 # 32.624-28.85=3.774
 #chamber_y_offset=0
-lid_step_file = "../../environment_chamber/lid.step"
+lid_step_file = "../../environment_chamber/build/lid.step"
 
-# adjust ec thing to align with holder
+# this puts environmental chamber design output into otter holder's step file coordinate system
 def to_holder(obj):
-    obj = obj.rotate((0,0,0),(1,0,0), -90).translate((-base_length/2,chamber_y_offset,base_width/2)).rotate((0,0,0),(0,1,0), 90)
+    obj = obj.rotate((0,0,0),(1,0,0), -90).rotate((0,0,0),(0,1,0), 90)
+    obj = obj.translate((0,chamber_y_offset,0))
     return obj
 
 fourXspacing = 35
@@ -92,6 +96,8 @@ blocks.add(blockA.mirror('XY',(0,0,0)))
 
 #block2 = block.mirror('XY',(0,0,0))
 show_object(blocks)
+with open("blocks.step", "w") as fh:
+    cq.exporters.exportShape(blocks, cq.exporters.ExportTypes.STEP , fh)
 #show_object(block2)
 
 ws = cq.importers.importStep(window_support_step_file)
@@ -115,7 +121,7 @@ with open("base.step", "w") as fh:
 pcb_project = "otter_substrate_adapter"
 adapter_step_file_name = f"../../electronics/{pcb_project}/3dOut/substrate_adapter.step"
 adapter = cq.importers.importStep(adapter_step_file_name)
-adapter_y_offset =5.97 + 11.43+0.24+chamber_y_offset
+adapter_y_offset =5.97 + 11.43+0.24+chamber_y_offset+1.6
 
 adapter = adapter.rotate((0,0,0),(1,0,0), -90)
 adapterA = adapter.translate((3*fourXspacing/2,adapter_y_offset,0))
@@ -142,7 +148,10 @@ adapterQ = adapter.translate((3*fourXspacing/2,adapter_y_offset,-2*fiveXspacing)
 adapterR = adapter.translate((1*fourXspacing/2,adapter_y_offset,-2*fiveXspacing))
 adapterS = adapter.translate((-1*fourXspacing/2,adapter_y_offset,-2*fiveXspacing))
 adapterT = adapter.translate((-3*fourXspacing/2,adapter_y_offset,-2*fiveXspacing))
-
+adapters = adapterA.add(adapterB).add(adapterC).add(adapterD).add(adapterE).add(adapterF).add(adapterG).add(adapterH).add(adapterI).add(adapterJ).add(adapterK).add(adapterL).add(adapterM).add(adapterN).add(adapterO).add(adapterP).add(adapterQ).add(adapterR).add(adapterS).add(adapterT)
+show_object(adapters)
+with open("adapterA.step", "w") as fh:
+    cq.exporters.exportShape(adapterA, cq.exporters.ExportTypes.STEP , fh)
 #with open("T.step", "w") as fh:
 #    cq.exporters.exportShape(adapterT, cq.exporters.ExportTypes.STEP , fh)
 
@@ -158,30 +167,6 @@ adapterT = adapter.translate((-3*fourXspacing/2,adapter_y_offset,-2*fiveXspacing
 #assembly = assembly.rotate((0,0,0),(1,0,0), -90)
 #assembly = assembly.translate((16, 16.5+1.6,75))
 #show_object(assembly)
-show_object(adapterA)
-show_object(adapterB)
-show_object(adapterC)
-show_object(adapterD)
-
-show_object(adapterE)
-show_object(adapterF)
-show_object(adapterG)
-show_object(adapterH)
-
-show_object(adapterI)
-show_object(adapterJ)
-show_object(adapterK)
-show_object(adapterL)
-
-show_object(adapterM)
-show_object(adapterN)
-show_object(adapterO)
-show_object(adapterP)
-
-show_object(adapterQ)
-show_object(adapterR)
-show_object(adapterS)
-show_object(adapterT)
 
 pcb_project = "otter_crossbar"
 crossbar_step_file_name = f"../../electronics/{pcb_project}/3dOut/{pcb_project}.step"
@@ -203,18 +188,13 @@ crossbarH = crossbar.translate((3*fourXspacing/2-adapter_width/2,0,0))
 #assembly = crossbar.translate((0,10,0))
 #assembly.add(crossbar.translate((0,40,0)))
 
-show_object(crossbarA)
-show_object(crossbarB)
 
-with open("cba.step", "w") as fh:
-    cq.exporters.exportShape(crossbarA, cq.exporters.ExportTypes.STEP , fh)
+#show_object(crossbarB)
 
-with open("cbb.step", "w") as fh:
-    cq.exporters.exportShape(crossbarB, cq.exporters.ExportTypes.STEP , fh)
+with open("cbh.step", "w") as fh:
+    cq.exporters.exportShape(crossbarH, cq.exporters.ExportTypes.STEP , fh)
 
-show_object(crossbarC)
-show_object(crossbarD)
-show_object(crossbarE)
-show_object(crossbarF)
-show_object(crossbarG)
-show_object(crossbarH)
+crossbars=crossbarA.add(crossbarB).add(crossbarC).add(crossbarD).add(crossbarE).add(crossbarF).add(crossbarG).add(crossbarH)
+#with open("crossbars.step", "w") as fh:
+#    cq.exporters.exportShape(crossbars, cq.exporters.ExportTypes.STEP , fh)
+show_object(crossbars)

@@ -10,6 +10,8 @@ crossbar = crossbar.rotate((0,0,0),(1,0,0), 90)
 crossbar = crossbar.translate((0,0,23.67))
 crossbar = crossbar.translate((168/2,0,0))
 assembly = crossbar.translate((0,10,0))
+with open("crossbar.step", "w") as fh:
+    cq.exporters.exportShape(assembly, cq.exporters.ExportTypes.STEP , fh)
 assembly.add(crossbar.translate((0,40,0)))
 
 # TODO: switch this design to CQ
@@ -27,7 +29,7 @@ block_width = adapter_width - pcb_thickness
 block_length = 12
 block_height = 19.48
 
-m2_threaded_diameter = 1.7
+m2_threaded_diameter = 1.6
 pcb_mount_holea_z = 6.5
 pcb_mount_holeb_z = -6.5
 pcb_mount_hole_depth = 7.5
@@ -59,6 +61,9 @@ with open("block.step", "w") as fh:
 #position the blocks
 block_offset_from_edge_of_passthrough = 1
 block = block.translate((block_length/2+block_offset_from_edge_of_passthrough,passthrough_w/2,block_height/2+passthrough_t))
+with open("blockm.step", "w") as fh:
+    cq.exporters.exportShape(block, cq.exporters.ExportTypes.STEP , fh)
+
 block2 = block.mirror('ZY',(passthrough_l/2,0,0))
 
 # drill mounting holes in passthrough
