@@ -1,21 +1,25 @@
 #!/usr/bin/env python
+# toolbox module must be on your PYTHONPATH
 
 import cadquery as cq
 
 import pathlib
 import logging
-
-# check that this was launched properly
-# so that later we can find and load the files we need
-wd = pathlib.Path.cwd()
-this_filename = "assemble_system.py"
-this_file = wd.joinpath(this_filename)
-if not this_file.is_file():
-    e_string = ('This was launched incorrectly. Your working directory is'
-                f' "{wd}", but it needs to be one that contains'
-                f' this script ("{this_filename}").')
-    raise (ValueError(e_string))
-
+import sys
+# attempt to import the toolbox module
+try:
+    from toolbox.endblock import endblock
+except ImportError:
+    path0 = pathlib.Path(sys.path[0]).resolve()
+    sys.path.insert(0, str(path0.parent))  # add parent dir to the search path
+    try:
+        from toolbox.endblock import endblock
+    except ImportError:
+        error_string = ('Failed to import the toolbox module. '
+                        "That means the toolbox module's folder is not "
+                        "on your PYTHONPATH. "
+                        f'Your PYTHONPATH is {sys.path}')
+        raise(ValueError(error_string))
 
 # setup logging
 logger = logging.getLogger('cad builder')
@@ -35,6 +39,10 @@ else:
     have_so = False
     logger.info("Probbaly running from a terminal")
 
+# get the top level directory from the location of the toolbox module
+tld = pathlib.Path(sys.modules['toolbox'].__file__).resolve().parent.parent
+logger.info(f"The top level directory is: {tld}")
+
 
 def export_step(to_export, file):
     with open(file, "w") as fh:
@@ -48,41 +56,8 @@ def import_step(file):
     return wp
 
 
-# design end blocks
-pcb_thickness = 1.6
-adapter_width = 25.4
-block_width = adapter_width - pcb_thickness
-block_length = 10
-block_height = 19.48
-
-
-m2_threaded_diameter = 1.7
-m3_thread_depth = 10
-pcb_mount_holea_z = 6.5
-pcb_mount_holeb_z = -6.5
-pcb_mount_hole_x = 8.5
-
-m4_threaded_diameter = 3.3
-m4_clearance_diameter = 4.5
-mount_hole_x = 0
-
-#block_dowel_hole_d = 5
-#block_dowel_hole_x = 6.5
-
-# build the block
-block = cq.Workplane("XY").box(block_length, block_width, block_height)
-block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').\
-    center(pcb_mount_hole_x, pcb_mount_holea_z).hole(m2_threaded_diameter)
-block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').\
-    center(pcb_mount_hole_x, pcb_mount_holeb_z).hole(m2_threaded_diameter)
-block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').\
-    center(mount_hole_x, 0).cskHole(m4_clearance_diameter, cskDiameter=8,
-                                    cskAngle=82, clean=True)
-#block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(mount_hole_x,0).hole(m4_threaded_diameter)
-#block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(block_dowel_hole_x,0).hole(block_dowel_hole_d)
-#with open("block.step", "w") as fh:
-#    cq.exporters.exportShape(block, cq.exporters.ExportTypes.STEP , fh)
-
+# build an endblock
+block = endblock()
 
 #block = block.translate((block_length/2+1,passthrough_w/2,block_height/2+passthrough_t))
 #block2 = block.mirror('ZY',(passthrough_l/2,0,0))
@@ -95,6 +70,7 @@ block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').\
 #assembly.add(block)
 #
 #
+
 holder_step_file = pathlib.PurePath(pathlib.Path(this_file).parent.parent,'otter','cad','ref','otter_substrate_holder.step')
 #print(os.__file__)
 #holder_step_file = "../../otter/cad/ref/otter_substrate_holder.step"
