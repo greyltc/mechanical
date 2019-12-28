@@ -4,7 +4,9 @@ import cadquery as cq
 
 import pathlib
 import os
-this_file = os.path.abspath('')
+import sys
+this_path=os.getcwd()
+#this_path = os.path.realpath(__file__)
 
 # TODO: switch this design to CQ
 #passthrough_step_file = "pcb_passthroughs.step"
