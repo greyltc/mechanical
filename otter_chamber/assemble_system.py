@@ -3,9 +3,7 @@
 import cadquery as cq
 
 import pathlib
-import os
 import logging
-
 
 # check that this was launched properly
 # so that later we can find and load the files we need
@@ -19,13 +17,36 @@ if not this_file.is_file():
     raise (ValueError(e_string))
 
 
-# TODO: switch this design to CQ
-#passthrough_step_file = "pcb_passthroughs.step"
-#passthrough_t = 12
-#passthrough_w =50
-#passthrough_l =168
-#passthrough = cq.importers.importStep(passthrough_step_file)
-#assembly.add(passthrough)
+# setup logging
+logger = logging.getLogger('cad builder')
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter(('%(asctime)s - %(name)s - %(levelname)s -'
+                               ' %(message)s'))
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
+# check to see if we can use the "show_object" function
+if "show_object" in locals():
+    have_so = True
+    logger.info("Probbaly running in a gui")
+else:
+    have_so = False
+    logger.info("Probbaly running from a terminal")
+
+
+def export_step(to_export, file):
+    with open(file, "w") as fh:
+        cq.exporters.exportShape(to_export, cq.exporters.ExportTypes.STEP, fh)
+        logger.info(f"Exported {file.name} to {file.parent}")
+
+
+def import_step(file):
+    wp = cq.importers.importStep(str(file))
+    logger.info(f"Imported {file.name} from {file.parent}")
+    return wp
+
 
 # design end blocks
 pcb_thickness = 1.6
@@ -50,9 +71,13 @@ mount_hole_x = 0
 
 # build the block
 block = cq.Workplane("XY").box(block_length, block_width, block_height)
-block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').center(pcb_mount_hole_x, pcb_mount_holea_z).hole(m2_threaded_diameter)
-block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').center(pcb_mount_hole_x, pcb_mount_holeb_z).hole(m2_threaded_diameter)
-block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(mount_hole_x,0).cskHole(m4_clearance_diameter,cskDiameter=8,cskAngle=82,clean=True)
+block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').\
+    center(pcb_mount_hole_x, pcb_mount_holea_z).hole(m2_threaded_diameter)
+block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').\
+    center(pcb_mount_hole_x, pcb_mount_holeb_z).hole(m2_threaded_diameter)
+block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').\
+    center(mount_hole_x, 0).cskHole(m4_clearance_diameter, cskDiameter=8,
+                                    cskAngle=82, clean=True)
 #block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(mount_hole_x,0).hole(m4_threaded_diameter)
 #block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(block_dowel_hole_x,0).hole(block_dowel_hole_d)
 #with open("block.step", "w") as fh:
