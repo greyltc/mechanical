@@ -2,25 +2,42 @@
 
 import cadquery as cq
 
+import pathlib
+import logging
+
+# check that this was launched properly
+# so that later we can find and load the files we need
+wd = pathlib.Path.cwd()
+this_filename = "assemble_system.py"
+this_file = wd.joinpath(this_filename)
+if not this_file.is_file():
+    e_string = ('This was launched incorrectly. Your working directory is'
+                f' "{wd}", but it needs to be one that contains'
+                f' this script ("{this_filename}").')
+    raise (ValueError(e_string))
+
+# get the crossbar PCB step
 pcb_project = "lim_crossbar"
-crossbar_step_file_name = f"../../electronics/{pcb_project}/3dOut/{pcb_project}.step"
-crossbar = cq.importers.importStep(crossbar_step_file_name)
-crossbar = crossbar.translate((0,0,-1.6/2))
-crossbar = crossbar.rotate((0,0,0),(1,0,0), 90)
-crossbar = crossbar.translate((0,0,23.67))
-crossbar = crossbar.translate((168/2,0,0))
-assembly = crossbar.translate((0,10,0))
+this_stepfile_name = pcb_project + ".step"
+this_stepfile = wd.parent.parent.joinpath('electronics',
+                                          pcb_project,
+                                          '3dOut', this_stepfile_name)
+crossbar = cq.importers.importStep(str(this_stepfile))
+crossbar = crossbar.translate((0, 0, -1.6/2))
+crossbar = crossbar.rotate((0, 0, 0), (1, 0, 0), 90)
+crossbar = crossbar.translate((0, 0, 23.67))
+crossbar = crossbar.translate((168/2, 0, 0))
+assembly = crossbar.translate((0, 10, 0))
 with open("crossbar.step", "w") as fh:
-    cq.exporters.exportShape(assembly, cq.exporters.ExportTypes.STEP , fh)
-assembly.add(crossbar.translate((0,40,0)))
+    cq.exporters.exportShape(assembly, cq.exporters.ExportTypes.STEP, fh)
+assembly.add(crossbar.translate((0, 40, 0)))
 
 # TODO: switch this design to CQ
-passthrough_step_file = "pcb_passthroughs.step"
+this_stepfile_name = "pcb_passthroughs.step"
 passthrough_t = 12
-passthrough_w =50
-passthrough_l =168
-passthrough = cq.importers.importStep(passthrough_step_file)
-
+passthrough_w = 50
+passthrough_l = 168
+passthrough = cq.importers.importStep(this_stepfile_name)
 
 # design end blocks
 pcb_thickness = 1.6

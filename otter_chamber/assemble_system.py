@@ -4,15 +4,26 @@ import cadquery as cq
 
 import pathlib
 import os
-import sys
-this_path=os.getcwd()
-#this_path = os.path.realpath(__file__)
+import logging
+
+
+# check that this was launched properly
+# so that later we can find and load the files we need
+wd = pathlib.Path.cwd()
+this_filename = "assemble_system.py"
+this_file = wd.joinpath(this_filename)
+if not this_file.is_file():
+    e_string = ('This was launched incorrectly. Your working directory is'
+                f' "{wd}", but it needs to be one that contains'
+                f' this script ("{this_filename}").')
+    raise (ValueError(e_string))
+
 
 # TODO: switch this design to CQ
 #passthrough_step_file = "pcb_passthroughs.step"
-passthrough_t = 12
-passthrough_w =50
-passthrough_l =168
+#passthrough_t = 12
+#passthrough_w =50
+#passthrough_l =168
 #passthrough = cq.importers.importStep(passthrough_step_file)
 #assembly.add(passthrough)
 
