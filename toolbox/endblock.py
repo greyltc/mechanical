@@ -5,9 +5,9 @@ import toolbox as tb
 block for mounting PCBs
 """
 
-width = None
-length = None
-height = None
+width: float = None  # type: ignore[assignment]
+length: float = None  # type: ignore[assignment]
+height: float = None  # type: ignore[assignment]
 
 
 def build(adapter_width=30, block_length=12, block_height=19.48):

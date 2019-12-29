@@ -7,7 +7,7 @@
 # The working directory is set to be a directory on your PYTHONPATH
 # containing this file. Failing that, it becomes pathlib.Path.cwd()
 
-import cadquery as cq
+import cadquery as cq  # type: ignore[import]
 
 import pathlib
 import logging
@@ -66,14 +66,6 @@ if wd is None:
     wd = pathlib.Path.cwd()
 logger.info(f'The working directory is "{wd}"')
 
-# check to see if we can use the "show_object" function
-if "show_object" in locals():
-    have_so = True
-    logger.info("Probbaly running in a gui")
-else:
-    have_so = False
-    logger.info("Probbaly running from a terminal")
-
 
 def export_step(to_export, file):
     with open(file, "w") as fh:
@@ -91,23 +83,25 @@ def import_step(file):
     return wp
 
 
-# finds the length of a solid object along a coordinate direction
+# Use distance between extreme verticies of an object to
+# find its length along a coordinate direction
 # along can be "X", "Y" or "Z"
 def find_length(thisthing, along="X"):
     length = None
     if along == "X":
-        length = thisthing.faces(">X").val().Center().x-thisthing.faces("<X").\
-            val().Center().x
+        length = thisthing.vertices(">X").val().Center().x - \
+                 thisthing.vertices("<X").val().Center().x
     elif along == "Y":
-        length = thisthing.faces(">Y").val().Center().y-thisthing.faces("<Y").\
-            val().Center().y
+        length = thisthing.vertices(">Y").val().Center().y - \
+                 thisthing.vertices("<Y").val().Center().y
     elif along == "Z":
-        length = thisthing.faces(">Z").val().Center().z-thisthing.faces("<Z").\
-            val().Center().z
+        length = thisthing.vertices(">Z").val().Center().z - \
+                 thisthing.vertices("<Z").val().Center().z
     return length
 
 
-assembly = []  # a list for holding all the things
+# a list for holding all the things
+assembly = []  # type: ignore[var-annotated] # noqa: F821
 
 
 # build an endblock
