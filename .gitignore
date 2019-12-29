@@ -3,3 +3,6 @@
 *.stp
 *.csg
 *.stl
+*.pyc
+__pycache__/
+

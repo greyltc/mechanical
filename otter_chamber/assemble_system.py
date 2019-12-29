@@ -1,35 +1,70 @@
 #!/usr/bin/env python
-# toolbox module must be on your PYTHONPATH
+
+# NOTE: The toolbox module's folder must be found on your PYTHONPATH
+# or in a parent firectory of an item in your PYTHONPATH.
+# File loads are done relative to the toolbox module's folder.
+# File saves are made into the working directory.
+# The working directory is set to be a directory on your PYTHONPATH
+# containing this file. Failing that, it becomes pathlib.Path.cwd()
 
 import cadquery as cq
 
 import pathlib
 import logging
 import sys
-# attempt to import the toolbox module
-try:
-    from toolbox.endblock import endblock
-except ImportError:
-    path0 = pathlib.Path(sys.path[0]).resolve()
-    sys.path.insert(0, str(path0.parent))  # add parent dir to the search path
-    try:
-        from toolbox.endblock import endblock
-    except ImportError:
-        error_string = ('Failed to import the toolbox module. '
-                        "That means the toolbox module's folder is not "
-                        "on your PYTHONPATH. "
-                        f'Your PYTHONPATH is {sys.path}')
-        raise(ValueError(error_string))
 
 # setup logging
-logger = logging.getLogger('cad builder')
+logger = logging.getLogger('cadbuilder')
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter(('%(asctime)s - %(name)s - %(levelname)s -'
-                               ' %(message)s'))
+formatter = logging.Formatter(('%(asctime)s|%(name)s|%(levelname)s|'
+                               '%(message)s'))
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+
+# attempt to import the toolbox module
+try:
+    import toolbox as tb
+except ImportError:
+    pass
+
+for element in sys.path:
+    if 'tb' in locals():
+        break
+    this_path = pathlib.Path(str(element)).resolve()
+    sys.path.insert(0, str(this_path.parent))  # look for toolbox in a parent
+    try:
+        import toolbox as tb  # noqa: F811
+    except ImportError:
+        del(sys.path[0])
+
+if 'tb' not in locals():
+    # we failed to import toolbox
+    error_string = ('Failed to import the toolbox module. '
+                    "That means the toolbox module's folder is not "
+                    "on your PYTHONPATH (or one of its parent dirs). "
+                    f'Your PYTHONPATH is {sys.path}')
+    raise(ValueError(error_string))
+else:
+    logger.info(f'toolbox module imported from "{tb.__file__}"')
+
+# figure out top level directory (tld) and working directory (wd)
+# file loads are done relative to tld and saves are done into wd
+tld = pathlib.Path(tb.__file__).resolve().parent.parent
+logger.info(f'So the top level directory is "{tld}"')
+# NOTE: I'm sure there's a better way to do this...
+this_filename = "assemble_system.py"
+wd = None
+for element in sys.path:
+    potential_wd = pathlib.Path(str(element)).resolve()
+    if potential_wd.joinpath(this_filename).is_file():
+        wd = potential_wd
+    if wd is not None:
+        break
+if wd is None:
+    wd = pathlib.Path.cwd()
+logger.info(f'The working directory is "{wd}"')
 
 # check to see if we can use the "show_object" function
 if "show_object" in locals():
@@ -39,10 +74,6 @@ else:
     have_so = False
     logger.info("Probbaly running from a terminal")
 
-# get the top level directory from the location of the toolbox module
-tld = pathlib.Path(sys.modules['toolbox'].__file__).resolve().parent.parent
-logger.info(f"The top level directory is: {tld}")
-
 
 def export_step(to_export, file):
     with open(file, "w") as fh:
@@ -51,9 +82,32 @@ def export_step(to_export, file):
 
 
 def import_step(file):
-    wp = cq.importers.importStep(str(file))
-    logger.info(f"Imported {file.name} from {file.parent}")
+    wp = None
+    if file.is_file():
+        wp = cq.importers.importStep(str(file))
+        logger.info(f"Imported {file}")
+    else:
+        logger.warn(f"Failed to import {file}")
     return wp
+
+
+# finds the length of a solid object along a coordinate direction
+# along can be "X", "Y" or "Z"
+def find_length(thisthing, along="X"):
+    length = None
+    if along == "X":
+        length = thisthing.faces(">X").val().Center().x-thisthing.faces("<X").\
+            val().Center().x
+    elif along == "Y":
+        length = thisthing.faces(">Y").val().Center().y-thisthing.faces("<Y").\
+            val().Center().y
+    elif along == "Z":
+        length = thisthing.faces(">Z").val().Center().z-thisthing.faces("<Z").\
+            val().Center().z
+    return length
+
+
+assembly = []  # a list for holding all the things
 
 
 # build an endblock
