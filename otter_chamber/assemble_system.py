@@ -7,21 +7,10 @@
 # The working directory is set to be a directory on your PYTHONPATH
 # containing this file. Failing that, it becomes pathlib.Path.cwd()
 
-import cadquery as cq  # type: ignore[import]
-
-import pathlib
-import logging
 import sys
-
-# setup logging
-logger = logging.getLogger('cadbuilder')
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter(('%(asctime)s|%(name)s|%(levelname)s|'
-                               '%(message)s'))
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+import logging
+import pathlib
+import cadquery as cq  # type: ignore[import]
 
 # attempt to import the toolbox module
 try:
@@ -47,62 +36,56 @@ if 'tb' not in locals():
                     f'Your PYTHONPATH is {sys.path}')
     raise(ValueError(error_string))
 else:
+    logger = logging.getLogger('cadbuilder')
     logger.info(f'toolbox module imported from "{tb.__file__}"')
 
-# figure out top level directory (tld) and working directory (wd)
-# file loads are done relative to tld and saves are done into wd
-tld = pathlib.Path(tb.__file__).resolve().parent.parent
-logger.info(f'So the top level directory is "{tld}"')
-# NOTE: I'm sure there's a better way to do this...
-this_filename = "assemble_system.py"
-wd = None
-for element in sys.path:
-    potential_wd = pathlib.Path(str(element)).resolve()
-    if potential_wd.joinpath(this_filename).is_file():
-        wd = potential_wd
-    if wd is not None:
-        break
-if wd is None:
-    wd = pathlib.Path.cwd()
-logger.info(f'The working directory is "{wd}"')
+
+def to_holder(this_thing, y_offset):
+    """
+    this puts environmental chamber design output into the
+    otter holder's step file coordinate system
+    """
+    ret_obj = this_thing.rotate((0, 0, 0), (1, 0, 0), -90)\
+        .rotate((0, 0, 0), (0, 1, 0), 90)
+    ret_obj = ret_obj.translate((0, y_offset, 0))
+    return ret_obj
 
 
-def export_step(to_export, file):
-    with open(file, "w") as fh:
-        cq.exporters.exportShape(to_export, cq.exporters.ExportTypes.STEP, fh)
-        logger.info(f"Exported {file.name} to {file.parent}")
+# figure out working and top level dirs
+tb.u.set_directories()
 
-
-def import_step(file):
-    wp = None
-    if file.is_file():
-        wp = cq.importers.importStep(str(file))
-        logger.info(f"Imported {file}")
-    else:
-        logger.warn(f"Failed to import {file}")
-    return wp
-
-
-# Use distance between extreme verticies of an object to
-# find its length along a coordinate direction
-# along can be "X", "Y" or "Z"
-def find_length(thisthing, along="X"):
-    length = None
-    if along == "X":
-        length = thisthing.vertices(">X").val().Center().x - \
-                 thisthing.vertices("<X").val().Center().x
-    elif along == "Y":
-        length = thisthing.vertices(">Y").val().Center().y - \
-                 thisthing.vertices("<Y").val().Center().y
-    elif along == "Z":
-        length = thisthing.vertices(">Z").val().Center().z - \
-                 thisthing.vertices("<Z").val().Center().z
-    return length
-
+# check to see if we can/should use the "show_object" function
+if "show_object" in locals():
+    have_so = True
+    logger.info("Probbaly running in a gui")
+else:
+    have_so = False
+    logger.info("Probbaly running from a terminal")
 
 # a list for holding all the things
 assembly = []  # type: ignore[var-annotated] # noqa: F821
 
+# inspected step files by hand to find when our lid mates with
+# otter's holder's support surface
+chamber_y_offset = 32.624 - 28.85  # 32.624-28.85=3.774
+
+holder = tb.u.import_step(
+    tb.u.tld.parent.joinpath("otter", "cad", "ref",
+                             "otter_substrate_holder.step"))
+assembly.extend(holder.vals())
+
+ws = tb.u.import_step(
+    tb.u.tld.parent.joinpath("environment_chamber", "build", "support.step"))
+ws = to_holder(ws, chamber_y_offset)
+assembly.extend(ws.vals())
+
+lid = tb.u.import_step(
+    tb.u.tld.parent.joinpath("environment_chamber", "build", "lid.step"))
+lid = to_holder(lid, chamber_y_offset)
+assembly.extend(lid.vals())
+""" base_t = tb.u.find_length(base, "Z")
+base_w = tb.u.find_length(base, "Y")
+base_l = tb.u.find_length(base, "X")
 
 # build an endblock
 block = endblock()
@@ -140,11 +123,7 @@ chamber_y_offset=32.624-28.85 # 32.624-28.85=3.774
 #chamber_y_offset=0
 lid_step_file = "../../environment_chamber/build/lid.step"
 
-# this puts environmental chamber design output into otter holder's step file coordinate system
-def to_holder(obj):
-    obj = obj.rotate((0,0,0),(1,0,0), -90).rotate((0,0,0),(0,1,0), 90)
-    obj = obj.translate((0,chamber_y_offset,0))
-    return obj
+
 
 fourXspacing = 35
 fiveXspacing = 29
@@ -262,4 +241,14 @@ with open("cbh.step", "w") as fh:
 crossbars=crossbarA.add(crossbarB).add(crossbarC).add(crossbarD).add(crossbarE).add(crossbarF).add(crossbarG).add(crossbarH)
 #with open("crossbars.step", "w") as fh:
 #    cq.exporters.exportShape(crossbars, cq.exporters.ExportTypes.STEP , fh)
-show_object(crossbars)
+show_object(crossbars) """
+# make a compound out of the assembly
+cpnd = cq.Compound.makeCompound(assembly)
+
+# export everything (this can take a while)
+tb.u.export_step(cpnd, tb.u.wd.joinpath('assembly.step'))
+
+if have_so:
+    for thing in assembly:
+        show_object(thing)  # type: ignore[name-defined] # noqa: F821
+logger.info("Done!")
