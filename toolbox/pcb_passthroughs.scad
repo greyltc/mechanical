@@ -43,19 +43,21 @@ module square_rounded(size, r=1, drill=false, center=true){
 // produces a shape to be subtracted from a plate for the PCB card-edge passthrough at [0,0,0]
 // t = plate thickness
 
-// con_clearance = clearance between mated connector and pocket on all sides (part length tol=+-0.13mm)
-// con_len = length of connector (samtec MECF-08-01-L-DV-NP-WT=18.34, 20pos = 33.58)
+// rows = number of rows of the samtec MECF-DV connector we'll make a pocket for (must be 8 or 20)
+// con_clearance = clearance between mated connector and pocket on all sides
 // r = tool radius
 // r_pcb = PCB slot tool radius
 // gp_buffer = glue pocket buffer space around PCB
 // pcb_t = PCB tab thickness
-// pcb_len = PCB tab length
 // pcb_clearance = clearance around PCB in its slot
 // length for allignment fillets
-module card_edge_passthrough(con_len=18.34, con_clearance=0.10, t=12, r=1, gp_buffer=2, pcb_t=1.6, pcb_len=11.91, r_pcb=0.5, pcb_clearance=0.1, fillet_length=1.5){
-    connector_height=8.5; //mm SAMTEC MECF-XX-01-L-DV-NP-WT
-    connector_width=5.60; //mm SAMTEC MECF-XX-01-L-DV-NP-WT
-    
+module card_edge_passthrough(rows=8, con_clearance=0.10, t=12, r=1, gp_buffer=2, pcb_t=1.6, r_pcb=0.5, pcb_clearance=0.1, fillet_length=1.5){
+    connector_height=8.78+0.15; //mm SAMTEC MECF-XX-01-L-DV-NP-WT (worst case (largest) size)
+    connector_width=5.6+0.13; //mm SAMTEC MECF-XX-01-L-DV-NP-WT (worst case (largest) size)
+
+    con_len = (rows==8)?18.34+0.13:(rows==20)?33.58+0.13:NaN;
+    pcb_len = (rows==8)?11.91:(rows==20)?27.15:NaN;
+
     // calculate connector pocket corner coordinates
     cp_len = con_len+2*con_clearance; // length of connector pocket
     cp_width = connector_width+2*con_clearance; // width of connector pocket

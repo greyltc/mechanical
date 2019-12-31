@@ -83,6 +83,11 @@ lid = tb.u.import_step(
     tb.u.tld.parent.joinpath("environment_chamber", "build", "lid.step"))
 lid = to_holder(lid, chamber_y_offset)
 assembly.extend(lid.vals())
+
+lid = tb.u.import_step(
+    tb.u.tld.parent.joinpath("environment_chamber", "build", "base.step"))
+lid = to_holder(lid, chamber_y_offset)
+assembly.extend(lid.vals())
 """ base_t = tb.u.find_length(base, "Z")
 base_w = tb.u.find_length(base, "Y")
 base_l = tb.u.find_length(base, "X")
