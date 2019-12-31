@@ -1,14 +1,18 @@
-use <pcb_passthroughs.scad>;
+use <../toolbox/pcb_passthrough.scad>;
 
 plate_thickness = 12;
 
-plate_dims=[168, 50];
+plate_dims=[168,50];
 window_dims=[120,30];
 
-slot1loc = [154.83, 40, plate_thickness];
-slot2loc = [154.83, 10, plate_thickness];
-slot3loc = [13.17, 40, plate_thickness];
-slot4loc = [13.17, 10, plate_thickness];
+// taken from PCB design
+pcb_tab_spacing = 141.66;
+adapter_dim = 30;
+
+slot1loc = [plate_dims[0]/2+pcb_tab_spacing/2, plate_dims[1]/2+adapter_dim/2, plate_thickness];
+slot2loc = [plate_dims[0]/2+pcb_tab_spacing/2, plate_dims[1]/2-adapter_dim/2, plate_thickness];
+slot3loc = [plate_dims[0]/2-pcb_tab_spacing/2, plate_dims[1]/2+adapter_dim/2, plate_thickness];
+slot4loc = [plate_dims[0]/2-pcb_tab_spacing/2, plate_dims[1]/2-adapter_dim/2, plate_thickness];
 
 difference(){
     linear_extrude(plate_thickness) square_rounded(plate_dims, center=false, r=3);

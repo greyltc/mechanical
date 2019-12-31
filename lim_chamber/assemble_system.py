@@ -54,11 +54,19 @@ else:
 assembly = []  # type: ignore[var-annotated] # noqa: F821
 
 # TODO: switch this part's design to CQ
-base = tb.u.import_step(tb.u.tld.joinpath("lim_chamber",
-                                          "pcb_passthroughs.step"))
+base = tb.u.import_step(tb.u.wd.joinpath("base.step"))
 base_t = tb.u.find_length(base, "Z")
 base_w = tb.u.find_length(base, "Y")
 base_l = tb.u.find_length(base, "X")
+
+# get the crossbar PCB step
+pcb_project = "lim_crossbar"
+this_stepfile_name = pcb_project + ".step"
+this_stepfile = tb.u.tld.parent.joinpath('electronics', pcb_project,
+                                       '3dOut', this_stepfile_name)
+crossbar = tb.u.import_step(this_stepfile)
+adapter_spacing = 42.5  # from crossbar PCB design
+crossbar_pcb_top_height = 19.5  # from crossbar PCB design
 
 # get the adapter PCB step
 pcb_project = "ox_30_by_30"
@@ -67,33 +75,27 @@ this_stepfile = tb.u.tld.parent.joinpath('electronics', pcb_project,
                                          '3dOut', this_stepfile_name)
 adapter = tb.u.import_step(this_stepfile)
 adapter_width = tb.u.find_length(adapter)
-adapter_spacing = 42.5
+
+# position the crossbars
+crossbar = crossbar.translate((0, 0, -tb.c.pcb_thickness/2))
+crossbar = crossbar.rotate((0, 0, 0), (1, 0, 0), 90)
+crossbar = crossbar.translate((0, 0, base_t+crossbar_pcb_top_height))
+crossbar = crossbar.translate((base_l/2, 0, 0))
+crossbar = crossbar.translate((0, base_w/2-adapter_width/2, 0))
+tb.u.export_step(crossbar, tb.u.wd.joinpath(this_stepfile_name))
+assembly.extend(crossbar.vals())
+assembly.extend(crossbar.translate((0, adapter_width, 0)).vals())
+
+# position the adapters
+
+adapter_surface_height = crossbar_pcb_top_height + base_t
 adapter = adapter.rotate((0, 0, 0), (0, 0, 1), 90)
-# TODO: get rid of magic numbers here
-adapter = adapter.translate((41.5, 25, 29.64+tb.c.pcb_thickness))
+adapter = adapter.translate((base_l/2, base_w/2, adapter_surface_height))
 tb.u.export_step(adapter, tb.u.wd.joinpath(this_stepfile_name))
 
 assembly.extend(adapter.vals())
 assembly.extend(adapter.translate((adapter_spacing, 0, 0)).vals())
-assembly.extend(adapter.translate((adapter_spacing*2, 0, 0)).vals())
-
-# get the crossbar PCB step
-pcb_project = "lim_crossbar"
-this_stepfile_name = pcb_project + ".step"
-this_stepfile = tb.u.tld.parent.joinpath('electronics', pcb_project,
-                                       '3dOut', this_stepfile_name)
-crossbar = tb.u.import_step(this_stepfile)
-
-crossbar = crossbar.translate((0, 0, -tb.c.pcb_thickness/2))
-crossbar = crossbar.rotate((0, 0, 0), (1, 0, 0), 90)
-# TODO: remove magic number
-crossbar = crossbar.translate((0, 0, base_t+11.67))
-crossbar = crossbar.translate((base_l/2, 0, 0))
-crossbar = crossbar.translate((0, base_w/2-adapter_width/2, 0))
-tb.u.export_step(crossbar, tb.u.wd.joinpath(this_stepfile_name))
-
-assembly.extend(crossbar.vals())
-assembly.extend(crossbar.translate((0, adapter_width, 0)).vals())
+assembly.extend(adapter.translate((-adapter_spacing, 0, 0)).vals())
 
 # build an endblock
 block = tb.endblock.build(adapter_width=adapter_width)
@@ -127,7 +129,6 @@ assembly.extend(base.vals())
 
 # make a compound out of the assembly
 cpnd = cq.Compound.makeCompound(assembly)
-
 
 # export everything (this can take a while)
 tb.u.export_step(cpnd, tb.u.wd.joinpath('assembly.step'))
