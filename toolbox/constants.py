@@ -1,10 +1,11 @@
 # some reusable constants are defined here
 
 pcb_thickness = 1.6
-m2_threaded_dia = 1.6
-m4_threaded_dia = 3.3
-m4_clearance_dia = 4.5
-m5_clearance_dia = 5.5
+screw_threads = {
+    "m3": {"r": 3 / 2, "tap_r": 2.5 / 2, "clearance_r": 3.4 / 2},
+    "m4": {"r": 4 / 2, "tap_r": 3.3 / 2, "clearance_r": 4.5 / 2},
+    "m5": {"r": 5 / 2, "tap_r": 4.2 / 2, "clearance_r": 5.5 / 2},
+}
 
 # counter sunk hole parameters for use with
 # RS Stock No. 908-7532 machine screws
