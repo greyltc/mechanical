@@ -9,11 +9,11 @@ screw_threads = {
 
 # counter sunk hole parameters for use with
 # RS Stock No. 908-7532 machine screws
-csk_thru_dia = m5_clearance_dia
+csk_thru_dia = 2 * screw_threads["m5"]["clearance_r"]
 csk_angle = 82
 
 # counterbore hole parameters for use with
 # RS flangenut Stock No. 725-9650
-cbore_thru_dia = m5_clearance_dia
+cbore_thru_dia = 2 * screw_threads["m5"]["clearance_r"]
 cbore_dia = 12
 cbore_depth = 6
