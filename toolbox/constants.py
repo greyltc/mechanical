@@ -1,4 +1,5 @@
 # some reusable constants are defined here
+import math
 
 pcb_thickness = 1.6
 
@@ -14,9 +15,29 @@ std_screw_threads = {
 # https://www.engineersedge.com/hardware/_metric_socket_head_cap_screws_14054.htm
 # https://www.amesweb.info/Screws/CounterboreSizes_MetricSocketHeadCapScrews.aspx
 std_socket_screws = {
-    "m3": {"cap_r": 5.5 / 2, "cap_h": 3, "cbore_r": 6.5 / 2, "cbore_h": 3},
-    "m4": {"cap_r": 7 / 2, "cap_h": 4, "cbore_r": 8.25 / 2, "cbore_h": 4},
+    "m3": {"cap_r": 5.5 / 2, "cap_h": 3, "cbore_r": 6.50 / 2, "cbore_h": 3},
+    "m4": {"cap_r": 7.0 / 2, "cap_h": 4, "cbore_r": 8.25 / 2, "cbore_h": 4},
     "m5": {"cap_r": 8.5 / 2, "cap_h": 5, "cbore_r": 9.75 / 2, "cbore_h": 5},
+}
+
+# Standard hex nut parameters
+# https://www.engineersedge.com/hardware/standard_metric_hex_nuts_13728.htm
+std_hex_nuts = {
+    "m3": {
+        "hole_r": 3 / 2,
+        "h": 2.4,
+        "side_l": (5.5 / 2) / math.sin(60 * math.pi / 180),
+    },
+    "m4": {
+        "hole_r": 4 / 2,
+        "h": 3.2,
+        "side_l": (7.0 / 2) / math.sin(60 * math.pi / 180),
+    },
+    "m5": {
+        "hole_r": 5 / 2,
+        "h": 4.7,
+        "side_l": (8.0 / 2) / math.sin(60 * math.pi / 180),
+    },
 }
 
 # counter sunk hole parameters for use with
