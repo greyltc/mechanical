@@ -23,21 +23,9 @@ std_socket_screws = {
 # Standard hex nut parameters
 # https://www.engineersedge.com/hardware/standard_metric_hex_nuts_13728.htm
 std_hex_nuts = {
-    "m3": {
-        "hole_r": 3 / 2,
-        "h": 2.4,
-        "side_l": (5.5 / 2) / math.sin(60 * math.pi / 180),
-    },
-    "m4": {
-        "hole_r": 4 / 2,
-        "h": 3.2,
-        "side_l": (7.0 / 2) / math.sin(60 * math.pi / 180),
-    },
-    "m5": {
-        "hole_r": 5 / 2,
-        "h": 4.7,
-        "side_l": (8.0 / 2) / math.sin(60 * math.pi / 180),
-    },
+    "m3": {"hole_r": 3 / 2, "h": 2.4, "flat_w": 5.5, "corner_w": 6.35},
+    "m4": {"hole_r": 4 / 2, "h": 3.2, "flat_w": 7.0, "corner_w": 8.08},
+    "m5": {"hole_r": 5 / 2, "h": 4.7, "flat_w": 8.0, "corner_w": 9.24},
 }
 
 # counter sunk hole parameters for use with
