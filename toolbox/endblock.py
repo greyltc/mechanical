@@ -30,16 +30,16 @@ def build(adapter_width=30, block_length=12, block_height=19.5):
 
     block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').\
         center(pcb_mount_hole_x, pcb_mount_holea_z).\
-        hole(tb.c.m2_threaded_dia, depth=pcb_mount_hole_depth)
+        hole(tb.c.std_screw_threads["m2"]["tap_r"]*2, depth=pcb_mount_hole_depth)
     block = block.faces(">Y").workplane(centerOption='CenterOfBoundBox').\
         center(pcb_mount_hole_x, pcb_mount_holeb_z).\
-        hole(tb.c.m2_threaded_dia, depth=pcb_mount_hole_depth)
+        hole(tb.c.std_screw_threads["m2"]["tap_r"]*2, depth=pcb_mount_hole_depth)
     block = block.faces("<Y").workplane(centerOption='CenterOfBoundBox').\
         center(-pcb_mount_hole_x, pcb_mount_holea_z).\
-        hole(tb.c.m2_threaded_dia, depth=pcb_mount_hole_depth)
+        hole(tb.c.std_screw_threads["m2"]["tap_r"]*2, depth=pcb_mount_hole_depth)
     block = block.faces("<Y").workplane(centerOption='CenterOfBoundBox').\
         center(-pcb_mount_hole_x, pcb_mount_holeb_z).\
-        hole(tb.c.m2_threaded_dia, depth=pcb_mount_hole_depth)
+        hole(tb.c.std_screw_threads["m2"]["tap_r"]*2, depth=pcb_mount_hole_depth)
     # counter sunk hole for use with RS Stock No. 908-7532 machine screws
     block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').\
         cskHole(tb.c.csk_thru_dia, cskDiameter=length-1,

@@ -1,5 +1,5 @@
 
-//$fn = 60;
+$fn = 60;
 
 
 // kinda like the built-in square() function except it will produce rounded corners with radius r
@@ -51,7 +51,7 @@ module square_rounded(size, r=1, drill=false, center=true){
 // pcb_t = PCB tab thickness
 // pcb_clearance = clearance around PCB in its slot
 // length for allignment fillets
-module card_edge_passthrough(rows=8, con_clearance=0.10, t=12, r=1, gp_buffer=2, pcb_t=1.6, r_pcb=0.5, pcb_clearance=0.1, fillet_length=1.5){
+module card_edge_passthrough(rows=8, con_clearance=0.10, t=12, r=1.5, gp_buffer=2, pcb_t=1.6, r_pcb=0.5, pcb_clearance=0.1, fillet_length=1.5){
     connector_height=8.78+0.15; //mm SAMTEC MECF-XX-01-L-DV-NP-WT (worst case (largest) size)
     connector_width=5.6+0.13; //mm SAMTEC MECF-XX-01-L-DV-NP-WT (worst case (largest) size)
 
