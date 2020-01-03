@@ -35,6 +35,18 @@ std_washers = {
     "m5": {"r_i": 5.3 / 2, "r_o": 10 / 2, "h": 1.0},
 }
 
+# Standard countersink screw parameters (DIN 7991)
+# http://www.dinstock.com/useruploads/files/socket_countersunk_screws_din7991.pdf
+std_countersinks = {
+    "m5": {
+        "cap_r": 11.2 / 2,
+        "cap_h": 2.5,
+        "angle": 90,
+        "csk_r": 11.2 / 2,
+        "csk_h": 2.5,
+    }
+}
+
 # counter sunk hole parameters for use with
 # RS Stock No. 908-7532 machine screws
 csk_thru_dia = 2 * std_screw_threads["m5"]["clearance_r"]
