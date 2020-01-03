@@ -1,5 +1,4 @@
 # some reusable constants are defined here
-import math
 
 pcb_thickness = 1.6
 
@@ -11,7 +10,7 @@ std_screw_threads = {
     "m5": {"r": 5 / 2, "tap_r": 4.2 / 2, "clearance_r": 5.5 / 2},
 }
 
-# Standard socket screw parameters
+# Standard socket screw parameters (ANSI/ASME B18.3.1M, seems equiv. to DIN 912)
 # https://www.engineersedge.com/hardware/_metric_socket_head_cap_screws_14054.htm
 # https://www.amesweb.info/Screws/CounterboreSizes_MetricSocketHeadCapScrews.aspx
 std_socket_screws = {
@@ -20,12 +19,20 @@ std_socket_screws = {
     "m5": {"cap_r": 8.5 / 2, "cap_h": 5, "cbore_r": 9.75 / 2, "cbore_h": 5},
 }
 
-# Standard hex nut parameters
+# Standard hex nut parameters (ANSI/ASME B18.2.4.1M, seems equiv. to DIN 934)
 # https://www.engineersedge.com/hardware/standard_metric_hex_nuts_13728.htm
 std_hex_nuts = {
     "m3": {"hole_r": 3 / 2, "h": 2.4, "flat_w": 5.5, "corner_w": 6.35},
     "m4": {"hole_r": 4 / 2, "h": 3.2, "flat_w": 7.0, "corner_w": 8.08},
     "m5": {"hole_r": 5 / 2, "h": 4.7, "flat_w": 8.0, "corner_w": 9.24},
+}
+
+# Standard washer parameters (ISO 7089, seems equiv. to DIN 125)
+# https://www.engineersedge.com/iso_flat_washer.htm
+std_washers = {
+    "m3": {"r_i": 3.2 / 2, "r_o": 7 / 2, "h": 0.5},
+    "m4": {"r_i": 4.3 / 2, "r_o": 9 / 2, "h": 0.8},
+    "m5": {"r_i": 5.3 / 2, "r_o": 10 / 2, "h": 1.0},
 }
 
 # counter sunk hole parameters for use with
