@@ -45,19 +45,33 @@ tb.u.set_directories()
 # check to see if we can/should use the "show_object" function
 if "show_object" in locals():
     have_so = True
-    logger.info("Probbaly running in a gui")
+    logger.info("Probably running in a gui")
 else:
     have_so = False
-    logger.info("Probbaly running from a terminal")
+    logger.info("Probably running from a terminal")
 
 # a list for holding all the things
 assembly = []  # type: ignore[var-annotated] # noqa: F821
 
-# TODO: switch this part's design to CQ
-base = tb.u.import_step(tb.u.wd.joinpath("base.step"))
-base_t = tb.u.find_length(base, "Z")
-base_w = tb.u.find_length(base, "Y")
-base_l = tb.u.find_length(base, "X")
+
+# TODO: switch inside window to twosided undercut
+base_t = 12
+base_w = 50
+base_l = 168
+fillet_r = 3
+
+window_w = 30
+windo_l = 120
+
+base = cq.Workplane("XY").rect(base_l, base_w).extrude(base_t).rect(windo_l, window_w).cutThruAll().edges("|Z").fillet(fillet_r)
+base = base.translate((base_l/2,base_w/2,0))
+
+#taken from PCB design
+pcb_tab_spacing = 141.66;
+adapter_dim = 30;
+
+#base = tb.passthrough.make_cut(base.rect(pcb_tab_spacing,adapter_dim,forConstruction=True).vertices())
+base = base.rect(pcb_tab_spacing,adapter_dim,forConstruction=True).vertices().hole(5)
 
 # get the crossbar PCB step
 pcb_project = "lim_crossbar"

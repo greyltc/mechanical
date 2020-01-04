@@ -27,6 +27,11 @@ for element in sys.path:
         import toolbox as tb  # noqa: F811
     except ImportError:
         del(sys.path[0])
+    sys.path.insert(0, str(this_path.parent.joinpath('mechanical')))  # look for toolbox in a parent
+    try:
+        import toolbox as tb  # noqa: F811
+    except ImportError:
+        del(sys.path[0])
 
 if 'tb' not in locals():
     # we failed to import toolbox
@@ -57,10 +62,10 @@ tb.u.set_directories()
 # check to see if we can/should use the "show_object" function
 if "show_object" in locals():
     have_so = True
-    logger.info("Probbaly running in a gui")
+    logger.info("Probably running in a gui")
 else:
     have_so = False
-    logger.info("Probbaly running from a terminal")
+    logger.info("Probably running from a terminal")
 
 # a list for holding all the things
 assembly = []  # type: ignore[var-annotated] # noqa: F821

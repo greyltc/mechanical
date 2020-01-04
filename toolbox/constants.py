@@ -1,10 +1,12 @@
 # some reusable constants are defined here
+# units in mm
 
 pcb_thickness = 1.6
 
 # Standard screw thread paramaters
 # https://www.engineersedge.com/hardware/iso_metric_tap_14585.htm
 std_screw_threads = {
+    "m2": {"r": 2 / 2, "tap_r": 1.6 / 2, "clearance_r": 2.4 / 2},
     "m3": {"r": 3 / 2, "tap_r": 2.5 / 2, "clearance_r": 3.4 / 2},
     "m4": {"r": 4 / 2, "tap_r": 3.3 / 2, "clearance_r": 4.5 / 2},
     "m5": {"r": 5 / 2, "tap_r": 4.2 / 2, "clearance_r": 5.5 / 2},
