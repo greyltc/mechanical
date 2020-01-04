@@ -47,6 +47,13 @@ std_countersinks = {
     }
 }
 
+# Standard hex socket drivers with 1/4" square drive e.g. Bahco 6700SM-8
+# ISO 2725 / 1174
+# DIN 3124 / 3120
+# https://docs.rs-online.com/4841/0900766b8140d1e5.pdf
+# Dict keys are width across flats of hex nut, values are radius of socket
+std_sockets = {5.5: 8.7 / 2, 7.0: 10.8 / 2, 8.0: 11.9 / 2}
+
 # counter sunk hole parameters for use with
 # RS Stock No. 908-7532 machine screws
 csk_thru_dia = 2 * std_screw_threads["m5"]["clearance_r"]
