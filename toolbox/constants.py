@@ -29,6 +29,19 @@ std_hex_nuts = {
     "m5": {"hole_r": 5 / 2, "h": 4.7, "flat_w": 8.0, "corner_w": 9.24},
 }
 
+# Standard flanged hex nut parameters (ANSI B18.2.4.4M, seems equiv. to DIN 6923)
+# https://www.engineersedge.com/hardware/metric_hex_flange_nuts__13730.htm
+std_flanged_hex_nuts = {
+    "m5": {
+        "hole_r": 5 / 2,
+        "h": 5,
+        "flat_w": 8.0,
+        "corner_w": 9.24,
+        "washer_r": 11.8 / 2,
+        "washer_h": 1,
+    }
+}
+
 # Standard washer parameters (ISO 7089, seems equiv. to DIN 125)
 # https://www.engineersedge.com/iso_flat_washer.htm
 std_washers = {
