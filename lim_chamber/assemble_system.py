@@ -59,19 +59,24 @@ base_t = 12
 base_w = 50
 base_l = 168
 fillet_r = 3
+chamfer_l = 1
 
 window_w = 30
-windo_l = 120
+window_l = 120
 
-base = cq.Workplane("XY").rect(base_l, base_w).extrude(base_t).rect(windo_l, window_w).cutThruAll().edges("|Z").fillet(fillet_r)
-base = base.translate((base_l/2,base_w/2,0))
+base = cq.Workplane("XY").rect(base_l, base_w).extrude(base_t)
+base = base.rect(window_l, window_w).cutThruAll().edges("|Z").fillet(fillet_r)
+base = base.edges("#Z").chamfer(chamfer_l)
+base = base.translate((base_l/2, base_w/2, 0))
 
 #taken from PCB design
-pcb_tab_spacing = 141.66;
-adapter_dim = 30;
+pcb_tab_spacing = 141.66
+adapter_dim = 30
 
-#base = tb.passthrough.make_cut(base.rect(pcb_tab_spacing,adapter_dim,forConstruction=True).vertices())
-base = base.rect(pcb_tab_spacing,adapter_dim,forConstruction=True).vertices().hole(5)
+cq.Workplane.passthrough = tb.passthrough.make_cut
+bot_face = base.faces("<Z").workplane(centerOption='CenterOfBoundBox')
+bot_face = bot_face.rarray(pcb_tab_spacing, adapter_dim, 2, 2)
+base = bot_face.passthrough(rows=8, angle=90)
 
 # get the crossbar PCB step
 pcb_project = "lim_crossbar"
@@ -126,8 +131,8 @@ assembly.extend(block.mirror('ZY', (base_l/2, 0, 0)).vals())
 block_mount_hole_center_offset_from_edge = block_offset_from_edge_of_base + tb.endblock.length/2
 block_mount_hole_x = base_l/2-block_mount_hole_center_offset_from_edge
 # cbore holes for use with RS flangenut Stock No. 725-9650
-base = base.faces("<Z").workplane(centerOption='CenterOfBoundBox').center(block_mount_hole_x, 0).cboreHole(tb.c.cbore_thru_dia, cboreDiameter=tb.c.cbore_dia, cboreDepth=tb.c.cbore_depth, clean=True)
-base = base.faces("<Z").workplane(centerOption='CenterOfBoundBox').center(-block_mount_hole_x, 0).cboreHole(tb.c.cbore_thru_dia, cboreDiameter=tb.c.cbore_dia, cboreDepth=tb.c.cbore_depth, clean=True)
+base = base.faces("<Z").workplane(centerOption='CenterOfBoundBox').center(block_mount_hole_x, 0).cboreHole(2*tb.c.std_screw_threads["m5"]["close_r"], cboreDiameter=tb.c.cbore_dia, cboreDepth=tb.c.cbore_depth, clean=True)
+base = base.faces("<Z").workplane(centerOption='CenterOfBoundBox').center(-block_mount_hole_x, 0).cboreHole(2*tb.c.std_screw_threads["m5"]["close_r"], cboreDiameter=tb.c.cbore_dia, cboreDepth=tb.c.cbore_depth, clean=True)
 tb.u.export_step(base, tb.u.wd.joinpath("base_modified.step"))
 assembly.extend(base.vals())
 

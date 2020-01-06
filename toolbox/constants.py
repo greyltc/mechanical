@@ -6,10 +6,10 @@ pcb_thickness = 1.6
 # Standard screw thread paramaters
 # https://www.engineersedge.com/hardware/iso_metric_tap_14585.htm
 std_screw_threads = {
-    "m2": {"r": 2 / 2, "tap_r": 1.6 / 2, "clearance_r": 2.4 / 2},
-    "m3": {"r": 3 / 2, "tap_r": 2.5 / 2, "clearance_r": 3.4 / 2},
-    "m4": {"r": 4 / 2, "tap_r": 3.3 / 2, "clearance_r": 4.5 / 2},
-    "m5": {"r": 5 / 2, "tap_r": 4.2 / 2, "clearance_r": 5.5 / 2},
+    "m2": {"r": 2 / 2, "tap_r": 1.6 / 2, "clearance_r": 2.4 / 2, "close_r": 2.2 / 2},
+    "m3": {"r": 3 / 2, "tap_r": 2.5 / 2, "clearance_r": 3.4 / 2, "close_r": 3.2 / 2},
+    "m4": {"r": 4 / 2, "tap_r": 3.3 / 2, "clearance_r": 4.5 / 2, "close_r": 4.3 / 2},
+    "m5": {"r": 5 / 2, "tap_r": 4.2 / 2, "clearance_r": 5.5 / 2, "close_r": 5.3 / 2},
 }
 
 # Standard socket screw parameters (ANSI/ASME B18.3.1M, seems equiv. to DIN 912)
@@ -53,10 +53,10 @@ std_washers = {
 # Standard countersink screw parameters (DIN 7991)
 # http://www.dinstock.com/useruploads/files/socket_countersunk_screws_din7991.pdf
 std_countersinks = {
+    "angle": 90,
     "m5": {
         "cap_r": 11.2 / 2,
         "cap_h": 2.5,
-        "angle": 90,
         "csk_r": 11.2 / 2,
         "csk_h": 2.5,
     }
@@ -69,13 +69,11 @@ std_countersinks = {
 # Dict keys are width across flats of hex nut, values are radius of socket
 std_sockets = {5.5: 8.7 / 2, 7.0: 10.8 / 2, 8.0: 11.9 / 2}
 
-# counter sunk hole parameters for use with
-# RS Stock No. 908-7532 machine screws
-csk_thru_dia = 2 * std_screw_threads["m5"]["clearance_r"]
-csk_angle = 82
+
+# RS Stock No. 908-7532 machine screws are good m5 countersinks
 
 # counterbore hole parameters for use with
 # RS flangenut Stock No. 725-9650
-cbore_thru_dia = 2 * std_screw_threads["m5"]["clearance_r"]
+cbore_thru_dia = 2 * std_screw_threads["m5"]["close_r"]
 cbore_dia = 12
 cbore_depth = 6

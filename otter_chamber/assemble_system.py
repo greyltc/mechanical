@@ -59,6 +59,10 @@ def to_holder(this_thing, y_offset):
 # figure out working and top level dirs
 tb.u.set_directories()
 
+# import the chamber drawer
+sys.path.insert(0, str(tb.u.tld.parent.joinpath("environment_chamber")))
+import chamber
+
 # check to see if we can/should use the "show_object" function
 if "show_object" in locals():
     have_so = True
@@ -70,9 +74,19 @@ else:
 # a list for holding all the things
 assembly = []  # type: ignore[var-annotated] # noqa: F821
 
-# inspected step files by hand to find when our lid mates with
-# otter's holder's support surface
-chamber_y_offset = 32.624 - 28.85  # 32.624-28.85=3.774
+# the otter holder step file shows its "support surface" at y = this value
+# that's the reference we use to move our step files around to match it
+otter_support_surface = 32.624  # read from the otter holder step file
+
+# here is where our chamber's support surface is before translation to match otter
+chamber_support_surface = -chamber.base_o_h + chamber.base_h + chamber.meas_assembly_h
+
+# so then this is the translation we need to make for our chamber to match otter's step
+chamber_y_offset = otter_support_surface - chamber_support_surface
+
+# which puts the chamber floor at
+chamber_floor = chamber_y_offset - chamber.base_o_h + chamber.base_h
+# (and the bottom surface chamber.base_h (12.0 mm) below that)
 
 holder = tb.u.import_step(
     tb.u.tld.parent.joinpath("otter", "cad", "ref",
@@ -82,24 +96,9 @@ gap4 = 35  # substrate spacing along the 4 repeat direction
 gap5 = 29  # substrate spacing along the 5 repeat direction
 holder_along_z = tb.u.find_length(holder, "Z")
 
-ws = tb.u.import_step(
-    tb.u.tld.parent.joinpath("environment_chamber", "build", "support.step"))
-ws = to_holder(ws, chamber_y_offset)
-assembly.extend(ws.vals())
-
-lid = tb.u.import_step(
-    tb.u.tld.parent.joinpath("environment_chamber", "build", "lid.step"))
-lid = to_holder(lid, chamber_y_offset)
-assembly.extend(lid.vals())
-
-base = tb.u.import_step(
-    tb.u.tld.parent.joinpath("environment_chamber", "build", "base.step"))
-base = to_holder(base, chamber_y_offset)
-assembly.extend(base.vals())
-# measure the base
-base_t = tb.u.find_length(base, "Z")
-base_w = tb.u.find_length(base, "Y")
-base_l = tb.u.find_length(base, "X")
+chamber = chamber.build(include_hardware=True, save_step=False)
+chamber = to_holder(chamber, chamber_y_offset)
+assembly.extend(chamber.Solids())
 
 # get the crossbar PCB step
 pcb_project = "otter_crossbar"
@@ -119,7 +118,7 @@ adapter_width = tb.u.find_length(adapter)
 
 # build an endblock
 block = tb.endblock.build(adapter_width=adapter_width)
-block = to_holder(block, chamber_y_offset)
+block = to_holder(block, chamber_floor)
 block = block.translate((0, tb.endblock.height/2, 0))
 gas_plate_thickness = 2  # thickness of the plate we'll use to redirect the gas
 block_scrunch = 5.8  # move the blocks a further amount towards the center
@@ -131,13 +130,13 @@ blockB = blockA.mirror('XY', (0, 0, 0))
 suba = []  # type: ignore[var-annotated] # noqa: F821
 crossbarA = crossbar.translate((0, 0, -tb.c.pcb_thickness/2))
 crossbarA = crossbarA.rotate((0, 0, 0), (0, 1, 0), 90)
-crossbarA = crossbarA.translate((0, chamber_y_offset+crossbar_pcb_top_height, 0))
+crossbarA = crossbarA.translate((0, chamber_floor+crossbar_pcb_top_height, 0))
 crossbarA = crossbarA.translate((-adapter_width/2, 0, 0))
 crossbarB = crossbarA.translate((adapter_width, 0, 0))
 suba.extend(crossbarA.vals())
 suba.extend(crossbarB.vals())
 adapterA = adapter.rotate((0, 0, 0), (1, 0, 0), -90)
-adapterA = adapterA.translate((0, chamber_y_offset+crossbar_pcb_top_height, 0))
+adapterA = adapterA.translate((0, chamber_floor+crossbar_pcb_top_height, 0))
 adapterB = adapterA.translate((0, 0, gap5))
 adapterC = adapterB.translate((0, 0, gap5))
 adapterD = adapterA.translate((0, 0, -gap5))
@@ -162,7 +161,10 @@ assembly.extend([x.translate((-3*gap4/2, 0, 0)) for x in suba])
 cpnd = cq.Compound.makeCompound(assembly)
 
 # export everything (this can take a while)
-tb.u.export_step(cpnd, tb.u.wd.joinpath('assembly.step'))
+save_step = True
+if save_step:
+    logger.info("Saving the big step file (this could take a while)...")
+    tb.u.export_step(cpnd, tb.u.wd.joinpath('assembly.step'))
 
 if have_so:
     for thing in assembly:
