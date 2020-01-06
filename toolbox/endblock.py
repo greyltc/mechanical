@@ -56,8 +56,8 @@ def build(adapter_width=30, block_length=12, block_height=19.5):
                 cskAngle=tb.c.std_countersinks["angle"], clean=True)
 
     # 2x countersunk holes for screws up from the bottom
-    bot_face = block.faces("<Z").workplane(centerOption='CenterOfBoundBox')
-    bot_face = bot_face.pushPoints([(0, top_hole_spacing/2), (0, -top_hole_spacing/2)])
-    block = bot_face. cskHole(2 * tb.c.std_screw_threads["m3"]["close_r"], cskDiameter=length-5, cskAngle=tb.c.std_countersinks["angle"], clean=True)
+    #bot_face = block.faces("<Z").workplane(centerOption='CenterOfBoundBox')
+    #bot_face = bot_face.pushPoints([(0, top_hole_spacing/2), (0, -top_hole_spacing/2)])
+    #block = bot_face. cskHole(2 * tb.c.std_screw_threads["m3"]["close_r"], cskDiameter=length-5, cskAngle=tb.c.std_countersinks["angle"], clean=True)
 
     return block
