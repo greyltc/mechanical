@@ -69,6 +69,29 @@ std_countersinks = {
 # Dict keys are width across flats of hex nut, values are radius of socket
 std_sockets = {5.5: 8.7 / 2, 7.0: 10.8 / 2, 8.0: 11.9 / 2}
 
+# Parameters for designing grooves for static o-ring face seals.
+# Derived from https:#www.parker.com/Literature/O-Ring Division Literature/ORD 5700.pdf
+# "squeeze_fraction" = maximum fractional squeeze of the o-ring cross-section when sealed
+# "min_squeeze" = minimum recommended squeeze of the o-ring cross-section in mm when sealed
+# "groove_h_fraction" = fractional of o-ring cross-section to use for height of groove
+# "groove_w_fraction" = fractional of o-ring cross-section to use for width of groove
+# "surface_finish" = recommended minimum surface roughness for o-ring groove in mm
+# "corner_r_fraction" = minimum recommended fraction of o-ring cross-section to use for inner groove radius i.e. bending radius, p4-3
+oring_grooves = {
+    "squeeze_fraction": 0.3,
+    "min_squeeze": 0.2,
+    "groove_h_fraction": 0.7,
+    "groove_w_fraction": 1.25,
+    "surface_finish": (16 / 1000000) * 2.54,
+    "corner_r_fraction": 3,
+}
+
+# Standard o-rings parameters (ISO 3601, similar/equiv to BS1806)
+# https://www.applerubber.com/src/pdf/iso-3601-metric-size-o-rings.pdf
+std_orings = {
+    177: {"id": 240.97, "cs": 2.62, "id_tol": 1.4, "cs_tol": 0.08},
+    178: {"id": 247.32, "cs": 2.62, "id_tol": 1.4, "cs_tol": 0.08},
+}
 
 # RS Stock No. 908-7532 machine screws are good m5 countersinks
 
