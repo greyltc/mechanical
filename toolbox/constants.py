@@ -53,12 +53,12 @@ std_washers = {
 # Standard countersink screw parameters (DIN 7991)
 # http://www.dinstock.com/useruploads/files/socket_countersunk_screws_din7991.pdf
 std_countersinks = {
-    "angle": 90,
     "m5": {
         "cap_r": 11.2 / 2,
         "cap_h": 2.5,
         "csk_r": 11.2 / 2,
         "csk_h": 2.5,
+        "angle": 90,
     }
 }
 
