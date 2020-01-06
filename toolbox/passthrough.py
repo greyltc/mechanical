@@ -6,8 +6,11 @@ cuts a pcb card edge passthrough through something
 along the Z direction
 """
 
+# length of the connector passthrough geometry on the bottom surface
+surface_length: float = None  # type: ignore[assignment]
 
 def make_cut(self, rows=8, angle=0, clean=True):
+    global surface_length
     connector_height = 8.78 + 0.15  # mm SAMTEC MECF-XX-01-L-DV-NP-WT (worst case (largest) size)
     connector_width = 5.6 + 0.13  # mm SAMTEC MECF-XX-01-L-DV-NP-WT (worst case (largest) size)
 
@@ -27,6 +30,8 @@ def make_cut(self, rows=8, angle=0, clean=True):
         pcb_len = 27.15
     else:
         raise(ValueError("Only 8 or 20 row connectors are supported"))
+
+    surface_length = con_len + 2*chamfer_length
 
     test_hole_length = self.largestDimension()
 

@@ -1,10 +1,10 @@
 wp = cq.Workplane("XY")
 
-bw = 22.8
+bw = 23.8
 bh = 15
 bd = 5.5
 
-mount_space = 15
+mount_space = 16
 
 below_zero = 15
 
@@ -25,6 +25,9 @@ al=al.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(-bw/2,bh/2-n
 # make the bottom step
 
 al=al.faces("<Z").workplane(centerOption='CenterOfBoundBox').center(-bw/2,4).rect(bw,-30,centered=False).cutBlind(-below_zero)
+
+# TODO: chamfer the holes on all sides
+
 
 # make the mounts
 side_face = al.faces("<Y").workplane(centerOption='CenterOfBoundBox')

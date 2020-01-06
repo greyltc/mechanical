@@ -106,7 +106,6 @@ assembly.extend(crossbar.vals())
 assembly.extend(crossbar.translate((0, adapter_width, 0)).vals())
 
 # position the adapters
-
 adapter_surface_height = crossbar_pcb_top_height + base_t
 adapter = adapter.rotate((0, 0, 0), (0, 0, 1), 90)
 adapter = adapter.translate((base_l/2, base_w/2, adapter_surface_height))
@@ -117,7 +116,7 @@ assembly.extend(adapter.translate((adapter_spacing, 0, 0)).vals())
 assembly.extend(adapter.translate((-adapter_spacing, 0, 0)).vals())
 
 # build an endblock
-block = tb.endblock.build(adapter_width=adapter_width)
+block = tb.endblock.build(adapter_width=adapter_width, vertm3s=True)
 
 # position the block
 block_offset_from_edge_of_base = 1
