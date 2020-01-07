@@ -1,6 +1,15 @@
 # some reusable constants are defined here
 # units in mm
 
+# Unless otherwise stated, variable names/keys incorporate the following conventions:
+# _l = length, distance along x-axis
+# _w = width, distance along y-axis (except for o-ring grooves and nuts)
+# _h = height, distance along z-axis
+# _t = thickness, could be any axis
+# _r = radius
+# _tol = tolerance, could be any axis
+
+
 pcb_thickness = 1.6
 
 # Standard screw thread paramaters
@@ -50,16 +59,10 @@ std_washers = {
     "m5": {"r_i": 5.3 / 2, "r_o": 10 / 2, "h": 1.0},
 }
 
-# Standard countersink screw parameters (DIN 7991)
-# http://www.dinstock.com/useruploads/files/socket_countersunk_screws_din7991.pdf
+# Standard countersink screw with cross-head (including pozidrive) parameters (DIN 965)
+# http://www.fasteners.eu/standards/DIN/965/
 std_countersinks = {
-    "m5": {
-        "cap_r": 11.2 / 2,
-        "cap_h": 2.5,
-        "csk_r": 11.2 / 2,
-        "csk_h": 2.5,
-        "angle": 90,
-    }
+    "m5": {"cap_r": 9.2 / 2, "cap_h": 2.5, "csk_r": 9.2 / 2, "csk_h": 2.5, "angle": 90}
 }
 
 # Standard hex socket drivers with 1/4" square drive e.g. Bahco 6700SM-8
@@ -89,7 +92,7 @@ oring_grooves = {
 }
 
 # Standard o-rings parameters in mm (ISO 3601, similar/equiv to BS1806)
-# id and cs from https://www.applerubber.com/src/pdf/iso-3601-metric-size-o-rings.pdf
+# id (inner diameter) and cs (cross-section) from https://www.applerubber.com/src/pdf/iso-3601-metric-size-o-rings.pdf
 # grooves from https:#www.parker.com/Literature/O-Ring Division Literature/ORD 5700.pdf
 std_orings = {
     167: {

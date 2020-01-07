@@ -22,7 +22,9 @@ back_aux_hole_from_top = 10
 blind_hole_depth = 7.5
 pcb_mount_hole_x_center_from_edge = 3
 
-cska = tb.c.std_countersinks["m5"]["angle"]
+base_mount_screw_size = "m5"
+
+cska = tb.c.std_countersinks[base_mount_screw_size]["angle"]
 
 
 def build(
@@ -129,7 +131,7 @@ def build(
         )
 
     # base mount hole for use with RS Stock No. 908-7532 machine screws
-    csktd = 2 * tb.c.std_screw_threads["m5"]["close_r"]
+    csktd = 2 * tb.c.std_screw_threads[base_mount_screw_size]["close_r"]
     block = (
         block.faces(">Z")
         .workplane(centerOption="CenterOfBoundBox")
