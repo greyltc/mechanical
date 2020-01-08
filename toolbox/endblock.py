@@ -16,8 +16,11 @@ pcb_mount_hole_spacing = 13
 chamfer_l = 0.5
 
 aux_hole_spacing = 16
+alignment_updent_diameter = 4-0.05
+alignment_updent_height = 1
+alignment_updent_chamfer = 0.25
 
-back_aux_hole_from_top = 10
+back_aux_hole_from_top = 7.5
 
 blind_hole_depth = 7.5
 pcb_mount_hole_x_center_from_edge = 3
@@ -25,10 +28,11 @@ pcb_mount_hole_x_center_from_edge = 3
 cska = tb.c.std_countersinks["angle"]
 
 
-def build(adapter_width=30, block_length=12, block_height=19.5, vertm3s=False, horzm3s=False):
+def build(adapter_width=30, block_length=12, block_height=19.5, vertm3s=False, horzm3s=False, align_bumps=False):
     """
     Builds up an endblock. dualm3s True means there will be two m3 holes through vertically
     spaced by top_hole_spacing
+    horzm3s means there will twom3 mounts on the back and some dents in the top
     """
     global width, length, height
 
@@ -76,14 +80,6 @@ def build(adapter_width=30, block_length=12, block_height=19.5, vertm3s=False, h
         top_face = top_face.pushPoints(dm3pts)
         block = top_face.cskHole(csktd, cskDiameter=csktd+2*chamfer_l, cskAngle=cska)
 
-    # 2x threaded countersunk holes on the back side
-    if horzm3s is True:
-        cskbd = 2 * tb.c.std_screw_threads["m3"]["tap_r"]
-        dm3pts = [(-aux_hole_spacing/2, back_aux_hole_z), (aux_hole_spacing/2, back_aux_hole_z)]
-        back_face = block.faces("<X").workplane(centerOption='CenterOfBoundBox')
-        back_face = back_face.pushPoints(dm3pts)
-        block = back_face.cskHole(cskbd, cskDiameter=cskbd+2*chamfer_l, cskAngle=cska, depth=blind_hole_depth)
-
     # base mount hole for use with RS Stock No. 908-7532 machine screws
     csktd = 2 * tb.c.std_screw_threads["m5"]["close_r"]
     block = block.faces(">Z").workplane(centerOption='CenterOfBoundBox').\
@@ -93,6 +89,21 @@ def build(adapter_width=30, block_length=12, block_height=19.5, vertm3s=False, h
     block = block.faces("<Z").workplane(centerOption='CenterOfBoundBox').\
         cskHole(csktd, cskDiameter=csktd+2*chamfer_l,
                 cskAngle=cska)
+
+    # 2x threaded countersunk holes on the back side and alignment updents in the top
+    if horzm3s is True:
+        cskbd = 2 * tb.c.std_screw_threads["m3"]["tap_r"]
+        dm3pts = [(-aux_hole_spacing/2, back_aux_hole_z), (aux_hole_spacing/2, back_aux_hole_z)]
+        back_face = block.faces("<X").workplane(centerOption='CenterOfBoundBox')
+        back_face = back_face.pushPoints(dm3pts)
+        block = back_face.cskHole(cskbd, cskDiameter=cskbd+2*chamfer_l, cskAngle=cska, depth=blind_hole_depth)
+
+    # make the alignment updents in the top
+    if align_bumps is True:
+        top_face = block.faces(">Z").workplane(centerOption='CenterOfBoundBox')
+        dm3pts = [(0, aux_hole_spacing/2), (0, -aux_hole_spacing/2)]
+        block = top_face.pushPoints(dm3pts).circle(alignment_updent_diameter/2).extrude(alignment_updent_height)
+        block = block.faces(">Z").edges().chamfer(alignment_updent_chamfer)
 
     block = block.edges("%Line").chamfer(chamfer_l)
 

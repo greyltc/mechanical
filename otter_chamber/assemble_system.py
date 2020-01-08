@@ -11,6 +11,7 @@ import sys
 import logging
 import pathlib
 import cadquery as cq  # type: ignore[import]
+import aligner
 
 # attempt to import the toolbox module
 try:
@@ -96,6 +97,7 @@ gap4 = 35  # substrate spacing along the 4 repeat direction
 gap5 = 29  # substrate spacing along the 5 repeat direction
 holder_along_z = tb.u.find_length(holder, "Z")
 
+# build the chamber
 chamber = chamber.build(include_hardware=True, save_step=False)
 chamber = to_holder(chamber, chamber_y_offset)
 assembly.extend(chamber.Solids())
@@ -116,15 +118,31 @@ this_stepfile = tb.u.tld.parent.joinpath('electronics', pcb_project,
 adapter = tb.u.import_step(this_stepfile)
 adapter_width = tb.u.find_length(adapter)
 
+# build an alignment endblock
+ablock = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True)
+ablock = to_holder(ablock, chamber_floor)
+ablock = ablock.translate((0, tb.endblock.height/2, 0))
+
+# build the aligner
+al = aligner.build()
+al = to_holder(al, chamber_floor)
+al = al.translate((0, tb.endblock.height, 0))
+al = al.rotate((0, 0, 0), (0, 1, 0), -90)
+ablock.add(al)  # put them on the same workplane
+
 # build an endblock
-block = tb.endblock.build(adapter_width=adapter_width)
+block = tb.endblock.build(adapter_width=adapter_width, horzm3s=True)
 block = to_holder(block, chamber_floor)
 block = block.translate((0, tb.endblock.height/2, 0))
+
 gas_plate_thickness = 2  # thickness of the plate we'll use to redirect the gas
 block_scrunch = 5.8  # move the blocks a further amount towards the center
 blockA = block.translate(
     (0, 0, holder_along_z/2-gas_plate_thickness-block_scrunch-tb.endblock.length/2))
 blockB = blockA.mirror('XY', (0, 0, 0))
+ablockA = ablock.translate(
+    (0, 0, holder_along_z/2-gas_plate_thickness-block_scrunch-tb.endblock.length/2))
+ablockB = ablockA.rotate((0, 0, 0), (0, 1, 0), 180)
 
 # make a 2x crossbar + 5x adapter + 2x endblock subassembly (one row)
 suba = []  # type: ignore[var-annotated] # noqa: F821
@@ -146,27 +164,33 @@ suba.extend(adapterB.vals())
 suba.extend(adapterC.vals())
 suba.extend(adapterD.vals())
 suba.extend(adapterE.vals())
+subab = suba.copy()  # these two are for the rows with aligners
+subac = suba.copy()
 suba.extend(blockA.vals())
 suba.extend(blockB.vals())
+subab.extend(ablockA.vals())
+subab.extend(blockB.vals())
+subac.extend(blockA.vals())
+subac.extend(ablockB.vals())
 
 # assembly.extend(suba)
 
 # now duplicate the subassembly to its correct final locations (the 4 rows)
-assembly.extend([x.translate(( 3*gap4/2, 0, 0)) for x in suba])  # noqa: E201
+assembly.extend([x.translate(( 3*gap4/2, 0, 0)) for x in subac])  # noqa: E201
 assembly.extend([x.translate((   gap4/2, 0, 0)) for x in suba])  # noqa: E201
 assembly.extend([x.translate((  -gap4/2, 0, 0)) for x in suba])  # noqa
-assembly.extend([x.translate((-3*gap4/2, 0, 0)) for x in suba])
+assembly.extend([x.translate((-3*gap4/2, 0, 0)) for x in subab])
 
 # make a compound out of the assembly
 cpnd = cq.Compound.makeCompound(assembly)
 
 # export everything (this can take a while)
 save_step = True
-if save_step:
+if save_step is True:
     logger.info("Saving the big step file (this could take a while)...")
     tb.u.export_step(cpnd, tb.u.wd.joinpath('assembly.step'))
 
-if have_so:
+if have_so is True:
     for thing in assembly:
         show_object(thing)  # type: ignore[name-defined] # noqa: F821
 logger.info("Done!")

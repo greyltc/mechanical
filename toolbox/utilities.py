@@ -17,7 +17,7 @@ wd: pathlib.Path = None  # type: ignore[assignment] # noqa: F821
 tld: pathlib.Path = None  # type: ignore[assignment] # noqa: F821
 
 
-def undercutRelief2D(self, length, width, diameter, angle=0, sides=2, corner_tol=0):
+def undercutRelief2D(self, length, width, diameter, angle=0, kind='C', corner_tol=0):
     """
     Creates a relief undercut shape for each point on the stack.
 
@@ -25,7 +25,8 @@ def undercutRelief2D(self, length, width, diameter, angle=0, sides=2, corner_tol
     :param length: desired end to end length of slot
     :param width: desired width of the slot
     :param angle: angle of slot in degrees, with 0 being along x-axis
-    :param sides: can be 1 or 2, giving a 1 or two sided relief shape
+    :param kind: must be "A", "B" or "C". C gives a two-sided relief
+    A and B give a one sided relief in the length or width direction
     :param corner_tol: how much extra space to give at the corners
     :return: a new CQ object with the created wires on the stack
 
@@ -45,24 +46,37 @@ def undercutRelief2D(self, length, width, diameter, angle=0, sides=2, corner_tol
                         "because the relief arcs collide with eachother")
 
         r = diameter/2
+        sqrt2 = (2**(1/2))
 
-        if sides == 1:
-            if width <= diameter:
+        if kind == "A":
+            along_edge = diameter
+            if width <= along_edge:
                 raise(ValueError(error_string))
-            corner_shift = cq.Vector((0, r, 0))  # TODO: handle corner_tol properly for sides=1
-        elif sides == 2:
-            along_edge = (r-corner_tol)/(2**(1/2))
-            if width <= along_edge*2 or length <= along_edge*2:
+            corner_shift = cq.Vector((-corner_tol, r, 0))
+            if corner_tol > 0:
+                b1 = cq.Solid.makeBox(corner_tol, diameter, 1, pnt=(corner_shift+cq.Vector((0, -r ,0))))
+        elif kind == "B":
+            along_edge = diameter
+            if length <= along_edge:
                 raise(ValueError(error_string))
-            corner_shift = cq.Vector((r-along_edge/2, r-along_edge/2, 0))
-            # TODO: something about the corner shift with tolerance isn't quite right
+            corner_shift = cq.Vector((r, -corner_tol, 0))
+            if corner_tol > 0:
+                b1 = cq.Solid.makeBox(diameter, corner_tol, 1, pnt=(corner_shift+cq.Vector((-r, 0, 0))))
+        elif kind == "C":
+            along_edge = diameter/sqrt2
+            if width <= along_edge or length <= along_edge:
+                raise(ValueError(error_string))
+            corner_shift = cq.Vector((along_edge/2-corner_tol/sqrt2, along_edge/2-corner_tol/sqrt2, 0))
         else:
-            raise(ValueError("sides must be either 1 or 2"))
+            raise(ValueError('kind must be either "A" "B" or "C"'))
 
         m1_point = cq.Vector((0, width/2, 0))
         m2_point = cq.Vector((length/2, 0, 0))
 
-        c1 = cq.Solid.makeCylinder(r, 1, pnt=cq.Vector(corner_shift))
+        c1 = cq.Solid.makeCylinder(r, 1, pnt=corner_shift)
+        # handle extra length needed for tolerance
+        if (corner_tol > 0) and ((kind == "A") or (kind == "B")):
+            c1 = c1.fuse(b1).clean()
         c2 = c1.mirror("ZX", m1_point)
         c3 = c2.mirror("YZ", m2_point)
         c4 = c1.mirror("YZ", m2_point)
@@ -81,6 +95,11 @@ def undercutRelief2D(self, length, width, diameter, angle=0, sides=2, corner_tol
         return slot
 
     return self.eachpoint(_makeundercut, True)
+
+
+def multiMirror(self, mirrorPlane="XY", basePointVector=(0, 0, 0)):
+    """Just like mirror only works on multiple objects"""
+    return self.newObject([o.mirror(mirrorPlane, basePointVector) for o in self.objects])
 
 
 def set_directories(wd_filename="assemble_system.py"):

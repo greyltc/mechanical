@@ -9,7 +9,7 @@ along the Z direction
 # length of the connector passthrough geometry on the bottom surface
 surface_length: float = None  # type: ignore[assignment]
 
-def make_cut(self, rows=8, angle=0, clean=True):
+def make_cut(self, rows=8, angle=0, clean=True, kind="C"):
     global surface_length
     connector_height = 8.78 + 0.15  # mm SAMTEC MECF-XX-01-L-DV-NP-WT (worst case (largest) size)
     connector_width = 5.6 + 0.13  # mm SAMTEC MECF-XX-01-L-DV-NP-WT (worst case (largest) size)
@@ -69,17 +69,17 @@ def make_cut(self, rows=8, angle=0, clean=True):
 
         # now make the undercut pocket
         cq.Workplane.undercutRelief2D = tb.u.undercutRelief2D
-        result = result.faces("<Z").undercutRelief2D(pocket_w, pocket_l, r*2, corner_tol=0.02).cutBlind(pocket_d)
+        result = result.faces("<Z").undercutRelief2D(pocket_l, pocket_w, diameter=r*2, angle=90, kind=kind).cutBlind(pocket_d)
 
         # cut out the glue pocket
         slot_width = tb.c.pcb_thickness+2*gp_buffer
         slot_len = pcb_len+slot_width
-        result = result.faces(">Z").slot2D(slot_len, slot_width, 90).cutBlind(-gp_depth)
+        result = result.faces(">Z").slot2D(slot_len, slot_width, angle=90).cutBlind(-gp_depth)
 
         # cut out the pcb passthrough slot
         slot_width = tb.c.pcb_thickness+2*pcb_clearance
         slot_len = pcb_len+slot_width
-        result = result.faces(">Z").slot2D(slot_len, slot_width, 90).cutThruAll()
+        result = result.faces(">Z").slot2D(slot_len, slot_width, angle=90).cutThruAll()
 
         # invert the geometry and rotate the negative
         negative = start_box.cut(result)

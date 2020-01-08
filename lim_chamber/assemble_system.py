@@ -64,9 +64,10 @@ chamfer_l = 1
 window_w = 30
 window_l = 120
 
-base = cq.Workplane("XY").rect(base_l, base_w).extrude(base_t)
-base = base.rect(window_l, window_w).cutThruAll().edges("|Z").fillet(fillet_r)
-base = base.edges("#Z").chamfer(chamfer_l)
+cq.Workplane.undercutRelief2D = tb.u.undercutRelief2D
+base = cq.Workplane("XY").rect(base_l, base_w).extrude(base_t).edges("|Z").fillet(fillet_r)
+base = base.undercutRelief2D(window_l, window_w, diameter=6.35, kind="B").cutThruAll()
+base = base.faces("<Z or >Z").edges().chamfer(chamfer_l)
 base = base.translate((base_l/2, base_w/2, 0))
 
 #taken from PCB design
@@ -76,7 +77,7 @@ adapter_dim = 30
 cq.Workplane.passthrough = tb.passthrough.make_cut
 bot_face = base.faces("<Z").workplane(centerOption='CenterOfBoundBox')
 bot_face = bot_face.rarray(pcb_tab_spacing, adapter_dim, 2, 2)
-base = bot_face.passthrough(rows=8, angle=90)
+base = bot_face.passthrough(rows=8, angle=90, kind="B")
 
 # get the crossbar PCB step
 pcb_project = "lim_crossbar"
@@ -116,7 +117,7 @@ assembly.extend(adapter.translate((adapter_spacing, 0, 0)).vals())
 assembly.extend(adapter.translate((-adapter_spacing, 0, 0)).vals())
 
 # build an endblock
-block = tb.endblock.build(adapter_width=adapter_width, vertm3s=True)
+block = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True)
 
 # position the block
 block_offset_from_edge_of_base = 1
