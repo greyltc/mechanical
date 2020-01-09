@@ -20,29 +20,33 @@ except ImportError:
     pass
 
 for element in sys.path:
-    if 'tb' in locals():
+    if "tb" in locals():
         break
     this_path = pathlib.Path(str(element)).resolve()
     sys.path.insert(0, str(this_path.parent))  # look for toolbox in a parent
     try:
         import toolbox as tb  # noqa: F811
     except ImportError:
-        del(sys.path[0])
-    sys.path.insert(0, str(this_path.parent.joinpath('mechanical')))  # look for toolbox in a parent
+        del sys.path[0]
+    sys.path.insert(
+        0, str(this_path.parent.joinpath("mechanical"))
+    )  # look for toolbox in a parent
     try:
         import toolbox as tb  # noqa: F811
     except ImportError:
-        del(sys.path[0])
+        del sys.path[0]
 
-if 'tb' not in locals():
+if "tb" not in locals():
     # we failed to import toolbox
-    error_string = ('Failed to import the toolbox module. '
-                    "That means the toolbox module's folder is not "
-                    "on your PYTHONPATH (or one of its parent dirs). "
-                    f'Your PYTHONPATH is {sys.path}')
-    raise(ValueError(error_string))
+    error_string = (
+        "Failed to import the toolbox module. "
+        "That means the toolbox module's folder is not "
+        "on your PYTHONPATH (or one of its parent dirs). "
+        f"Your PYTHONPATH is {sys.path}"
+    )
+    raise (ValueError(error_string))
 else:
-    logger = logging.getLogger('cadbuilder')
+    logger = logging.getLogger("cadbuilder")
     logger.info(f'toolbox module imported from "{tb.__file__}"')
 
 
@@ -51,8 +55,9 @@ def to_holder(this_thing, y_offset):
     this puts environmental chamber design output into the
     otter holder's step file coordinate system
     """
-    ret_obj = this_thing.rotate((0, 0, 0), (1, 0, 0), -90)\
-        .rotate((0, 0, 0), (0, 1, 0), 90)
+    ret_obj = this_thing.rotate((0, 0, 0), (1, 0, 0), -90).rotate(
+        (0, 0, 0), (0, 1, 0), 90
+    )
     ret_obj = ret_obj.translate((0, y_offset, 0))
     return ret_obj
 
@@ -89,39 +94,36 @@ chamber_y_offset = otter_support_surface - chamber_support_surface
 chamber_floor = chamber_y_offset - chamber.base_o_h + chamber.base_h
 # (and the bottom surface chamber.base_h (12.0 mm) below that)
 
-holder = tb.u.import_step(
-    tb.u.tld.parent.joinpath("otter", "cad", "ref",
-                             "otter_substrate_holder.step"))
+# import holder
+holder = chamber.holder
 assembly.extend(holder.vals())
-gap4 = 35  # substrate spacing along the 4 repeat direction
-gap5 = 29  # substrate spacing along the 5 repeat direction
-holder_along_z = tb.u.find_length(holder, "Z")
+gap4 = chamber.substrate_pitch_y
+gap5 = chamber.substrate_pitch_x
+holder_along_z = chamber.holder_along_z
 
 # build the chamber
-chamber = chamber.build(include_hardware=True, save_step=False)
-chamber = to_holder(chamber, chamber_y_offset)
-assembly.extend(chamber.Solids())
+# TODO: get chamber.build to run tests from correct location
+chamber_build = chamber.build(include_hardware=True, save_step=False, run_tests=False)
+chamber_build = to_holder(chamber_build, chamber_y_offset)
+assembly.extend(chamber_build.Solids())
 
 # get the crossbar PCB step
 pcb_project = "otter_crossbar"
 this_stepfile_name = pcb_project + ".step"
-this_stepfile = tb.u.tld.parent.joinpath('electronics', pcb_project,
-                                         '3dOut', this_stepfile_name)
+this_stepfile = tb.u.tld.parent.joinpath(
+    "electronics", pcb_project, "3dOut", this_stepfile_name
+)
 crossbar = tb.u.import_step(this_stepfile)
 crossbar_pcb_top_height = 19.5  # from crossbar PCB design
 
 # get the adapter PCB step
-pcb_project = "otter_substrate_adapter"
-this_stepfile_name = pcb_project + ".step"
-this_stepfile = tb.u.tld.parent.joinpath('electronics', pcb_project,
-                                         '3dOut', this_stepfile_name)
-adapter = tb.u.import_step(this_stepfile)
-adapter_width = tb.u.find_length(adapter)
+adapter = chamber.adapter
+adapter_width = chamber.adapter_width
 
 # build an alignment endblock
 ablock = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True)
 ablock = to_holder(ablock, chamber_floor)
-ablock = ablock.translate((0, tb.endblock.height/2, 0))
+ablock = ablock.translate((0, tb.endblock.height / 2, 0))
 
 # build the aligner
 al = aligner.build()
@@ -133,28 +135,44 @@ ablock.add(al)  # put them on the same workplane
 # build an endblock
 block = tb.endblock.build(adapter_width=adapter_width, horzm3s=True)
 block = to_holder(block, chamber_floor)
-block = block.translate((0, tb.endblock.height/2, 0))
+block = block.translate((0, tb.endblock.height / 2, 0))
 
 gas_plate_thickness = 2  # thickness of the plate we'll use to redirect the gas
 block_scrunch = 5.8  # move the blocks a further amount towards the center
 blockA = block.translate(
-    (0, 0, holder_along_z/2-gas_plate_thickness-block_scrunch-tb.endblock.length/2))
-blockB = blockA.mirror('XY', (0, 0, 0))
+    (
+        0,
+        0,
+        holder_along_z / 2
+        - gas_plate_thickness
+        - block_scrunch
+        - tb.endblock.length / 2,
+    )
+)
+blockB = blockA.mirror("XY", (0, 0, 0))
 ablockA = ablock.translate(
-    (0, 0, holder_along_z/2-gas_plate_thickness-block_scrunch-tb.endblock.length/2))
+    (
+        0,
+        0,
+        holder_along_z / 2
+        - gas_plate_thickness
+        - block_scrunch
+        - tb.endblock.length / 2,
+    )
+)
 ablockB = ablockA.rotate((0, 0, 0), (0, 1, 0), 180)
 
 # make a 2x crossbar + 5x adapter + 2x endblock subassembly (one row)
 suba = []  # type: ignore[var-annotated] # noqa: F821
-crossbarA = crossbar.translate((0, 0, -tb.c.pcb_thickness/2))
+crossbarA = crossbar.translate((0, 0, -tb.c.pcb_thickness / 2))
 crossbarA = crossbarA.rotate((0, 0, 0), (0, 1, 0), 90)
-crossbarA = crossbarA.translate((0, chamber_floor+crossbar_pcb_top_height, 0))
-crossbarA = crossbarA.translate((-adapter_width/2, 0, 0))
+crossbarA = crossbarA.translate((0, chamber_floor + crossbar_pcb_top_height, 0))
+crossbarA = crossbarA.translate((-adapter_width / 2, 0, 0))
 crossbarB = crossbarA.translate((adapter_width, 0, 0))
 suba.extend(crossbarA.vals())
 suba.extend(crossbarB.vals())
 adapterA = adapter.rotate((0, 0, 0), (1, 0, 0), -90)
-adapterA = adapterA.translate((0, chamber_floor+crossbar_pcb_top_height, 0))
+adapterA = adapterA.translate((0, chamber_floor + crossbar_pcb_top_height, 0))
 adapterB = adapterA.translate((0, 0, gap5))
 adapterC = adapterB.translate((0, 0, gap5))
 adapterD = adapterA.translate((0, 0, -gap5))
@@ -176,10 +194,10 @@ subac.extend(ablockB.vals())
 # assembly.extend(suba)
 
 # now duplicate the subassembly to its correct final locations (the 4 rows)
-assembly.extend([x.translate(( 3*gap4/2, 0, 0)) for x in subac])  # noqa: E201
-assembly.extend([x.translate((   gap4/2, 0, 0)) for x in suba])  # noqa: E201
-assembly.extend([x.translate((  -gap4/2, 0, 0)) for x in suba])  # noqa
-assembly.extend([x.translate((-3*gap4/2, 0, 0)) for x in subab])
+assembly.extend([x.translate((3 * gap4 / 2, 0, 0)) for x in subac])  # noqa: E201
+assembly.extend([x.translate((gap4 / 2, 0, 0)) for x in suba])  # noqa: E201
+assembly.extend([x.translate((-gap4 / 2, 0, 0)) for x in suba])  # noqa
+assembly.extend([x.translate((-3 * gap4 / 2, 0, 0)) for x in subab])
 
 # make a compound out of the assembly
 cpnd = cq.Compound.makeCompound(assembly)
@@ -188,7 +206,7 @@ cpnd = cq.Compound.makeCompound(assembly)
 save_step = True
 if save_step is True:
     logger.info("Saving the big step file (this could take a while)...")
-    tb.u.export_step(cpnd, tb.u.wd.joinpath('assembly.step'))
+    tb.u.export_step(cpnd, tb.u.wd.joinpath("assembly.step"))
 
 if have_so is True:
     for thing in assembly:
