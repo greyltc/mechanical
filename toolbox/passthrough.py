@@ -9,10 +9,22 @@ along the Z direction
 # length of the connector passthrough geometry on the bottom surface
 surface_length: float = None  # type: ignore[assignment]
 
-def make_cut(self, rows=8, angle=0, clean=True, kind="C"):
+
+def make_cut(self, rows=8, angle=0, kind="C", mfg="samtec"):
     global surface_length
-    connector_height = 8.78 + 0.15  # mm SAMTEC MECF-XX-01-L-DV-NP-WT (worst case (largest) size)
-    connector_width = 5.6 + 0.13  # mm SAMTEC MECF-XX-01-L-DV-NP-WT (worst case (largest) size)
+    if mfg == "samtec":
+        connector_height = 8.78 + 0.15  # mm SAMTEC MECF-XX-01-L-DV-NP-WT (worst case (largest) size)
+        connector_width = 5.6 + 0.13  # mm SAMTEC MECF-XX-01-L-DV-NP-WT (worst case (largest) size)
+        if rows == 8:
+            con_len = 18.34 + 0.13
+            pcb_len = 11.91
+        elif rows == 20:
+            con_len = 33.58 + 0.13
+            pcb_len = 27.15
+        else:
+            raise(ValueError("Only 8 or 20 row connectors are supported"))
+    else:
+        raise(ValueError("Manufacturer not supported"))
 
     gp_buffer = 2  # space around the card edge for the glue pocket
     pcb_clearance = 0.1  # space around the card edge
@@ -21,15 +33,6 @@ def make_cut(self, rows=8, angle=0, clean=True, kind="C"):
     chamfer_length = 1.5  # length of the connector guiding chamfers
     con_clearance = 0.10  # clearance around the connector in its pocket
     r = 1.5  # assumed radius of the cutting tool for cutting the pocket
-
-    if rows == 8:
-        con_len = 18.34 + 0.13
-        pcb_len = 11.91
-    elif rows == 20:
-        con_len = 33.58 + 0.13
-        pcb_len = 27.15
-    else:
-        raise(ValueError("Only 8 or 20 row connectors are supported"))
 
     surface_length = con_len + 2*chamfer_length
 
@@ -87,4 +90,4 @@ def make_cut(self, rows=8, angle=0, clean=True, kind="C"):
 
         return negative.findSolid().translate(center)
 
-    return self.cutEach(_makeNegative, False, clean)
+    return self.cutEach(_makeNegative, useLocalCoords=False, clean=True)

@@ -42,7 +42,7 @@ else:
 # figure out working and top level dirs
 tb.u.set_directories()
 
-# check to see if we can/should use the "show_object" function
+# check to see if we can/should use the "show_object",
 if "show_object" in locals():
     have_so = True
     logger.info("Probably running in a gui")
@@ -58,26 +58,30 @@ assembly = []  # type: ignore[var-annotated] # noqa: F821
 base_t = 12
 base_w = 50
 base_l = 168
-fillet_r = 3
-chamfer_l = 1
+fillet_r = 6.35/2
+chamfer_l = 0.4
 
 window_w = 30
 window_l = 120
 
-cq.Workplane.undercutRelief2D = tb.u.undercutRelief2D
-base = cq.Workplane("XY").rect(base_l, base_w).extrude(base_t).edges("|Z").fillet(fillet_r)
-base = base.undercutRelief2D(window_l, window_w, diameter=6.35, kind="B").cutThruAll()
-base = base.faces("<Z or >Z").edges().chamfer(chamfer_l)
-base = base.translate((base_l/2, base_w/2, 0))
+# holes for mounting the base
+base_mountx = 110
+base_mounty = 40
 
-#taken from PCB design
+#taken from PCB design for passthrough locations
 pcb_tab_spacing = 141.66
 adapter_dim = 30
 
-cq.Workplane.passthrough = tb.passthrough.make_cut
-bot_face = base.faces("<Z").workplane(centerOption='CenterOfBoundBox')
-bot_face = bot_face.rarray(pcb_tab_spacing, adapter_dim, 2, 2)
-base = bot_face.passthrough(rows=8, angle=90, kind="B")
+# make the base shape
+#cq.Workplane.undercutRelief2D = tb.u.undercutRelief2D
+base = cq.Workplane("XY").rect(base_l, base_w).extrude(base_t)
+#base = base.undercutRelief2D(window_l, window_w, diameter=6.35, kind="B").cutThruAll()
+base = base.rect(window_l, window_w).cutThruAll().edges("|Z").fillet(fillet_r)
+
+# cut the mounting holes in it
+top_face = base.faces(">Z").workplane(centerOption='CenterOfBoundBox')
+base = top_face.rarray(base_mountx, base_mounty, 2, 2).cboreHole(**tb.c.cb('m4'))
+base = base.translate((base_l/2, base_w/2, 0))
 
 # get the crossbar PCB step
 pcb_project = "lim_crossbar"
@@ -102,7 +106,6 @@ crossbar = crossbar.rotate((0, 0, 0), (1, 0, 0), 90)
 crossbar = crossbar.translate((0, 0, base_t+crossbar_pcb_top_height))
 crossbar = crossbar.translate((base_l/2, 0, 0))
 crossbar = crossbar.translate((0, base_w/2-adapter_width/2, 0))
-tb.u.export_step(crossbar, tb.u.wd.joinpath(this_stepfile_name))
 assembly.extend(crossbar.vals())
 assembly.extend(crossbar.translate((0, adapter_width, 0)).vals())
 
@@ -110,7 +113,7 @@ assembly.extend(crossbar.translate((0, adapter_width, 0)).vals())
 adapter_surface_height = crossbar_pcb_top_height + base_t
 adapter = adapter.rotate((0, 0, 0), (0, 0, 1), 90)
 adapter = adapter.translate((base_l/2, base_w/2, adapter_surface_height))
-tb.u.export_step(adapter, tb.u.wd.joinpath(this_stepfile_name))
+
 
 assembly.extend(adapter.vals())
 assembly.extend(adapter.translate((adapter_spacing, 0, 0)).vals())
@@ -122,7 +125,7 @@ block = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps
 # position the block
 block_offset_from_edge_of_base = 1
 block = block.translate((tb.endblock.length/2+block_offset_from_edge_of_base, base_w/2, tb.endblock.height/2+base_t))
-tb.u.export_step(block, tb.u.wd.joinpath("block.step"))
+
 
 assembly.extend(block.vals())
 assembly.extend(block.mirror('ZY', (base_l/2, 0, 0)).vals())
@@ -133,18 +136,32 @@ block_mount_hole_x = base_l/2-block_mount_hole_center_offset_from_edge
 # cbore holes for use with RS flangenut Stock No. 725-9650
 base = base.faces("<Z").workplane(centerOption='CenterOfBoundBox').center(block_mount_hole_x, 0).cboreHole(2*tb.c.std_screw_threads["m5"]["close_r"], cboreDiameter=tb.c.cbore_dia, cboreDepth=tb.c.cbore_depth, clean=True)
 base = base.faces("<Z").workplane(centerOption='CenterOfBoundBox').center(-block_mount_hole_x, 0).cboreHole(2*tb.c.std_screw_threads["m5"]["close_r"], cboreDiameter=tb.c.cbore_dia, cboreDepth=tb.c.cbore_depth, clean=True)
-tb.u.export_step(base, tb.u.wd.joinpath("base_modified.step"))
+
+# chamfer the bottom edges
+base = base.faces("<Z").edges().chamfer(chamfer_l)
+
+# cut the passthroughs
+cq.Workplane.passthrough = tb.passthrough.make_cut
+bot_face = base.faces("<Z").workplane(centerOption='CenterOfBoundBox')
+bot_face = bot_face.rarray(pcb_tab_spacing, adapter_dim, 2, 2)
+base = bot_face.passthrough(rows=8, angle=90, kind="C")
+
+# chamfer the top edges
+base = base.faces(">Z").edges().chamfer(chamfer_l)
+
+
 assembly.extend(base.vals())
 
-# assembly = assembly.rotate((0,0,0),(1,0,0), -90)
-# assembly = assembly.translate((16, 16.5+1.6,75))
-# show_object(assembly)
+this_stepfile = tb.u.wd.joinpath("chamber.stp")
+chamber_corner_offset = cq.Vector((107.267, 133.891, 137.882))
+assembly_corner_offset = cq.Vector((16, 16.5+1.6, 75))
+chamber = tb.u.import_step(this_stepfile)
+chamber = chamber.translate(chamber_corner_offset)
+chamber = chamber.rotate((0,0,0),(1,0,0), 90)
+chamber = chamber.translate((-16, 75, -16.5-1.6))
 
-# chamber_step_file = "chamber.stp"
-# chamber_corner_offset = (107.267, 133.891, 137.882)
-# chamber = cq.importers.importStep(chamber_step_file)
-# chamber = chamber.translate(chamber_corner_offset)
-# show_object(chamber)
+assembly.extend(chamber.vals())
+#show_object(chamber)
 
 # make a compound out of the assembly
 cpnd = cq.Compound.makeCompound(assembly)
