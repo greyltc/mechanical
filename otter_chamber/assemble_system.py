@@ -103,7 +103,7 @@ holder_along_z = chamber.holder_along_z
 
 # build the chamber
 # TODO: get chamber.build to run tests from correct location
-chamber_build = chamber.build(include_hardware=True, save_step=False, run_tests=False)
+chamber_build = chamber.build(include_hardware=False, save_step=False, run_tests=False)
 chamber_build = to_holder(chamber_build, chamber_y_offset)
 assembly.extend(chamber_build.Solids())
 
@@ -126,7 +126,8 @@ ablock = to_holder(ablock, chamber_floor)
 ablock = ablock.translate((0, tb.endblock.height / 2, 0))
 
 # build the aligner
-al = aligner.build()
+ac = aligner.Aligner(tb)
+al = ac.build()
 al = to_holder(al, chamber_floor)
 al = al.translate((0, tb.endblock.height, 0))
 al = al.rotate((0, 0, 0), (0, 1, 0), -90)

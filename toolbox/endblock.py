@@ -16,11 +16,17 @@ pcb_mount_hole_spacing = 13
 chamfer_l = 0.5
 
 aux_hole_spacing = 16
-alignment_updent_diameter = 4-0.05
+alignment_updent_diameter_nominal = 3
+alignment_updent_diameter = alignment_updent_diameter_nominal - 0.05
 alignment_updent_height = 1
 alignment_updent_chamfer = 0.25
 
-back_aux_hole_from_top = 7.5
+# this number allows these holes to be vents for the pf dowels
+back_aux_hole_from_top = 11
+
+pressfit_hole_diameter_nominal = 3
+pressfit_hole_diameter = pressfit_hole_diameter_nominal - 0.035
+pressfit_hole_depth = 10
 
 blind_hole_depth = 7.5
 pcb_mount_hole_x_center_from_edge = 3
@@ -29,16 +35,24 @@ base_mount_screw_size = "m5"
 
 cska = tb.c.std_countersinks[base_mount_screw_size]["angle"]
 
-def build(adapter_width=30, block_length=12, block_height=19.5, vertm3s=False, horzm3s=False, align_bumps=False):
+
+def build(adapter_width=30, block_length=12, block_height=19.5, vertm3s=False, horzm3s=False, align_bumps=False, pfdowel=False):
     """
-    Builds up an endblock. dualm3s True means there will be two m3 holes through vertically
+    Builds up an endblock.
+    vertm3s True means there will be two m3 csk holes vertically up from the bottom
     spaced by top_hole_spacing
-    horzm3s means there will twom3 mounts on the back and some dents in the top
+    horzm3s means there will two m3 mounts on the back
+    align_bumps means there will be two updents in the top
+    pfdowel means there will be holes for pressfit dowels in the top
+
     """
     global width, length, height
 
     if (vertm3s is True) and (horzm3s is True):
         raise (ValueError("Hole collision while building endblock"))
+
+    if sum((pfdowel, align_bumps, vertm3s)) > 1:
+        raise (ValueError("Only one can be true: vertm3s, align_bumps, pfdowel"))
 
     width = adapter_width - tb.c.pcb_thickness
     length = block_length
@@ -101,20 +115,6 @@ def build(adapter_width=30, block_length=12, block_height=19.5, vertm3s=False, h
         )
     )
 
-    # 2x countersunk holes for screws up from the bottom
-    if vertm3s is True:
-        csktd = 2 * tb.c.std_screw_threads["m3"]["close_r"]
-        dm3pts = [(0, aux_hole_spacing / 2), (0, -aux_hole_spacing / 2)]
-        bot_face = block.faces("<Z").workplane(centerOption="CenterOfBoundBox")
-        bot_face = bot_face.pushPoints(dm3pts)
-        block = bot_face.cskHole(csktd, cskDiameter=length - 5, cskAngle=cska)
-        # chamfer the exit holes
-        top_face = block.faces(">Z").workplane(centerOption="CenterOfBoundBox")
-        top_face = top_face.pushPoints(dm3pts)
-        block = top_face.cskHole(
-            csktd, cskDiameter=csktd + 2 * chamfer_l, cskAngle=cska
-        )
-
     # base mount hole for use with RS Stock No. 908-7532 machine screws
     csktd = 2 * tb.c.std_screw_threads[base_mount_screw_size]["close_r"]
     block = (
@@ -143,6 +143,27 @@ def build(adapter_width=30, block_length=12, block_height=19.5, vertm3s=False, h
         dm3pts = [(0, aux_hole_spacing/2), (0, -aux_hole_spacing/2)]
         block = top_face.pushPoints(dm3pts).circle(alignment_updent_diameter/2).extrude(alignment_updent_height)
         block = block.faces(">Z").edges().chamfer(alignment_updent_chamfer)
+
+    # make the dowel mouting holes
+    if pfdowel is True:
+        top_face = block.faces(">Z").workplane(centerOption='CenterOfBoundBox')
+        dm3pts = [(0, aux_hole_spacing/2), (0, -aux_hole_spacing/2)]
+        block = top_face.pushPoints(dm3pts).circle(alignment_updent_diameter/2).hole(pressfit_hole_diameter, depth=pressfit_hole_depth)
+        block = block.faces(">Z").edges('%circle').chamfer(alignment_updent_chamfer)
+
+    # 2x countersunk holes for screws up from the bottom
+    if vertm3s is True:
+        csktd = 2 * tb.c.std_screw_threads["m3"]["close_r"]
+        dm3pts = [(0, aux_hole_spacing / 2), (0, -aux_hole_spacing / 2)]
+        bot_face = block.faces("<Z").workplane(centerOption="CenterOfBoundBox")
+        bot_face = bot_face.pushPoints(dm3pts)
+        block = bot_face.cskHole(csktd, cskDiameter=length - 5, cskAngle=cska)
+        # chamfer the exit holes
+        top_face = block.faces(">Z").workplane(centerOption="CenterOfBoundBox")
+        top_face = top_face.pushPoints(dm3pts)
+        block = top_face.cskHole(
+            csktd, cskDiameter=csktd + 2 * chamfer_l, cskAngle=cska
+        )
 
     block = block.edges("%Line").chamfer(chamfer_l)
 
