@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # NOTE: The toolbox module's folder must be found on your PYTHONPATH
-# or in a parent firectory of an item in your PYTHONPATH.
+# or in a parent directory of an item in your PYTHONPATH.
 # File loads are done relative to the toolbox module's folder.
 # File saves are made into the working directory.
 # The working directory is set to be a directory on your PYTHONPATH
@@ -102,7 +102,6 @@ gap5 = chamber.substrate_pitch_x
 holder_along_z = chamber.holder_along_z
 
 # build the chamber
-# TODO: get chamber.build to run tests from correct location
 chamber_build = chamber.build(include_hardware=False, save_step=False, run_tests=False)
 chamber_build = to_holder(chamber_build, chamber_y_offset)
 assembly.extend(chamber_build.Solids())
