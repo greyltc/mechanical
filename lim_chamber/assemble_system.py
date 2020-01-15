@@ -11,6 +11,7 @@ import sys
 import logging
 import pathlib
 import cadquery as cq  # type: ignore[import]
+import sandwich
 
 # attempt to import the toolbox module
 try:
@@ -127,7 +128,7 @@ assembly.extend(adapter.translate((adapter_spacing, 0, 0)).vals())
 assembly.extend(adapter.translate((-adapter_spacing, 0, 0)).vals())
 
 # build an endblock
-block = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, pfdowel=True)
+block = tb.endblock.build(adapter_width=adapter_width, horzm3s=False, pfdowel=True)
 
 # position the block
 block_offset_from_edge_of_base = 1
@@ -135,6 +136,12 @@ block = block.translate((tb.endblock.length/2+block_offset_from_edge_of_base, ba
 
 assembly.extend(block.vals())
 assembly.extend(block.mirror('ZY', (base_l/2, 0, 0)).vals())
+
+# build the sandwich
+s = sandwich.Sandwich(tb, leng=base_l, wid=base_w, substrate_xy_nominal=adapter_dim, cutout_spacing=adapter_spacing, endblock_width=tb.endblock.length, aux_hole_spacing=tb.endblock.aux_hole_spacing, block_offset_from_edge_of_base=block_offset_from_edge_of_base)
+holder = s.build()
+holder = holder.translate((base_l/2, base_w/2, tb.endblock.height+base_t))
+assembly.extend(holder.Solids())
 
 # drill mounting holes in base
 block_mount_hole_center_offset_from_edge = block_offset_from_edge_of_base + tb.endblock.length/2

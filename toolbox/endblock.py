@@ -144,6 +144,8 @@ def build(adapter_width=30, block_length=12, block_height=19.5, vertm3s=False, h
         block = top_face.pushPoints(dm3pts).circle(alignment_updent_diameter/2).extrude(alignment_updent_height)
         block = block.faces(">Z").edges().chamfer(alignment_updent_chamfer)
 
+    block = block.edges("%Line").chamfer(chamfer_l)
+
     # make the dowel mouting holes
     if pfdowel is True:
         top_face = block.faces(">Z").workplane(centerOption='CenterOfBoundBox')
@@ -165,6 +167,6 @@ def build(adapter_width=30, block_length=12, block_height=19.5, vertm3s=False, h
             csktd, cskDiameter=csktd + 2 * chamfer_l, cskAngle=cska
         )
 
-    block = block.edges("%Line").chamfer(chamfer_l)
+    
 
     return block
