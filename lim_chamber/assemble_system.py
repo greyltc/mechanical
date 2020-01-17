@@ -11,6 +11,7 @@ import sys
 import logging
 import pathlib
 import cadquery as cq  # type: ignore[import]
+import sandwich
 
 # attempt to import the toolbox module
 try:
@@ -53,8 +54,6 @@ else:
 # a list for holding all the things
 assembly = []  # type: ignore[var-annotated] # noqa: F821
 
-
-# TODO: switch inside window to twosided undercut
 base_t = 12
 base_w = 50
 base_l = 168
@@ -100,6 +99,16 @@ this_stepfile = tb.u.tld.parent.joinpath('electronics', pcb_project,
 adapter = tb.u.import_step(this_stepfile)
 adapter_width = tb.u.find_length(adapter)
 
+# get the baseboard PCB step
+pcb_project = "lim_baseboard"
+this_stepfile_name = pcb_project + ".step"
+this_stepfile = tb.u.tld.parent.joinpath('electronics', pcb_project,
+                                         '3dOut', this_stepfile_name)
+baseboard = tb.u.import_step(this_stepfile)
+baseboard = baseboard.rotate((0, 0, 0), (0, 0, 1), 180)
+baseboard = baseboard.translate((base_l/2, base_w/2, -tb.c.pcb_thickness))
+assembly.extend(baseboard.vals())
+
 # position the crossbars
 crossbar = crossbar.translate((0, 0, -tb.c.pcb_thickness/2))
 crossbar = crossbar.rotate((0, 0, 0), (1, 0, 0), 90)
@@ -114,21 +123,25 @@ adapter_surface_height = crossbar_pcb_top_height + base_t
 adapter = adapter.rotate((0, 0, 0), (0, 0, 1), 90)
 adapter = adapter.translate((base_l/2, base_w/2, adapter_surface_height))
 
-
 assembly.extend(adapter.vals())
 assembly.extend(adapter.translate((adapter_spacing, 0, 0)).vals())
 assembly.extend(adapter.translate((-adapter_spacing, 0, 0)).vals())
 
 # build an endblock
-block = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True)
+block = tb.endblock.build(adapter_width=adapter_width, horzm3s=False, pfdowel=True)
 
 # position the block
 block_offset_from_edge_of_base = 1
 block = block.translate((tb.endblock.length/2+block_offset_from_edge_of_base, base_w/2, tb.endblock.height/2+base_t))
 
-
 assembly.extend(block.vals())
 assembly.extend(block.mirror('ZY', (base_l/2, 0, 0)).vals())
+
+# build the sandwich
+s = sandwich.Sandwich(tb, leng=base_l, wid=base_w, substrate_xy_nominal=adapter_dim, cutout_spacing=adapter_spacing, endblock_width=tb.endblock.length, aux_hole_spacing=tb.endblock.aux_hole_spacing, block_offset_from_edge_of_base=block_offset_from_edge_of_base)
+holder = s.build()
+holder = holder.translate((base_l/2, base_w/2, tb.endblock.height+base_t))
+assembly.extend(holder.Solids())
 
 # drill mounting holes in base
 block_mount_hole_center_offset_from_edge = block_offset_from_edge_of_base + tb.endblock.length/2
