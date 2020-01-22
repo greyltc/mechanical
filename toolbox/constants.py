@@ -30,11 +30,21 @@ std_socket_screws = {
     "m5": {"cap_r": 8.5 / 2, "cap_h": 5, "cbore_r": 9.75 / 2, "cbore_h": 5},
 }
 
+# Standard pan-head screw parameters (DIN 7985H)
+# https://www.accu.co.uk/en/phillips-pan-head-screws/65391-SIP-M3-10-A2
+std_pan_head_screws = {
+    "m3": {"cap_r": 6 / 2, "cap_h": 2.52},
+}
+
 
 # this just makes counterbore holes easier to do.
 # use it later like this if you want an m4 one: .cboreHole(**tb.c.cb('m4'))
 def cb(s):
-    return {"diameter": std_screw_threads[s]["clearance_r"]*2, "cboreDiameter": std_socket_screws[s]["cbore_r"]*2, "cboreDepth": std_socket_screws[s]["cbore_h"]}
+    return {
+        "diameter": std_screw_threads[s]["clearance_r"] * 2,
+        "cboreDiameter": std_socket_screws[s]["cbore_r"] * 2,
+        "cboreDepth": std_socket_screws[s]["cbore_h"],
+    }
 
 
 # Standard hex nut parameters (ANSI/ASME B18.2.4.1M, seems equiv. to DIN 934)
