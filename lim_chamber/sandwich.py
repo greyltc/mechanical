@@ -169,3 +169,4 @@ class Sandwich:
         cpnd = cq.Compound.makeCompound(assembly)
 
         return cpnd
+

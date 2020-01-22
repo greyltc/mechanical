@@ -102,7 +102,7 @@ gap5 = chamber.substrate_pitch_x
 holder_along_z = chamber.holder_along_z
 
 # build the chamber
-chamber_build = chamber.build(include_hardware=False, save_step=False, run_tests=False)
+chamber_build = chamber.build(include_hardware=True, save_step=False, run_tests=False)
 chamber_build = to_holder(chamber_build, chamber_y_offset)
 assembly.extend(chamber_build.Solids())
 
