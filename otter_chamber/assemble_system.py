@@ -202,51 +202,60 @@ subac.extend(ablockB.vals())
 # assembly.extend(suba)
 
 # now duplicate the subassembly to its correct final locations (the 4 rows)
-##assembly.extend([x.translate((3 * gap4 / 2, 0, 0)) for x in subac])  # noqa: E201
-##assembly.extend([x.translate((gap4 / 2, 0, 0)) for x in suba])  # noqa: E201
-##assembly.extend([x.translate((-gap4 / 2, 0, 0)) for x in suba])  # noqa
-##assembly.extend([x.translate((-3 * gap4 / 2, 0, 0)) for x in subab])
+assembly.extend([x.translate((3 * gap4 / 2, 0, 0)) for x in subac])  # noqa: E201
+assembly.extend([x.translate((gap4 / 2, 0, 0)) for x in suba])  # noqa: E201
+assembly.extend([x.translate((-gap4 / 2, 0, 0)) for x in suba])  # noqa
+assembly.extend([x.translate((-3 * gap4 / 2, 0, 0)) for x in subab])
 
-
-
-
-# all this is super hacky, needs to be redone
+# workplane for mux stuff
 wp = cq.Workplane("XY")
 
-pcb_dims = [321.31, 152.4, 1.6]
+pcb_dims = [321.31, 152.4, 1.6]  # relay pcb mockup
 relay_pcb = wp.box(pcb_dims[0], pcb_dims[1], pcb_dims[2], centered=[True, True, False])
 
-chamber_dims = [15, 8, 6]
-chamber_dims_mm = [x*25.4 for x in chamber_dims]
-chamber_volume = wp.box(chamber_dims_mm[0], chamber_dims_mm[1], chamber_dims_mm[2], centered=[True, True, False])
+# load lock chamber volume
+chamber_dims_in = [15, 8, 6]
+chamber_dims = [x*25.4 for x in chamber_dims_in]
+chamber_volume = wp.box(chamber_dims[0], chamber_dims[1], chamber_dims[2], centered=[True, True, False])
 
+# spacing between relay boards in the mux
 inter_standoff = 13
-
 bottom_standoff = 3
-box_wall_thickness = 2
+box_wall_thickness = 2  # mux box wall thickness
 
-relay_pcb1 = relay_pcb.translate((0,0,bottom_standoff+box_wall_thickness))
-relay_pcb2 = relay_pcb1.translate((0,0,inter_standoff))
-relay_pcb3 = relay_pcb2.translate((0,0,inter_standoff))
-relay_pcb4 = relay_pcb3.translate((0,0,inter_standoff))
-relay_pcb5 = relay_pcb4.translate((0,0,inter_standoff))
-
-enclosure_width = 201.2 # TODO: look up properly
-mux_box_dims = [14.5*25.4, enclosure_width, 3*25.4]
-top_cutouts = [150, 15]
-baseboard_mounts = [46, 25.4]
-mux_box = cq.Workplane("XY").box(mux_box_dims[0], mux_box_dims[1], mux_box_dims[2], centered=[True, True, False])
-mux_box = mux_box.faces(">X").shell(-box_wall_thickness)
-mux_box = mux_box.faces(">Z").workplane().rarray(1,35,1,4).rect(top_cutouts[0],top_cutouts[1]).cutBlind(-5)
-mux_box = mux_box.faces(">Z").workplane().rarray(1,35,1,4).rect(baseboard_mounts[0], baseboard_mounts[1]).vertices().circle(3).cutBlind(-5)
-
+relay_pcb1 = relay_pcb.translate((0, 0, bottom_standoff+box_wall_thickness))
+relay_pcb2 = relay_pcb1.translate((0, 0, inter_standoff))
+relay_pcb3 = relay_pcb2.translate((0, 0, inter_standoff))
+relay_pcb4 = relay_pcb3.translate((0, 0, inter_standoff))
+relay_pcb5 = relay_pcb4.translate((0, 0, inter_standoff))
 del relay_pcb
 
+mux_box_dims = [14.5*25.4, chamber.chamber_w, 3.25*25.4]
+top_cutouts = [150, 15]  # for cutting slots for the base pcb in the mux box
+mux_box = cq.Workplane("XY").box(mux_box_dims[0], mux_box_dims[1], mux_box_dims[2], centered=[True, True, False])
+mux_box = mux_box.faces(">X").shell(-box_wall_thickness)
+mux_box = mux_box.faces(">Z").workplane().rarray(1, gap4, 1, 4).rect(top_cutouts[0], top_cutouts[1]).cutBlind(-box_wall_thickness)
+
+# PCB mounting holes
+baseboard_mounts = [chamber.mux_pcb_screw_xs[0]*2, adapter_width]  # for drilling PCB mouting holes in the mux box
+pmhr = tb.c.std_screw_threads['m3']['clearance_r']
+mux_box = mux_box.faces(">Z").workplane(centerOption="CenterOfBoundBox").rarray(1, gap4, 1, 4).rect(baseboard_mounts[0], baseboard_mounts[1], forConstruction=True).vertices().circle(pmhr).cutBlind(-box_wall_thickness)
+
+# PCB dowels
+baseboard_mounts = [chamber.mux_pcb_dowel_xs[0]*2, adapter_width]  # for drilling PCB mouting holes in the mux box
+pdhr = 4.3/2
+mux_box = mux_box.faces(">Z").workplane(centerOption="CenterOfBoundBox").rarray(1, gap4, 1, 4).rect(baseboard_mounts[0], baseboard_mounts[1], forConstruction=True).vertices().circle(pdhr).cutBlind(-box_wall_thickness)
+
+# lid mount screw holes
+mbshr = tb.c.std_screw_threads[chamber.mux_pcb_screw_size]['clearance_r']
+mux_box = mux_box.faces(">Z").workplane(centerOption="CenterOfBoundBox").pushPoints(chamber.mux_lid_screws_xys).circle(mbshr).cutBlind(-box_wall_thickness)
+
 baseboardA = baseboard.translate((0, gap4/2, mux_box_dims[2]))
-baseboardB = baseboard.translate((0, -gap4/2,mux_box_dims[2]))
+baseboardB = baseboard.translate((0, -gap4/2, mux_box_dims[2]))
 baseboardC = baseboard.translate((0, -3*gap4/2, mux_box_dims[2]))
 baseboardD = baseboard.translate((0, 3*gap4/2, mux_box_dims[2]))
 
+# mux box assembly
 mba = []
 mba.extend(mux_box.vals())
 mba.extend(relay_pcb1.vals())
@@ -261,9 +270,8 @@ mba.extend(baseboardD.vals())
 
 mb = cq.Compound.makeCompound(mba)
 
-mb = to_holder(mb, chamber_floor-mux_box_dims[2]-12)
+mb = to_holder(mb, chamber_floor-mux_box_dims[2]-chamber.base_h-tb.c.pcb_thickness)
 assembly.extend(mb.Solids())
-
 
 # make a compound out of the assembly
 cpnd = cq.Compound.makeCompound(assembly)
