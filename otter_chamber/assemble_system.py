@@ -202,10 +202,10 @@ subac.extend(ablockB.vals())
 # assembly.extend(suba)
 
 # now duplicate the subassembly to its correct final locations (the 4 rows)
-assembly.extend([x.translate((3 * gap4 / 2, 0, 0)) for x in subac])  # noqa: E201
-assembly.extend([x.translate((gap4 / 2, 0, 0)) for x in suba])  # noqa: E201
-assembly.extend([x.translate((-gap4 / 2, 0, 0)) for x in suba])  # noqa
-assembly.extend([x.translate((-3 * gap4 / 2, 0, 0)) for x in subab])
+##assembly.extend([x.translate((3 * gap4 / 2, 0, 0)) for x in subac])  # noqa: E201
+##assembly.extend([x.translate((gap4 / 2, 0, 0)) for x in suba])  # noqa: E201
+##assembly.extend([x.translate((-gap4 / 2, 0, 0)) for x in suba])  # noqa
+##assembly.extend([x.translate((-3 * gap4 / 2, 0, 0)) for x in subab])
 
 
 
@@ -220,44 +220,49 @@ chamber_dims = [15, 8, 6]
 chamber_dims_mm = [x*25.4 for x in chamber_dims]
 chamber_volume = wp.box(chamber_dims_mm[0], chamber_dims_mm[1], chamber_dims_mm[2], centered=[True, True, False])
 
-inter_standoff = 12 
+inter_standoff = 13
 
-bottom_standoff = 2
+bottom_standoff = 3
 box_wall_thickness = 2
 
 relay_pcb1 = relay_pcb.translate((0,0,bottom_standoff+box_wall_thickness))
 relay_pcb2 = relay_pcb1.translate((0,0,inter_standoff))
 relay_pcb3 = relay_pcb2.translate((0,0,inter_standoff))
+relay_pcb4 = relay_pcb3.translate((0,0,inter_standoff))
+relay_pcb5 = relay_pcb4.translate((0,0,inter_standoff))
 
-mux_box_dims = [14.5, 8, 2]
-mux_box_dims_mm = [x*25.4 for x in mux_box_dims]
-mux_box_dims_mm[1] = 201.2
-mux_box = wp.box(mux_box_dims_mm[0], mux_box_dims_mm[1], mux_box_dims_mm[2], centered=[True, True, False])
+enclosure_width = 201.2 # TODO: look up properly
+mux_box_dims = [14.5*25.4, enclosure_width, 3*25.4]
+top_cutouts = [150, 15]
+baseboard_mounts = [46, 25.4]
+mux_box = cq.Workplane("XY").box(mux_box_dims[0], mux_box_dims[1], mux_box_dims[2], centered=[True, True, False])
 mux_box = mux_box.faces(">X").shell(-box_wall_thickness)
-top_cutouts = [140,10]
-# TODO: fix this super bad hack
-to_cut = cq.Workplane("XY").rarray(1,35,1,4).rect(top_cutouts[0],top_cutouts[1]).extrude(50).translate((0,0,20))
-
-mux_box = mux_box.cut(to_cut)
-#mux_box = mux_box.faces(">Z").rarray(1,35,1,4).rect(top_cutouts[0],top_cutouts[1]).extrude(100)
-
-del to_cut
+mux_box = mux_box.faces(">Z").workplane().rarray(1,35,1,4).rect(top_cutouts[0],top_cutouts[1]).cutBlind(-5)
+mux_box = mux_box.faces(">Z").workplane().rarray(1,35,1,4).rect(baseboard_mounts[0], baseboard_mounts[1]).vertices().circle(3).cutBlind(-5)
 
 del relay_pcb
 
-baseboardA = baseboard.translate((0, gap4/2, tb.c.pcb_thickness / 2+mux_box_dims_mm[2]))
-baseboardB = baseboard.translate((0, -gap4/2, tb.c.pcb_thickness / 2+mux_box_dims_mm[2]))
-baseboardC = baseboard.translate((0, -3*gap4/2, tb.c.pcb_thickness / 2+mux_box_dims_mm[2]))
-baseboardD = baseboard.translate((0, 3*gap4/2, tb.c.pcb_thickness / 2+mux_box_dims_mm[2]))
+baseboardA = baseboard.translate((0, gap4/2, mux_box_dims[2]))
+baseboardB = baseboard.translate((0, -gap4/2,mux_box_dims[2]))
+baseboardC = baseboard.translate((0, -3*gap4/2, mux_box_dims[2]))
+baseboardD = baseboard.translate((0, 3*gap4/2, mux_box_dims[2]))
 
-assembly.extend(mux_box.vals())
-assembly.extend(relay_pcb1.vals())
-assembly.extend(relay_pcb2.vals())
-assembly.extend(relay_pcb3.vals())
-assembly.extend(baseboardA.vals())
-assembly.extend(baseboardB.vals())
-assembly.extend(baseboardC.vals())
-assembly.extend(baseboardD.vals())
+mba = []
+mba.extend(mux_box.vals())
+mba.extend(relay_pcb1.vals())
+mba.extend(relay_pcb2.vals())
+mba.extend(relay_pcb3.vals())
+mba.extend(relay_pcb4.vals())
+mba.extend(relay_pcb5.vals())
+mba.extend(baseboardA.vals())
+mba.extend(baseboardB.vals())
+mba.extend(baseboardC.vals())
+mba.extend(baseboardD.vals())
+
+mb = cq.Compound.makeCompound(mba)
+
+mb = to_holder(mb, chamber_floor-mux_box_dims[2]-12)
+assembly.extend(mb.Solids())
 
 
 # make a compound out of the assembly
