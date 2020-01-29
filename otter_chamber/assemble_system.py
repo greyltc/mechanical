@@ -238,12 +238,12 @@ mux_box = mux_box.faces(">Z").workplane().rarray(1, gap4, 1, 4).rect(top_cutouts
 
 # PCB mounting holes
 baseboard_mounts = [chamber.mux_pcb_screw_xs[0]*2, adapter_width]  # for drilling PCB mouting holes in the mux box
-pmhr = tb.c.std_screw_threads['m3']['clearance_r']
+pmhr = tb.c.std_pan_head_screws['m3']['cap_r'] + 0.25
 mux_box = mux_box.faces(">Z").workplane(centerOption="CenterOfBoundBox").rarray(1, gap4, 1, 4).rect(baseboard_mounts[0], baseboard_mounts[1], forConstruction=True).vertices().circle(pmhr).cutBlind(-box_wall_thickness)
 
 # PCB dowels
-baseboard_mounts = [chamber.mux_pcb_dowel_xs[0]*2, adapter_width]  # for drilling PCB mouting holes in the mux box
-pdhr = 4.3/2
+baseboard_mounts = [chamber.mux_pcb_dowel_xs[0]*2, adapter_width]  # for drilling pcb protection dowel mount holes in the mux box automotioncomponents.co.uk part P1212.060-012
+pdhr = tb.c.std_screw_threads['m4']['close_r']
 mux_box = mux_box.faces(">Z").workplane(centerOption="CenterOfBoundBox").rarray(1, gap4, 1, 4).rect(baseboard_mounts[0], baseboard_mounts[1], forConstruction=True).vertices().circle(pdhr).cutBlind(-box_wall_thickness)
 
 # lid mount screw holes
