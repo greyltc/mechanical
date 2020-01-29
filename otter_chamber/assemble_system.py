@@ -246,6 +246,10 @@ baseboard_mounts = [chamber.mux_pcb_dowel_xs[0]*2, adapter_width]  # for drillin
 pdhr = tb.c.std_screw_threads['m4']['close_r']
 mux_box = mux_box.faces(">Z").workplane(centerOption="CenterOfBoundBox").rarray(1, gap4, 1, 4).rect(baseboard_mounts[0], baseboard_mounts[1], forConstruction=True).vertices().circle(pdhr).cutBlind(-box_wall_thickness)
 
+# get the dowel model
+this_stepfile = tb.u.wd.joinpath("components", "P1212.060-012.step")
+dowel = tb.u.import_step(this_stepfile)
+
 # lid mount screw holes
 mbshr = tb.c.std_screw_threads[chamber.mux_pcb_screw_size]['clearance_r']
 mux_box = mux_box.faces(">Z").workplane(centerOption="CenterOfBoundBox").pushPoints(chamber.mux_lid_screws_xys).circle(mbshr).cutBlind(-box_wall_thickness)
