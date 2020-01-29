@@ -277,6 +277,10 @@ mux_box = (
     .cutBlind(-box_wall_thickness)
 )
 
+# get the dowel model
+this_stepfile = tb.u.wd.joinpath("components", "P1212.060-012.step")
+dowel = tb.u.import_step(this_stepfile)
+
 # lid mount screw holes
 mbshr = tb.c.std_screw_threads[chamber.mux_pcb_screw_size]["clearance_r"]
 mux_box = (
