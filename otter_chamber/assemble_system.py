@@ -311,9 +311,7 @@ mba.extend(baseboardD.vals())
 
 mb = cq.Compound.makeCompound(mba)
 
-mb = to_holder(
-    mb, chamber_floor - mux_box_dims[2] - chamber.base_h - tb.c.pcb_thickness
-)
+mb = to_holder(mb, chamber_floor - mux_box_dims[2] - chamber.base_h)
 assembly.extend(mb.Solids())
 
 # make a compound out of the assembly
