@@ -280,6 +280,7 @@ mux_box = (
 # get the dowel model
 this_stepfile = tb.u.wd.joinpath("components", "P1212.060-012.step")
 dowel = tb.u.import_step(this_stepfile)
+dowel = dowel.rotate((0, 0, 0), (0, 1, 0), 90)
 
 # lid mount screw holes
 mbshr = tb.c.std_screw_threads[chamber.mux_pcb_screw_size]["clearance_r"]
@@ -299,6 +300,13 @@ baseboardD = baseboard.translate((0, 3 * gap4 / 2, mux_box_dims[2]))
 # mux box assembly
 mba = []
 mba.extend(mux_box.vals())
+
+for x, y in chamber.mux_pcb_dowel_xys:
+    z = tb.u.find_length(dowel, "Z") / 2 + mux_box_dims[2]
+    _dowel = dowel
+    _dowel = _dowel.translate((x, y, z))
+    mba.extend(_dowel.vals())
+
 mba.extend(relay_pcb1.vals())
 mba.extend(relay_pcb2.vals())
 mba.extend(relay_pcb3.vals())
