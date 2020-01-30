@@ -85,13 +85,20 @@ assembly = []  # type: ignore[var-annotated] # noqa: F821
 otter_support_surface = 32.624  # read from the otter holder step file
 
 # here is where our chamber's support surface is before translation to match otter
-chamber_support_surface = -chamber.base_o_h + chamber.base_h + chamber.meas_assembly_h
+chamber_support_surface = (
+    -chamber.base_o_h
+    + chamber.base_h
+    + chamber.base_pcb_lip_h
+    + chamber.meas_assembly_h
+)
 
 # so then this is the translation we need to make for our chamber to match otter's step
 chamber_y_offset = otter_support_surface - chamber_support_surface
 
 # which puts the chamber floor at
-chamber_floor = chamber_y_offset - chamber.base_o_h + chamber.base_h
+chamber_floor = (
+    chamber_y_offset - chamber.base_o_h + chamber.base_h + chamber.base_pcb_lip_h
+)
 # (and the bottom surface chamber.base_h (12.0 mm) below that)
 
 # import holder
@@ -319,7 +326,9 @@ mba.extend(baseboardD.vals())
 
 mb = cq.Compound.makeCompound(mba)
 
-mb = to_holder(mb, chamber_floor - mux_box_dims[2] - chamber.base_h)
+mb = to_holder(
+    mb, chamber_floor - mux_box_dims[2] - chamber.base_h - chamber.base_pcb_lip_h
+)
 assembly.extend(mb.Solids())
 
 # make a compound out of the assembly
