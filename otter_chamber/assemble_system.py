@@ -148,7 +148,7 @@ al = al.rotate((0, 0, 0), (0, 1, 0), -90)
 ablock.add(al)  # put them on the same workplane
 
 # build an endblock
-block = tb.endblock.build(adapter_width=adapter_width, horzm3s=True)
+block = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True)
 block = to_holder(block, chamber_floor)
 block = block.translate((0, tb.endblock.height / 2, 0))
 
