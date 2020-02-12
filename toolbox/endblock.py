@@ -41,6 +41,7 @@ def build(
     adapter_width=30,
     block_length=12,
     block_height=19.5,
+    special_chamfer=0,  # for giving clearance for otter's alignment pin
     vertm3s=False,
     horzm3s=False,
     align_bumps=False,
@@ -123,6 +124,15 @@ def build(
             cskAngle=cska,
         )
     )
+        
+    block = block.faces("<Z").edges("%Line").chamfer(chamfer_l)
+    if special_chamfer == 0:
+        special_chamfer = chamfer_l
+    special_chamfer_diff = special_chamfer - chamfer_l
+    block = block.faces(">Z").edges("|X").chamfer(chamfer_l)
+    block = block.faces(">Z").edges("<X").chamfer(special_chamfer)
+    block = block.faces(">Z").edges(">X").chamfer(chamfer_l)
+    block = block.edges("|Z and %Line").chamfer(chamfer_l)
 
     csk_diameter = length - 1.5
 
@@ -130,7 +140,7 @@ def build(
     csktd = 2 * tb.c.std_screw_threads[base_mount_screw_size]["close_r"]
     block = (
         block.faces(">Z")
-        .workplane(centerOption="CenterOfBoundBox")
+        .workplane(centerOption="CenterOfBoundBox").center(-special_chamfer_diff/2, 0)
         .cskHole(csktd, cskDiameter=csk_diameter, cskAngle=cska)
     )
     # chamfer the exit hole
@@ -158,7 +168,7 @@ def build(
 
     # make the alignment updents in the top
     if align_bumps is True:
-        top_face = block.faces(">Z").workplane(centerOption="CenterOfBoundBox")
+        top_face = block.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(-special_chamfer_diff/2, 0)
         dm3pts = [(0, aux_hole_spacing / 2), (0, -aux_hole_spacing / 2)]
         block = (
             top_face.pushPoints(dm3pts)
@@ -167,11 +177,9 @@ def build(
         )
         block = block.faces(">Z").edges().chamfer(alignment_updent_chamfer)
 
-    block = block.edges("%Line").chamfer(chamfer_l)
-
     # make the dowel mouting holes
     if pfdowel is True:
-        top_face = block.faces(">Z").workplane(centerOption="CenterOfBoundBox")
+        top_face = block.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(-special_chamfer_diff/2, 0)
         dm3pts = [(0, aux_hole_spacing / 2), (0, -aux_hole_spacing / 2)]
         block = (
             top_face.pushPoints(dm3pts)
@@ -188,10 +196,17 @@ def build(
         bot_face = bot_face.pushPoints(dm3pts)
         block = bot_face.cskHole(csktd, cskDiameter=length - 5, cskAngle=cska)
         # chamfer the exit holes
-        top_face = block.faces(">Z").workplane(centerOption="CenterOfBoundBox")
+        top_face = block.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(-special_chamfer_diff/2, 0)
         top_face = top_face.pushPoints(dm3pts)
         block = top_face.cskHole(
             csktd, cskDiameter=csktd + 2 * chamfer_l, cskAngle=cska
         )
+        
+    
 
     return block
+
+
+# only for running standalone in cq-editor
+if "show_object" in locals():
+    show_object(build(horzm3s=True, align_bumps=True, special_chamfer=1.6))
