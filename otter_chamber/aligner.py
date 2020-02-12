@@ -1,6 +1,5 @@
 import cadquery as cq
 
-
 class Aligner:
     tb = None
 
@@ -10,7 +9,7 @@ class Aligner:
         s = self
         s.bw = 23.8  # part width
         s.bh = 15  # y direction length
-        s.bd = 5.75  # height above endblock
+        s.bd = 5.59  # height above endblock
 
         s.mount_space = tb.endblock.aux_hole_spacing  # spacing between alignment dents and mount holes
         s.below_zero = 19  # extension distance down outide of endblock
@@ -30,7 +29,7 @@ class Aligner:
         s.alignment_indent_chamfer = tb.endblock.alignment_updent_chamfer
 
         # top step params
-        s.step_height = 3.25
+        s.step_height = 3.3
         s.step_width = 7.5
 
         # alignment hole params
@@ -41,6 +40,12 @@ class Aligner:
 
         # for driver hole
         s.driver_hole_d = 3 + 0.2
+        
+        # alignment hole position
+        s.ah = [-2.5, -3.3]
+        
+        s.ec = [-12.5, s.step_width/2+s.ah[1]+1.625]  # edge cutout position
+        s.ecd = s.step_height + 0.439  # edge cutout depth
 
         s.bottom_step_width = 11
 
@@ -53,9 +58,6 @@ class Aligner:
         al = wp.rect(s.bw, s.bh, centered=True).extrude(s.bd)
         al = al.faces("<Z").rect(s.bw, s.bh, centered=True).extrude(-s.below_zero)
 
-        # the edge cutout
-        al = al.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(-12.5, -1.6750).hole(5, depth=s.step_height)
-
         # make the bottom step
         bso = s.bh - s.bottom_step_width
         al = al.faces("<Z").workplane(centerOption='CenterOfBoundBox').center(-s.bw/2, bso).rect(s.bw, -s.bottom_step_width-1, centered=False).cutBlind(-s.below_zero)
@@ -67,7 +69,7 @@ class Aligner:
         al = al.faces(">Z[1]").edges("%circle").chamfer(s.alignment_indent_chamfer)
 
         # the alignment hole
-        al = al.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(-2.5, -3.3).cskHole(s.aldia, depth=s.al_depth, cskDiameter=s.aldia+2*s.al_chamfer, cskAngle=s.cska)
+        al = al.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(s.ah[0], s.ah[1]).cskHole(s.aldia, depth=s.al_depth, cskDiameter=s.aldia+2*s.al_chamfer, cskAngle=s.cska)
 
         # make the top step
         al = al.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(-s.bw/2, s.bh/2-s.step_width).rect(s.bw, s.step_width, centered=False).cutBlind(-s.step_height)
@@ -90,6 +92,9 @@ class Aligner:
         al = al.faces(">Y").edges("|X").chamfer(s.chamfer_l)
         al = al.faces(">Z").edges("|X").chamfer(s.chamfer_l)
 
+        # the funny edge cutout
+        al = al.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(s.ec[0], s.ec[1]).hole(5, depth=s.ecd)
+
         # makes it a bit easier to get into position later
         al = al.translate((0, -bso/2, 0))
 
@@ -99,3 +104,14 @@ class Aligner:
         cyl = cq.Solid.makeCylinder(s.driver_hole_d/2, cyl_len, cq.Vector(0, 0, 0), boreDir).translate((0, 0, -cyl_len/2))
         al = al.cut(cyl)
         return al
+
+
+# only for running standalone in cq-editor
+if "show_object" in locals():
+    import sys
+    import os
+    sys.path.insert(1, str(os.path.join(sys.path[-1], '..')))
+    import toolbox
+
+    a = Aligner(toolbox)
+    show_object(a.build())

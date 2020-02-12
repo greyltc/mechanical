@@ -144,7 +144,7 @@ adapter = chamber.adapter
 adapter_width = chamber.adapter_width
 
 # build an alignment endblock
-ablock = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True)
+ablock = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True, special_chamfer=1.6)
 ablock = to_holder(ablock, chamber_floor)
 ablock = ablock.translate((0, tb.endblock.height / 2, 0))
 
@@ -157,7 +157,7 @@ al = al.rotate((0, 0, 0), (0, 1, 0), -90)
 ablock.add(al)  # put them on the same workplane
 
 # build an endblock
-block = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True)
+block = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True, special_chamfer=1.6)
 block = to_holder(block, chamber_floor)
 block = block.translate((0, tb.endblock.height / 2, 0))
 
