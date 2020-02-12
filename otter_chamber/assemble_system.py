@@ -82,11 +82,11 @@ assembly = []  # type: ignore[var-annotated] # noqa: F821
 
 # the otter holder step file shows its "support surface" at y = this value
 # that's the reference we use to move our step files around to match it
-otter_support_surface = 32.624  # read from the otter holder step file
+otter_support_surface = 32.624  # read manually from the otter holder step file
 
 # here is where our chamber's support surface is before translation to match otter
 chamber_support_surface = (
-    -chamber.base_o_h
+    - chamber.base_o_h
     + chamber.base_h
     + chamber.base_pcb_lip_h
     + chamber.meas_assembly_h
@@ -94,6 +94,15 @@ chamber_support_surface = (
 
 # so then this is the translation we need to make for our chamber to match otter's step
 chamber_y_offset = otter_support_surface - chamber_support_surface
+# to check that this was calculated correctly, look at the final assembly step file,
+# measure the distance between the upper adapter PCB surface and the lower surface of a substrate
+# that should be 3.20 + 2.03 - 1.02 - 1.60 - 0.41 - 0.25 = 1.95mm
+# meaning that there is 1.95 + 1.6 = 3.55mm between the bottom surface of a PCB and
+# and the bottom surface of a substrate
+# this means that the spring pins are nominally compressed
+# by 0.25mm beyond their "mid-stroke" position, leaving
+# 2.03-1.02-0.25 = 0.76mm before their travel is maxed out
+# (when the pin sleeves crash into the substrates)
 
 # which puts the chamber floor at
 chamber_floor = (
