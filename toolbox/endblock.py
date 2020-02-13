@@ -150,14 +150,14 @@ def build(
         .cskHole(csktd, cskDiameter=csktd + 2 * chamfer_l, cskAngle=cska)
     )
 
-    # 2x threaded countersunk holes on the back side and alignment updents in the top
+    # 2x threaded countersunk holes on the back side
     if horzm3s is True:
         cskbd = 2 * tb.c.std_screw_threads["m3"]["tap_r"]
         dm3pts = [
             (-aux_hole_spacing / 2, back_aux_hole_z),
             (aux_hole_spacing / 2, back_aux_hole_z),
         ]
-        back_face = block.faces("<X").workplane(centerOption="CenterOfBoundBox")
+        back_face = block.faces("<X").workplane(centerOption="CenterOfBoundBox").center(0, special_chamfer_diff/2)
         back_face = back_face.pushPoints(dm3pts)
         block = back_face.cskHole(
             cskbd,
