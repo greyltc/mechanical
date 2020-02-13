@@ -69,6 +69,10 @@ tb.u.set_directories()
 sys.path.insert(0, str(tb.u.tld.parent.joinpath("environment_chamber")))
 import chamber
 
+# import the stage mounting plate
+sys.path.insert(0, str(tb.u.tld.parent.joinpath("otter_mounting_plate")))
+import plate
+
 # check to see if we can/should use the "show_object" function
 if "show_object" in locals():
     have_so = True
@@ -86,7 +90,7 @@ otter_support_surface = 32.624  # read manually from the otter holder step file
 
 # here is where our chamber's support surface is before translation to match otter
 chamber_support_surface = (
-    - chamber.base_o_h
+    -chamber.base_o_h
     + chamber.base_h
     + chamber.base_pcb_lip_h
     + chamber.meas_assembly_h
@@ -144,7 +148,9 @@ adapter = chamber.adapter
 adapter_width = chamber.adapter_width
 
 # build an alignment endblock
-ablock = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True, special_chamfer=1.6)
+ablock = tb.endblock.build(
+    adapter_width=adapter_width, horzm3s=True, align_bumps=True, special_chamfer=1.6
+)
 ablock = to_holder(ablock, chamber_floor)
 ablock = ablock.translate((0, tb.endblock.height / 2, 0))
 
@@ -157,7 +163,9 @@ al = al.rotate((0, 0, 0), (0, 1, 0), -90)
 ablock.add(al)  # put them on the same workplane
 
 # build an endblock
-block = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True, special_chamfer=1.6)
+block = tb.endblock.build(
+    adapter_width=adapter_width, horzm3s=True, align_bumps=True, special_chamfer=1.6
+)
 block = to_holder(block, chamber_floor)
 block = block.translate((0, tb.endblock.height / 2, 0))
 
@@ -247,7 +255,7 @@ relay_pcb4 = relay_pcb3.translate((0, 0, inter_standoff))
 relay_pcb5 = relay_pcb4.translate((0, 0, inter_standoff))
 del relay_pcb
 
-mux_box_dims = [14.5 * 25.4, chamber.chamber_w, 3.25 * 25.4]
+mux_box_dims = [plate.mux_box_l, plate.mux_box_w, plate.mux_box_h]
 top_cutouts = [150, 15]  # for cutting slots for the base pcb in the mux box
 mux_box = cq.Workplane("XY").box(
     mux_box_dims[0], mux_box_dims[1], mux_box_dims[2], centered=[True, True, False]
@@ -259,6 +267,27 @@ mux_box = (
     .rarray(1, gap4, 1, 4)
     .rect(top_cutouts[0], top_cutouts[1])
     .cutBlind(-box_wall_thickness)
+)
+# clearance holes for dowels
+mux_box = (
+    mux_box.faces("<Z")
+    .workplane()
+    .pushPoints(plate.dowel_xys)
+    .hole(2 * plate.dowel_clearance_r, depth=box_wall_thickness)
+)
+# clearance holes for bolting box to stage mount if needed
+mux_box = (
+    mux_box.faces("<Z")
+    .workplane()
+    .pushPoints(plate.mux_bolt_xys)
+    .hole(2 * plate.low_profile_bolt_thread_clearance_r, depth=box_wall_thickness)
+)
+# clearance holes for stage plate mounting bolt heads
+mux_box = (
+    mux_box.faces("<Z")
+    .workplane()
+    .pushPoints(plate.stage_plate_thread_hole_xys)
+    .hole(2 * plate.low_profile_bolt_head_clearance_r, depth=box_wall_thickness)
 )
 
 # PCB mounting holes
@@ -339,6 +368,18 @@ mb = to_holder(
     mb, chamber_floor - mux_box_dims[2] - chamber.base_h - chamber.base_pcb_lip_h
 )
 assembly.extend(mb.Solids())
+
+# build stage plate
+plate_build = plate.build(include_hardware=True, save_step=False)
+plate_y_offset = (
+    chamber_floor
+    - mux_box_dims[2]
+    - chamber.base_h
+    - chamber.base_pcb_lip_h
+    - plate.mux_plate_h
+)
+chamber_build = to_holder(plate_build, plate_y_offset)
+assembly.extend(chamber_build.Solids())
 
 # make a compound out of the assembly
 cpnd = cq.Compound.makeCompound(assembly)
