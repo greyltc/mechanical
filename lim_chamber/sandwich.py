@@ -36,9 +36,10 @@ class Sandwich:
         s.pin_spacing_x = 2
 
         # for sping pin cutouts
-        s.spring_cutd = 1.6  # pin dimeter is 1.5
+        s.spring_cutd = 1.9  # pin dimeter is 1.5 and the pad is 1.9
         s.spring_spacing_y = 23.5
-        s.spring_spacing_x = 2.5
+        s.major_spring_spacing_x = 5.08
+        s.minor_spring_spacing_x = 2.5
 
         # the inner window is to ensure there's enough space for the encapsulation
         # glass. the outer window is to make a space for a spring_layer_t thick light mask
@@ -56,11 +57,12 @@ class Sandwich:
 
         # nominally there is 0.25mm between the device edge and the light mask edge
         s.alignment_diameter_nominal = 3
-        s.alignment_diameter_press = s.alignment_diameter_nominal - 0.035
-        s.alignment_diameter_slide = s.alignment_diameter_nominal + 0.05
-        s.alignment_diameter_clear = s.alignment_diameter_nominal + 0.2
+        s.alignment_diameter_press = s.alignment_diameter_nominal - 0.05
+        s.alignment_diameter_slide = s.alignment_diameter_nominal + 0.15
+        s.alignment_diameter_clear = s.alignment_diameter_nominal + 0.25
+        s.alignment_pin_offset_fraction = 0.35  # percentage of the substrate dimention(up to 0.50) to offset the alignment pins to prevent device rotation
 
-        s.holder_t = 4.5
+        s.holder_t = 4.5  # thickness for holder layer
 
         # for RS PRO silicone tubing stock number 667-8448
         s.tube_bore = 4.8
@@ -96,9 +98,9 @@ class Sandwich:
         s.pfill = 1
         s.elastomer_outer_d_nominal = tb.c.std_socket_screws['m5']['cap_r']*2
         s.es_dia = s.elastomer_outer_d_nominal + 0.5
+        s.wingnut_hole_d = s.es_dia + 0.3
 
     def build(self):
-        tb = self.tb
         s = self
         assembly = []
         # make the spacer base layer
@@ -119,9 +121,10 @@ class Sandwich:
             spring_layer = spring_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).rect(s.inner_window_x, s.inner_window_y).cutThruAll()
             spring_layer = spring_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).rect(s.outer_window_x, s.outer_window_y).cutThruAll()
             spring_layer = spring_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).rarray(s.pin_spacing_x, s.pin_spacing_y, 12, 2).hole(s.pin_cutd)
-            spring_layer = spring_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).rarray(s.spring_spacing_x, s.spring_spacing_y, 10, 2).hole(s.spring_cutd)
-            spring_layer = spring_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(s.substrate_xy/2+s.alignment_diameter_nominal/2, 0)]).hole(s.alignment_diameter_clear)
-            spring_layer = spring_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(0, s.substrate_xy/2+s.alignment_diameter_nominal/2)]).hole(s.alignment_diameter_clear)
+            spring_layer = spring_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x+s.minor_spring_spacing_x/2, 0).rarray(s.major_spring_spacing_x, s.spring_spacing_y, 5, 2).hole(s.spring_cutd)
+            spring_layer = spring_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x-s.minor_spring_spacing_x/2, 0).rarray(s.major_spring_spacing_x, s.spring_spacing_y, 5, 2).hole(s.spring_cutd)
+            spring_layer = spring_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(s.substrate_xy/2+s.alignment_diameter_nominal/2, s.substrate_xy*s.alignment_pin_offset_fraction),(s.substrate_xy/2+s.alignment_diameter_nominal/2, -s.substrate_xy*s.alignment_pin_offset_fraction)]).hole(s.alignment_diameter_clear)
+            spring_layer = spring_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(s.substrate_xy*s.alignment_pin_offset_fraction, s.substrate_xy/2+s.alignment_diameter_nominal/2),(-s.substrate_xy*s.alignment_pin_offset_fraction, s.substrate_xy/2+s.alignment_diameter_nominal/2)]).hole(s.alignment_diameter_clear)
             spring_layer = spring_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(-s.substrate_xy/2-s.tube_OD/2+s.tube_splooge, 0)]).hole(s.tube_OD)
             spring_layer = spring_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(0, -s.substrate_xy/2-s.tube_OD/2+s.tube_splooge)]).hole(s.tube_OD)
         spring_layer = spring_layer.edges("|Z and (<Y or >Y)").fillet(s.pfill)  # round outer edges
@@ -136,8 +139,8 @@ class Sandwich:
                 holder_layer = holder_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").rarray(s.end_aligner_x_spacing, 1, 2, 1).hole(s.m5_close_d)
                 holder_layer = holder_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").rarray(s.end_aligner_x_spacing, s.end_aligner_y_spacing, 2, 2).hole(s.alignment_diameter_press)
             holder_layer = holder_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).polyline(holder_window_pline_points).close().cutThruAll()
-            holder_layer = holder_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(s.substrate_xy/2+s.alignment_diameter_nominal/2, 0)]).hole(s.alignment_diameter_press)
-            holder_layer = holder_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(0, s.substrate_xy/2+s.alignment_diameter_nominal/2)]).hole(s.alignment_diameter_press)
+            holder_layer = holder_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(s.substrate_xy/2+s.alignment_diameter_nominal/2, s.substrate_xy*s.alignment_pin_offset_fraction), (s.substrate_xy/2+s.alignment_diameter_nominal/2, -s.substrate_xy*s.alignment_pin_offset_fraction)]).hole(s.alignment_diameter_press)
+            holder_layer = holder_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(s.substrate_xy*s.alignment_pin_offset_fraction, s.substrate_xy/2+s.alignment_diameter_nominal/2), (-s.substrate_xy*s.alignment_pin_offset_fraction, s.substrate_xy/2+s.alignment_diameter_nominal/2)]).hole(s.alignment_diameter_press)
             holder_layer = holder_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(-s.substrate_xy/2-s.tube_OD/2+s.tube_splooge, 0)]).hole(s.tube_pocket_OD)
             holder_layer = holder_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(0, -s.substrate_xy/2-s.tube_OD/2+s.tube_splooge)]).hole(s.tube_pocket_OD)
         holder_layer = holder_layer.edges("|Z and (<Y or >Y)").fillet(s.pfill)  # round outer edges
@@ -148,25 +151,40 @@ class Sandwich:
         for x in (-s.cutout_spacing, 0, s.cutout_spacing):  # iterate through the three positions
             pusher = pusher.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).polyline(s.pusher_window_outer_pline_points).close().extrude(-s.holder_t - s.pusher_t)
             pusher = pusher.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).polyline(s.pusher_window_inner_pline_points).close().cutThruAll()
-            pusher = pusher.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(s.substrate_xy/2+s.alignment_diameter_nominal/2, 0)]).hole(s.alignment_diameter_clear)
-            pusher = pusher.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(0, s.substrate_xy/2+s.alignment_diameter_nominal/2)]).hole(s.alignment_diameter_clear)
-            # pusher = pusher.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x,0).pushPoints([(-substrate_xy/2-tube_OD/2+tube_splooge, 0)]).hole(tube_OD)
-            # pusher = pusher.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x,0).pushPoints([(0, -substrate_xy/2-tube_OD/2+tube_splooge)]).hole(tube_OD)
+            pusher = pusher.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(s.substrate_xy/2+s.alignment_diameter_nominal/2, s.substrate_xy*s.alignment_pin_offset_fraction),(s.substrate_xy/2+s.alignment_diameter_nominal/2, -s.substrate_xy*s.alignment_pin_offset_fraction)]).hole(s.alignment_diameter_clear)
+            pusher = pusher.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(s.substrate_xy*s.alignment_pin_offset_fraction, s.substrate_xy/2+s.alignment_diameter_nominal/2),(-s.substrate_xy*s.alignment_pin_offset_fraction, s.substrate_xy/2+s.alignment_diameter_nominal/2)]).hole(s.alignment_diameter_clear)
+
 
         pusher = pusher.edges("|Z").fillet(s.pfill)
         pusher = pusher.faces(">Z").chamfer(s.pcham)
         pusher = pusher.faces(">Z[1]").edges("<Y").chamfer(s.pcham)
 
+        for x in (-s.cutout_spacing, 0, s.cutout_spacing):  # iterate through the three positions
+            pusher = pusher.faces("<Z[1]").workplane(centerOption="CenterOfBoundBox").center(x, s.phwtho).rect(s.tube_OD,s.tube_OD).cutBlind(s.pusher_t)  #cut the notches in the pusher bits
+            pusher = pusher.faces("<Z[1]").workplane(centerOption="CenterOfBoundBox").center(x-s.phwtho, 0).rect(s.tube_OD,s.tube_OD).cutBlind(s.pusher_t)  #cut the notches in the pusher bits
+
         pusher = pusher.faces("<Z").chamfer(s.pcham)
 
-        pusher = pusher.faces(">Z[1]").workplane(centerOption="CenterOfBoundBox").rarray(s.end_aligner_x_spacing, s.end_aligner_y_spacing, 2, 2).cskHole(s.alignment_diameter_slide, cskDiameter=s.alignment_diameter_slide+4*s.pcham, cskAngle=90)
+        pusher = pusher.faces("<Z[1]").workplane(centerOption="CenterOfBoundBox").rarray(s.end_aligner_x_spacing, s.end_aligner_y_spacing, 2, 2).cskHole(s.alignment_diameter_slide, cskDiameter=s.alignment_diameter_slide+4*s.pcham, cskAngle=90)
         pusher = pusher.faces(">Z"   ).workplane(centerOption="CenterOfBoundBox").rarray(s.end_aligner_x_spacing, s.end_aligner_y_spacing, 2, 2).cskHole(s.alignment_diameter_slide, cskDiameter=s.alignment_diameter_slide+2*s.pcham, cskAngle=90)
 
-        pusher = pusher.faces(">Z[1]").workplane(centerOption="CenterOfBoundBox").rarray(s.end_aligner_x_spacing, 1, 2, 1).cskHole(s.es_dia, cskDiameter=s.es_dia+4*s.pcham, cskAngle=90)
-        pusher = pusher.faces(">Z"   ).workplane(centerOption="CenterOfBoundBox").rarray(s.end_aligner_x_spacing, 1, 2, 1).cskHole(s.es_dia, cskDiameter=s.es_dia+2*s.pcham, cskAngle=90)
+        pusher = pusher.faces("<Z[1]").workplane(centerOption="CenterOfBoundBox").rarray(s.end_aligner_x_spacing, 1, 2, 1).cskHole(s.wingnut_hole_d, s.wingnut_hole_d+4*s.pcham, cskAngle=90)
+        pusher = pusher.faces(">Z"   ).workplane(centerOption="CenterOfBoundBox").rarray(s.end_aligner_x_spacing, 1, 2, 1).cskHole(s.wingnut_hole_d, s.wingnut_hole_d+2*s.pcham, cskAngle=90)
         assembly.extend(pusher.vals())
 
         cpnd = cq.Compound.makeCompound(assembly)
 
         return cpnd
 
+# only for running standalone in cq-editor
+if "show_object" in locals():
+    from pathlib import Path
+    import sys
+    home = Path.home()
+    sys.path.insert(0,str(home.joinpath("git","mechanical")))
+    import toolbox
+    s = Sandwich(toolbox)
+    cmpd = s.build()
+    salads = cmpd.Solids()
+    for salad in salads:
+        show_object(salad)
