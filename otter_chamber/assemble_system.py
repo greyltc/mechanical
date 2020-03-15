@@ -231,6 +231,25 @@ assembly.extend([x.translate((gap4 / 2, 0, 0)) for x in suba])  # noqa: E201
 assembly.extend([x.translate((-gap4 / 2, 0, 0)) for x in suba])  # noqa
 assembly.extend([x.translate((-3 * gap4 / 2, 0, 0)) for x in subab])
 
+# now for the windblocking plate:
+wb_plate_dims = [154, 17.4, 2]
+mount_y_offset = -0.7
+mount_x_spacing = 19
+mount_d = tb.c.std_screw_threads["m3"]["close_r"]*2
+wp = cq.Workplane("XY")
+wb = wp.box(wb_plate_dims[0], wb_plate_dims[1], wb_plate_dims[2], centered=[True, True, True])
+wb = wb.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(0, mount_y_offset).rarray(mount_x_spacing, 1, 2, 1).hole(mount_d)
+wb = wb.rotate((0, 0, 0), (1, 0, 0), 90)
+position_magic_a = 87.5  # offset from center of chamber
+position_magic_b = 0.5  # height off the chamber floor
+wb = wb.translate((0, position_magic_a, wb_plate_dims[1]/2 + position_magic_b))
+wb = wb.rotate((0, 0, 0), (0, 0, 1), 90)
+
+wb1 = to_holder(wb, chamber_floor)
+wb2 = wb1.mirror(mirrorPlane='ZY')
+assembly.extend(wb1.vals())
+assembly.extend(wb2.vals())
+
 # workplane for mux stuff
 wp = cq.Workplane("XY")
 
