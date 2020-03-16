@@ -235,18 +235,26 @@ assembly.extend([x.translate((-3 * gap4 / 2, 0, 0)) for x in subab])
 wb_plate_dims = [154, 17.4, 2]
 mount_y_offset = -0.7
 mount_x_spacing = 19
-mount_d = tb.c.std_screw_threads["m3"]["close_r"]*2
+mount_d = tb.c.std_screw_threads["m3"]["close_r"] * 2
 wp = cq.Workplane("XY")
-wb = wp.box(wb_plate_dims[0], wb_plate_dims[1], wb_plate_dims[2], centered=[True, True, True])
-wb = wb.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(0, mount_y_offset).rarray(mount_x_spacing, 1, 2, 1).hole(mount_d)
+wb = wp.box(
+    wb_plate_dims[0], wb_plate_dims[1], wb_plate_dims[2], centered=[True, True, True]
+)
+wb = (
+    wb.faces(">Z")
+    .workplane(centerOption="CenterOfBoundBox")
+    .center(0, mount_y_offset)
+    .rarray(mount_x_spacing, 1, 2, 1)
+    .hole(mount_d)
+)
 wb = wb.rotate((0, 0, 0), (1, 0, 0), 90)
 position_magic_a = 87.5  # offset from center of chamber
 position_magic_b = 0.5  # height off the chamber floor
-wb = wb.translate((0, position_magic_a, wb_plate_dims[1]/2 + position_magic_b))
+wb = wb.translate((0, position_magic_a, wb_plate_dims[1] / 2 + position_magic_b))
 wb = wb.rotate((0, 0, 0), (0, 0, 1), 90)
 
 wb1 = to_holder(wb, chamber_floor)
-wb2 = wb1.mirror(mirrorPlane='ZY')
+wb2 = wb1.mirror(mirrorPlane="ZY")
 assembly.extend(wb1.vals())
 assembly.extend(wb2.vals())
 
@@ -274,87 +282,31 @@ relay_pcb4 = relay_pcb3.translate((0, 0, inter_standoff))
 relay_pcb5 = relay_pcb4.translate((0, 0, inter_standoff))
 del relay_pcb
 
-mux_box_dims = [plate.mux_box_l, plate.mux_box_w, plate.mux_box_h]
-top_cutouts = [150, 15]  # for cutting slots for the base pcb in the mux box
-mux_box = cq.Workplane("XY").box(
-    mux_box_dims[0], mux_box_dims[1], mux_box_dims[2], centered=[True, True, False]
+# load mux box
+mux_box = tb.u.import_step(
+    tb.u.tld.parent.joinpath("enclosures", "mux_box", "mux_box.step")
 )
-mux_box = mux_box.faces(">X").shell(-box_wall_thickness)
-mux_box = (
-    mux_box.faces(">Z")
-    .workplane()
-    .rarray(1, gap4, 1, 4)
-    .rect(top_cutouts[0], top_cutouts[1])
-    .cutBlind(-box_wall_thickness)
-)
-# clearance holes for dowels
-mux_box = (
-    mux_box.faces("<Z")
-    .workplane()
-    .pushPoints(plate.dowel_xys)
-    .hole(2 * plate.dowel_clearance_r, depth=box_wall_thickness)
-)
-# clearance holes for bolting box to stage mount if needed
-mux_box = (
-    mux_box.faces("<Z")
-    .workplane()
-    .pushPoints(plate.mux_bolt_xys)
-    .hole(2 * plate.low_profile_bolt_thread_clearance_r, depth=box_wall_thickness)
-)
-# clearance holes for stage plate mounting bolt heads
-mux_box = (
-    mux_box.faces("<Z")
-    .workplane()
-    .pushPoints(plate.stage_plate_thread_hole_xys)
-    .hole(2 * plate.low_profile_bolt_head_clearance_r, depth=box_wall_thickness)
-)
+mux_box = mux_box.rotate((0, 0, 0), (0, 0, 1), 90)
+mux_box_lid_screw_cap_h = 2.77
+mux_box_dims = [
+    tb.u.find_length(mux_box, "X"),
+    tb.u.find_length(mux_box, "Y"),
+    tb.u.find_length(mux_box, "Z") - mux_box_lid_screw_cap_h,
+]
+mux_box = mux_box.translate((mux_box_dims[0] / 2, -mux_box_dims[1] / 2, 0))
 
-# PCB mounting holes
-baseboard_mounts = [
-    chamber.mux_pcb_screw_xs[0] * 2,
-    adapter_width,
-]  # for drilling PCB mouting holes in the mux box
-pmhr = tb.c.std_screw_threads["m3"]["clearance_r"]
-mux_box = (
-    mux_box.faces(">Z")
-    .workplane(centerOption="CenterOfBoundBox")
-    .rarray(1, gap4, 1, 4)
-    .rect(baseboard_mounts[0], baseboard_mounts[1], forConstruction=True)
-    .vertices()
-    .circle(pmhr)
-    .cutBlind(-box_wall_thickness)
+# load mux box end plate
+mux_box_plate = tb.u.import_step(
+    tb.u.tld.parent.joinpath("enclosures", "mux_box", "mux_box_plate.step")
 )
-
-# PCB dowels
-baseboard_mounts = [
-    chamber.mux_pcb_dowel_xs[0] * 2,
-    adapter_width,
-]  # for drilling PCB mouting holes in the mux box
-pdhr = 4.3 / 2
-mux_box = (
-    mux_box.faces(">Z")
-    .workplane(centerOption="CenterOfBoundBox")
-    .rarray(1, gap4, 1, 4)
-    .rect(baseboard_mounts[0], baseboard_mounts[1], forConstruction=True)
-    .vertices()
-    .circle(pdhr)
-    .cutBlind(-box_wall_thickness)
-)
+mux_box_plate = mux_box_plate.rotate((0, 0, 0), (1, 0, 0), 90)
+mux_box_plate = mux_box_plate.rotate((0, 0, 0), (0, 0, 1), 90)
+mux_box_plate = mux_box_plate.translate((mux_box_dims[0] / 2, -mux_box_dims[1] / 2, 0))
 
 # get the dowel model
 this_stepfile = tb.u.wd.joinpath("components", "P1212.060-012.step")
 dowel = tb.u.import_step(this_stepfile)
 dowel = dowel.rotate((0, 0, 0), (0, 1, 0), 90)
-
-# lid mount screw holes
-mbshr = tb.c.std_screw_threads[chamber.mux_pcb_screw_size]["clearance_r"]
-mux_box = (
-    mux_box.faces(">Z")
-    .workplane(centerOption="CenterOfBoundBox")
-    .pushPoints(chamber.mux_lid_screws_xys)
-    .circle(mbshr)
-    .cutBlind(-box_wall_thickness)
-)
 
 baseboardA = baseboard.translate((0, gap4 / 2, mux_box_dims[2]))
 baseboardB = baseboard.translate((0, -gap4 / 2, mux_box_dims[2]))
@@ -364,6 +316,7 @@ baseboardD = baseboard.translate((0, 3 * gap4 / 2, mux_box_dims[2]))
 # mux box assembly
 mba = []
 mba.extend(mux_box.vals())
+mba.extend(mux_box_plate.vals())
 
 for x, y in chamber.mux_pcb_dowel_xys:
     z = tb.u.find_length(dowel, "Z") / 2 + mux_box_dims[2]
