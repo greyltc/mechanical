@@ -51,7 +51,7 @@ def make_cut(self, rows=8, angle=0, kind="C", mfg="samtec"):
         # find the source thing's thickness at the cut point
         # TODO: check that this works when cutting into objects from a non-"<Z" face
         boreDir = cq.Vector(0, 0, 1)
-        test_hole = cq.Solid.makeCylinder(0.5, test_hole_length, center, boreDir).translate((0, 0, -test_hole_length/2))
+        test_hole = cq.Solid.makeCylinder(0.5, test_hole_length, boreDir).locate(center).translate((0, 0, -test_hole_length/2))
         intersection = self.intersect(test_hole)
         this_thikness = tb.u.find_length(intersection, along="Z")
 
