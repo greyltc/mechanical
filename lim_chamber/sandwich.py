@@ -59,7 +59,7 @@ class Sandwich:
         s.alignment_diameter_nominal = 3
         s.alignment_diameter_press = s.alignment_diameter_nominal - 0.05
         s.alignment_diameter_slide = s.alignment_diameter_nominal + 0.15
-        s.alignment_diameter_clear = s.alignment_diameter_nominal + 0.25
+        s.alignment_diameter_clear = s.alignment_diameter_nominal + 0.45
         s.alignment_pin_offset_fraction = 0.35  # percentage of the substrate dimention(up to 0.50) to offset the alignment pins to prevent device rotation
 
         s.holder_t = 4.5  # thickness for holder layer
@@ -146,24 +146,26 @@ class Sandwich:
         holder_layer = holder_layer.edges("|Z and (<Y or >Y)").fillet(s.pfill)  # round outer edges
         assembly.extend(holder_layer.vals())
 
-        # make the pusher downer
+        # make the pusher downer base layer
         pusher = holder_layer.faces(">Z").workplane(centerOption="CenterOfBoundBox").box(s.leng, s.wid, s.pusher_t, centered=(True, True, False), combine=False)
+
+        # make the actual pusher downers
         for x in (-s.cutout_spacing, 0, s.cutout_spacing):  # iterate through the three positions
             pusher = pusher.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).polyline(s.pusher_window_outer_pline_points).close().extrude(-s.holder_t - s.pusher_t)
             pusher = pusher.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).polyline(s.pusher_window_inner_pline_points).close().cutThruAll()
             pusher = pusher.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(s.substrate_xy/2+s.alignment_diameter_nominal/2, s.substrate_xy*s.alignment_pin_offset_fraction),(s.substrate_xy/2+s.alignment_diameter_nominal/2, -s.substrate_xy*s.alignment_pin_offset_fraction)]).hole(s.alignment_diameter_clear)
             pusher = pusher.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(x, 0).pushPoints([(s.substrate_xy*s.alignment_pin_offset_fraction, s.substrate_xy/2+s.alignment_diameter_nominal/2),(-s.substrate_xy*s.alignment_pin_offset_fraction, s.substrate_xy/2+s.alignment_diameter_nominal/2)]).hole(s.alignment_diameter_clear)
 
-
         pusher = pusher.edges("|Z").fillet(s.pfill)
-        pusher = pusher.faces(">Z").chamfer(s.pcham)
-        pusher = pusher.faces(">Z[1]").edges("<Y").chamfer(s.pcham)
 
+        # make the cutouts in the pushers for the hose pieces
         for x in (-s.cutout_spacing, 0, s.cutout_spacing):  # iterate through the three positions
             pusher = pusher.faces("<Z[1]").workplane(centerOption="CenterOfBoundBox").center(x, s.phwtho).rect(s.tube_OD,s.tube_OD).cutBlind(s.pusher_t)  #cut the notches in the pusher bits
             pusher = pusher.faces("<Z[1]").workplane(centerOption="CenterOfBoundBox").center(x-s.phwtho, 0).rect(s.tube_OD,s.tube_OD).cutBlind(s.pusher_t)  #cut the notches in the pusher bits
 
-        pusher = pusher.faces("<Z").chamfer(s.pcham)
+        pusher = pusher.faces(">Z").chamfer(s.pcham)  # the bottom of the base
+        pusher = pusher.faces("<Z[1]").edges("<Y").chamfer(s.pcham)  # the top of the base
+        pusher = pusher.faces("<Z").chamfer(s.pcham)  # the tops of the pusher downers
 
         pusher = pusher.faces("<Z[1]").workplane(centerOption="CenterOfBoundBox").rarray(s.end_aligner_x_spacing, s.end_aligner_y_spacing, 2, 2).cskHole(s.alignment_diameter_slide, cskDiameter=s.alignment_diameter_slide+4*s.pcham, cskAngle=90)
         pusher = pusher.faces(">Z"   ).workplane(centerOption="CenterOfBoundBox").rarray(s.end_aligner_x_spacing, s.end_aligner_y_spacing, 2, 2).cskHole(s.alignment_diameter_slide, cskDiameter=s.alignment_diameter_slide+2*s.pcham, cskAngle=90)

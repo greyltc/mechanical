@@ -71,10 +71,10 @@ base_mounty = 40
 pcb_tab_spacing = 141.66
 adapter_dim = 30
 
+block_offset_from_edge_of_base = 1
+
 # make the base shape
-#cq.Workplane.undercutRelief2D = tb.u.undercutRelief2D
 base = cq.Workplane("XY").rect(base_l, base_w).extrude(base_t)
-#base = base.undercutRelief2D(window_l, window_w, diameter=6.35, kind="B").cutThruAll()
 base = base.rect(window_l, window_w).cutThruAll().edges("|Z").fillet(fillet_r)
 
 # cut the mounting holes in it
@@ -131,7 +131,6 @@ assembly.extend(adapter.translate((-adapter_spacing, 0, 0)).vals())
 block = tb.endblock.build(adapter_width=adapter_width, horzm3s=False, pfdowel=True)
 
 # position the block
-block_offset_from_edge_of_base = 1
 block = block.translate((tb.endblock.length/2+block_offset_from_edge_of_base, base_w/2, tb.endblock.height/2+base_t))
 
 assembly.extend(block.vals())

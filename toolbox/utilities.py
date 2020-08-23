@@ -90,7 +90,7 @@ def undercutRelief2D(self, length, width, diameter, angle=0, kind='C', corner_to
 
         face = shape.faces("<Z").faces().val()
         slot = face.outerWire()
-        slot = slot.translate(pnt)
+        slot = slot.locate(pnt)
 
         return slot
 
@@ -141,7 +141,7 @@ def import_step(file):
     return wp
 
 
-def find_length(thisthing, along="X"):
+def find_length(thisthing, along="X", bb_method=False):
     """
     Use distance between extreme verticies of an object to
     find its length along a coordinate direction
@@ -149,13 +149,24 @@ def find_length(thisthing, along="X"):
     """
 
     length = None
-    if along == "X":
-        length = thisthing.vertices(">X").val().Center().x - \
-                 thisthing.vertices("<X").val().Center().x
-    elif along == "Y":
-        length = thisthing.vertices(">Y").val().Center().y - \
-                 thisthing.vertices("<Y").val().Center().y
-    elif along == "Z":
-        length = thisthing.vertices(">Z").val().Center().z - \
-                 thisthing.vertices("<Z").val().Center().z
+    if bb_method == False:
+        if along == "X":
+            length = thisthing.vertices(">X").val().Center().x - \
+                    thisthing.vertices("<X").val().Center().x
+        elif along == "Y":
+            length = thisthing.vertices(">Y").val().Center().y - \
+                    thisthing.vertices("<Y").val().Center().y
+        elif along == "Z":
+            length = thisthing.vertices(">Z").val().Center().z - \
+                    thisthing.vertices("<Z").val().Center().z
+    else:
+        s = thisthing.findSolid()
+        tbb = s.BoundingBox()
+        if along == "X":
+            length = tbb.xlen
+        if along == "Y":
+            length = tbb.ylen
+        if along == "Z":
+            length = tbb.zlen
+
     return length
