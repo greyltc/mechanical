@@ -1,18 +1,17 @@
 import cadquery as cq
 import math
+import geometrics.toolbox as tb
+import pathlib
 
 
 class Sandwich:
-    tb = None
-    
     # a list of equally spaced numbers centered around zero
     def espace(self, n, spacing):
         return([(x-(n-1)/2)*spacing for x in range(n)])
 
-    def __init__(self, toolbox, leng=166, wid=50, substrate_xy=30, cutout_spacing=42.5, endblock_width=12, aux_hole_spacing=16, block_offset_from_edge_of_base=1):
-        self.tb = toolbox
-        tb = toolbox
+    def __init__(self, leng=166, wid=50, substrate_xy=30, cutout_spacing=42.5, endblock_width=12, aux_hole_spacing=16, block_offset_from_edge_of_base=1):
         s = self
+        tb.c = tb.constants
 
         s.leng = leng
         s.wid = wid
@@ -185,15 +184,14 @@ class Sandwich:
 
         return cpnd
 
-# only for running standalone in cq-editor
-if "show_object" in locals():
-    from pathlib import Path
-    import sys
-    home = Path.home()
-    sys.path.insert(0,str(home.joinpath("git","mechanical")))
-    import toolbox
-    s = Sandwich(toolbox, leng=166, wid=50, substrate_xy=30, cutout_spacing=35, endblock_width=12, aux_hole_spacing=16, block_offset_from_edge_of_base=1)
+
+if ("show_object" in locals()) or (__name__ == "__main__"):
+    s = Sandwich(leng=166, wid=50, substrate_xy=30, cutout_spacing=35, endblock_width=12, aux_hole_spacing=16, block_offset_from_edge_of_base=1)
     cmpd = s.build()
     salads = cmpd.Solids()
     for salad in salads:
-        show_object(salad)
+        if "show_object" in locals():  # only for running standalone in cq-editor
+            show_object(salad)
+            tb.utilities.export_step(salad,pathlib.Path("./salad.step"))
+        elif __name__ == "__main__":
+            tb.utilities.export_step()
