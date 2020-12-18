@@ -192,6 +192,6 @@ if ("show_object" in locals()) or (__name__ == "__main__"):
     for salad in salads:
         if "show_object" in locals():  # only for running standalone in cq-editor
             show_object(salad)
-            tb.utilities.export_step(salad,pathlib.Path("./salad.step"))
         elif __name__ == "__main__":
-            tb.utilities.export_step()
+            this_hash = salad.hashCode()  # this might not be unique because it does not hash orientation
+            tb.utilities.export_step(salad, pathlib.Path(f"{this_hash}.step"))
