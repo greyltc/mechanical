@@ -5,7 +5,7 @@ import geometrics.toolbox as tb
 import pathlib
 
 
-class Sandwich:
+class Sandwich(object):
     # a list of equally spaced numbers centered around zero
     def espace(self, n, spacing):
         return([(x-(n-1)/2)*spacing for x in range(n)])
@@ -184,14 +184,20 @@ class Sandwich:
 
         return cpnd
 
-
-if ("show_object" in locals()) or (__name__ == "__main__"):
+def make_demo_solids():
     s = Sandwich(leng=166, wid=50, substrate_xy=30, cutout_spacing=35, endblock_width=12, aux_hole_spacing=16, block_offset_from_edge_of_base=1)
     cmpd = s.build()
-    salads = cmpd.Solids()
+    return cmpd.Solids()
+
+def make_steps():
+    salads = make_demo_solids()
     for salad in salads:
-        if "show_object" in locals():  # only for running standalone in cq-editor
-            show_object(salad)
-        elif __name__ == "__main__":
-            this_hash = salad.hashCode()  # this might not be unique because it does not hash orientation
-            tb.utilities.export_step(salad, pathlib.Path(f"{this_hash}.step"))
+        this_hash = salad.hashCode()  # this might not be unique because it does not hash orientation
+        tb.utilities.export_step(salad, pathlib.Path(f"{this_hash}.step"))
+
+if "show_object" in locals():
+    salads = make_demo_solids()
+    for salad in salads:
+        show_object(salad)
+elif __name__ == "__main__":
+    make_steps()
