@@ -1,5 +1,5 @@
 import cadquery as cq
-import toolbox as tb
+from . import constants as c
 
 """
 block for mounting PCBs
@@ -55,7 +55,7 @@ def build(
 
     """
     global width, length, height, csk_diameter, base_mount_screw_size
-    cska = tb.c.std_countersinks[base_mount_screw]["angle"]
+    cska = c.std_countersinks[base_mount_screw]["angle"]
 
     if (vertm3s is True) and (horzm3s is True):
         raise (ValueError("Hole collision while building endblock"))
@@ -63,7 +63,7 @@ def build(
     if sum((pfdowel, align_bumps, vertm3s)) > 1:
         raise (ValueError("Only one can be true: vertm3s, align_bumps, pfdowel"))
 
-    width = adapter_width - tb.c.pcb_thickness
+    width = adapter_width - c.pcb_thickness
     length = block_length
     height = block_height
     base_mount_screw_size = base_mount_screw
@@ -79,7 +79,7 @@ def build(
     block = cq.Workplane("XY").box(length, width, height)
 
     # put in the PCB mounting holes
-    cskbd = tb.c.std_screw_threads["m2"]["tap_r"] * 2
+    cskbd = c.std_screw_threads["m2"]["tap_r"] * 2
     block = (
         block.faces(">Y")
         .workplane(centerOption="CenterOfBoundBox")
@@ -138,7 +138,7 @@ def build(
         csk_diameter = length - 1.5
 
         # base mount hole for use with RS Stock No. 908-7532 machine screws
-        csktd = 2 * tb.c.std_screw_threads[base_mount_screw_size]["close_r"]
+        csktd = 2 * c.std_screw_threads[base_mount_screw_size]["close_r"]
         block = (
             block.faces(">Z")
             .workplane(centerOption="CenterOfBoundBox").center(-special_chamfer_diff/2, 0)
@@ -154,14 +154,14 @@ def build(
         block = (
             block.faces("<Z")
             .workplane(centerOption="CenterOfBoundBox")
-            .circle(2 * tb.c.std_screw_threads[base_mount_screw_size]["tap_r"])
+            .circle(2 * c.std_screw_threads[base_mount_screw_size]["tap_r"])
             .cutBlind(thread_length_from_bottom)
         )
 
 
     # 2x threaded countersunk holes on the back side
     if horzm3s is True:
-        cskbd = 2 * tb.c.std_screw_threads["m3"]["tap_r"]
+        cskbd = 2 * c.std_screw_threads["m3"]["tap_r"]
         dm3pts = [
             (-aux_hole_spacing / 2, back_aux_hole_z),
             (aux_hole_spacing / 2, back_aux_hole_z),
@@ -199,7 +199,7 @@ def build(
 
     # 2x countersunk holes for screws up from the bottom
     if vertm3s is True:
-        csktd = 2 * tb.c.std_screw_threads["m3"]["close_r"]
+        csktd = 2 * c.std_screw_threads["m3"]["close_r"]
         dm3pts = [(0, aux_hole_spacing / 2), (0, -aux_hole_spacing / 2)]
         bot_face = block.faces("<Z").workplane(centerOption="CenterOfBoundBox")
         bot_face = bot_face.pushPoints(dm3pts)

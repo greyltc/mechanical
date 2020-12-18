@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import cadquery as cq
 import math
 import geometrics.toolbox as tb
@@ -11,7 +12,6 @@ class Sandwich:
 
     def __init__(self, leng=166, wid=50, substrate_xy=30, cutout_spacing=42.5, endblock_width=12, aux_hole_spacing=16, block_offset_from_edge_of_base=1):
         s = self
-        tb.c = tb.constants
 
         s.leng = leng
         s.wid = wid

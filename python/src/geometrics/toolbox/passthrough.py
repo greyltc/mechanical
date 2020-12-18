@@ -1,5 +1,6 @@
 import cadquery as cq
-import toolbox as tb
+from . import utilities as u
+from . import constants as c
 
 """
 cuts a pcb card edge passthrough through something
@@ -53,7 +54,7 @@ def make_cut(self, rows=8, angle=0, kind="C", mfg="samtec"):
         swiss = self.copyWorkplane(self)
         cheese = self.copyWorkplane(self).pushPoints([center]).circle(0.5).cutThruAll()
         core = swiss.cut(cheese)
-        this_thikness = tb.u.find_length(core, along="Z", bb_method=True)
+        this_thikness = u.find_length(core, along="Z", bb_method=True)
 
         min_thickness = pocket_d + min_gp_connector_pocket_spacing + gp_depth
 
@@ -71,16 +72,16 @@ def make_cut(self, rows=8, angle=0, kind="C", mfg="samtec"):
         result = result.faces("<Z").edges("not(<X or >X or <Y or >Y)").chamfer(chamfer_length)
 
         # now make the undercut pocket
-        cq.Workplane.undercutRelief2D = tb.u.undercutRelief2D
+        cq.Workplane.undercutRelief2D = u.undercutRelief2D
         result = result.faces("<Z").undercutRelief2D(pocket_l, pocket_w, diameter=r*2, angle=90, kind=kind).cutBlind(pocket_d)
 
         # cut out the glue pocket
-        slot_width = tb.c.pcb_thickness+2*gp_buffer
+        slot_width = c.pcb_thickness+2*gp_buffer
         slot_len = pcb_len+slot_width
         result = result.faces(">Z").slot2D(slot_len, slot_width, angle=90).cutBlind(-gp_depth)
 
         # cut out the pcb passthrough slot
-        slot_width = tb.c.pcb_thickness+2*pcb_clearance
+        slot_width = c.pcb_thickness+2*pcb_clearance
         slot_len = pcb_len+slot_width
         result = result.faces(">Z").slot2D(slot_len, slot_width, angle=90).cutThruAll()
 
