@@ -52,7 +52,7 @@ def make_demo_solids():
     cmpd = s.build()
     return cmpd.Solids()
 
-def make_steps():
+def make_ouputs():
     salads = make_demo_solids()
     for salad in salads:
         this_hash = salad.hashCode()  # this might not be unique because it does not hash orientation
