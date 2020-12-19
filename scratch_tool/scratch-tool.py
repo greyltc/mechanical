@@ -64,4 +64,4 @@ if "show_object" in locals():
     for salad in salads:
         show_object(salad)
 elif __name__ == "__main__":
-    make_steps()
+    make_ouputs()
