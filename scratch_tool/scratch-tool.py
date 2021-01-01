@@ -7,17 +7,19 @@ import pathlib
 class ScratchTool(object):
     extra_xy = 30
     glass_dim = 30
-    bottom_z = 5
+    bottom_z = 10
     glass_xy_fudge = 0.5
 
     dowel_nominal_d = 3
-    dowel_press_fudge = 0.2
+    dowel_press_fudge = 0.3
 
     dowel_offset_from_center = 4.3306
     nominal_glass_pin_play = 0.2
 
-    bottom_safe_step_z = 0.3
+    bottom_safe_step_z = 1
     bottom_safe_step_xy = 28
+
+    centerpunch_xy = 20
 
     def __init__(self, extra_xy=30, glass_dim=30):
         self.extra_xy = extra_xy
@@ -37,9 +39,10 @@ class ScratchTool(object):
         # make the bottom piece
         bottom = cq.Workplane("XY")
         bottom = bottom.box(x, y, s.bottom_z, centered=(True, True, False))
-        bottom = bottom.faces("<Z").workplane(centerOption="CenterOfBoundBox").rarray(s.glass_dim+s.dowel_nominal_d, 2*s.dowel_offset_from_center, 2, 2).hole(dowel_press_d)
-        bottom = bottom.faces("<Z").workplane(centerOption="CenterOfBoundBox").rarray(2*s.dowel_offset_from_center, s.glass_dim+s.dowel_nominal_d, 2, 2).hole(dowel_press_d)
+        bottom = bottom.faces("<Z").workplane(centerOption="CenterOfBoundBox").rarray(s.glass_dim+s.dowel_nominal_d+s.nominal_glass_pin_play, 2*s.dowel_offset_from_center, 2, 2).hole(dowel_press_d)
+        bottom = bottom.faces("<Z").workplane(centerOption="CenterOfBoundBox").rarray(2*s.dowel_offset_from_center, s.glass_dim+s.dowel_nominal_d+s.nominal_glass_pin_play, 2, 2).hole(dowel_press_d)
         bottom = bottom.faces(">Z").rect(s.bottom_safe_step_xy, s.bottom_safe_step_xy).cutBlind(s.bottom_safe_step_z)
+        bottom = bottom.faces(">Z").rect(s.centerpunch_xy, s.centerpunch_xy).cutThruAll()
 
         assembly.extend(bottom.vals())
 
