@@ -11,7 +11,7 @@ class ScratchTool(object):
     glass_xy_fudge = 0.5
 
     dowel_nominal_d = 3
-    dowel_press_fudge = 0.3
+    dowel_press_fudge = 0.35
 
     dowel_offset_from_center = 4.3306
     nominal_glass_pin_play = 0.2
