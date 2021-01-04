@@ -35,7 +35,7 @@ class ScratchTool(object):
     glass_pocket_xy_fudge = 1
     pedistal_pocket_xy_fudge = 1
 
-    dowel_clearance_fudge = 0.8
+    dowel_clearance_fudge = 0.7
 
     scratch_tool_width = 1
     scratch_tool_width_fudge = 1
