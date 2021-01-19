@@ -45,9 +45,17 @@ def cb(s):
     return {
         "diameter": std_screw_threads[s]["clearance_r"] * 2,
         "cboreDiameter": std_socket_screws[s]["cbore_r"] * 2,
-        "cboreDepth": std_socket_screws[s]["cbore_h"],
+        "cboreDepth": std_socket_screws[s]["cbore_h"]
     }
 
+# this just makes counterbore holes easier to do.
+# use it later like this if you want an m4 one with d diameter: .cskHole(**tb.c.csk('m4', d))
+def csk(s, d):
+    return {
+        "diameter": std_screw_threads[s]["clearance_r"] * 2,
+        "cskDiameter": d,
+        "cskAngle": 90  # could also be 82?
+    }
 
 # Standard hex nut parameters (ANSI/ASME B18.2.4.1M, seems equiv. to DIN 934)
 # https://www.engineersedge.com/hardware/standard_metric_hex_nuts_13728.htm
