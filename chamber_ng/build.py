@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import cadquery
-#import cadquery as cq
-from cadquery.cq import CQ, Workplane
+from cadquery import CQ, cq
 import geometrics.toolbox as tb
 import logging
 
@@ -40,7 +39,7 @@ class ChamberNG(object):
     potting_pocket_depth = 2
     potting_pocket_fillet = 2
 
-    def __init__(self, array = (4,1), subs =(30, 30), spacing=(10, 10)):
+    def __init__(self, array = (4, 1), subs =(30, 30), spacing=(10, 10)):
         self.array = array
         self.substrate_adapters = subs
         self.substrate_spacing = spacing
@@ -76,7 +75,7 @@ class ChamberNG(object):
             #shelf_void_extents[0] = shelf_void_extents[0] + s.extra_x
         
         # werkplane face
-        wpf = cadquery.Face.makeFromWires(wp.val())
+        wpf = cq.Face.makeFromWires(wp.val())
 
         # to get the dims of the working array
         wpbb = wpf.BoundingBox()  
@@ -163,15 +162,30 @@ class ChamberNG(object):
             CQ()
             .box(wpbb.xlen+2*s.potting_pocket_fillet+s.pcb_thickness+2*s.pcb_slot_clearance, 4*s.potting_pocket_depth, s.wall_height+2*s.potting_pocket_fillet, centered=[True, False, False])
             .translate([0, -4*s.potting_pocket_depth+wpbb.ymin-s.extra[2]-shelf_width-s.wall[2]+s.potting_pocket_depth, -s.wall_height-s.potting_pocket_fillet])
-            .edges().fillet(s.potting_pocket_fillet)
+            #.edges().fillet(s.potting_pocket_fillet)
             #.edges().chamfer(s.potting_pocket_fillet)
         )
         shelved_ring = shelved_ring.cut(side_pot_cutter)
 
+        # now cut the vgroove bevels in the side potting pocket
+        spcbb = side_pot_cutter.findSolid().BoundingBox()
+        svg = tb.groovy.mk_vgroove(CQ().rect(spcbb.xlen, spcbb.zlen, centered=False), (0,spcbb.zlen/2,0), s.potting_pocket_depth)
+        svg = svg.translate((-spcbb.xlen/2, -spcbb.zlen, 0))
+        svg = svg.rotate((0,0,0), (1,0,0), 90)
+        srbb = shelved_ring.findSolid().BoundingBox()
+        svg = svg.translate((0,srbb.ymin,s.potting_pocket_fillet))
+        shelved_ring = shelved_ring.cut(svg)
 
+        # split the two pieces
         top = shelved_ring.faces('>Z[-1]').workplane(-s.top_mid_height).split(keepTop=True)
         middle = shelved_ring.faces('>Z[-1]').workplane(-s.top_mid_height).split(keepBottom=True)
-
+        
+        # now cut the vgroove for the potting between the pieces
+        grooved = 1
+        offset = 4
+        path = CQ().polyline([(srbb.xmin+offset, srbb.ymin), (srbb.xmin+offset, srbb.ymax-offset), (srbb.xmax-offset, srbb.ymax-offset), (srbb.xmax-offset, srbb.ymin)])
+        pg = tb.groovy.mk_vgroove(path, (srbb.xmin+offset, srbb.ymin,0), grooved)
+        middle = middle.cut(pg)
 
         return (middle, top)
 
@@ -189,10 +203,9 @@ class ChamberNG(object):
         asy.add(middle, name="middle", color=cadquery.Color("orange"))
         asy.add(top_mid, name="top_mid", color=cadquery.Color("yellow"))
 
-
         # make the top piece
         #top = self.make_top(x, y)
-        #asy.add(top, name="top")
+        #asy.add(vg, name="vg")
 
         # constrain assembly
         #asy.constrain("bottom?bottom_mate", "top?top_mate", "Point")
@@ -203,7 +216,7 @@ class ChamberNG(object):
         return asy
 
 def main():
-    s = ChamberNG(array=(4, 4), subs =(30, 30), spacing=(10, 10))
+    s = ChamberNG(array=(1, 4), subs =(30, 30), spacing=(10, 10))
     asy = s.build()
     
     if "show_object" in globals():
@@ -211,7 +224,7 @@ def main():
         for key, val in asy.traverse():
             shapes = val.shapes
             if shapes != []:
-                c = cadquery.Compound.makeCompound(shapes)
+                c = cq.Compound.makeCompound(shapes)
                 odict = {}
                 if val.color is not None:
                     co = val.color.wrapped.GetRGB()
@@ -227,7 +240,7 @@ def main():
         for key, val in asy.traverse():
             shapes = val.shapes
             if shapes != []:
-                c = cadquery.Compound.makeCompound(shapes)
+                c = cq.Compound.makeCompound(shapes)
                 cadquery.exporters.export(c, f'{val.name}.stl')
 
 main()
