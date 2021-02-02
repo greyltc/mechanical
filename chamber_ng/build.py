@@ -7,7 +7,7 @@ import logging
 
 class ChamberNG(object):
     # wall thicknesses
-    wall = (10, 10, 10, 10)  # -X, +X, -Y, +Y (slots are in -Y wall)
+    wall = (5, 5, 10, 10)  # -X, +X, -Y, +Y (slots are in -Y wall)
 
     # nominal pcb thickness
     pcb_thickness = 1.6
@@ -17,11 +17,22 @@ class ChamberNG(object):
 
     endblock_wall_spacing = 1  # from + and - Y walls
     endblock_thickness = 12
+
+    # radius on the shelf fillet
+    shelf_fr = 2
+
+    # radius on the above shelf fillet
+    above_shelf_fr = 10
     
     # extra room between the device plane and the walls on each side: (-X, +X, -Y, +Y)
     # these must be at least 0.7288 to prevent shadowing when spacing = 0 and shelf_height=5
-    x_minus = pcb_slot_clearance + pcb_thickness/2 # makes sense when spacing = 0
-    x_plus = pcb_slot_clearance + pcb_thickness/2 # makes sense when spacing = 0
+    #x_minus = pcb_slot_clearance + pcb_thickness/2 # makes sense when spacing = 0
+    #x_plus = pcb_slot_clearance + pcb_thickness/2 # makes sense when spacing = 0
+    #x_minus = 0
+    #x_plus = 0
+    x_minus = above_shelf_fr
+    x_plus = above_shelf_fr
+
     # these must be at least 2.5577 to prevent shadowing when yspacing = 0 and shelf_height=5
     y_minus = 3
     y_plus = 3
@@ -31,13 +42,18 @@ class ChamberNG(object):
     # only really makes sense when extra_x > 0 and x spacing = 0
     use_shelf_PCB_jammers = True
 
-    wall_height = 12
+    pcb_height = 12
+    wall_height = pcb_height + pcb_thickness/2+pcb_slot_clearance
     shelf_height = 5
     top_mid_height = 5
 
     # constants for the slot-side potting pocket
     potting_pocket_depth = 2
     potting_pocket_fillet = 2
+
+    # potting groove offset from the three edges
+    pg_offset = 2.5
+    pg_depth = 1  #potting groove depth
 
     def __init__(self, array = (4, 1), subs =(30, 30), spacing=(10, 10)):
         self.array = array
@@ -143,21 +159,31 @@ class ChamberNG(object):
             .faces(">Z[-1]").wires().toPending().extrude(s.top_mid_height)  # add in +Z direction
         )
 
+        # fillet the inner shelf corners
+        shelved_ring = CQ().add(shelved_ring).edges('|Z and <Z[-1]').fillet(s.shelf_fr)
+
+        # fillet the innter corners above the shelf
+        shelved_ring = CQ().add(shelved_ring).edges('|Z and >Z[-1]').fillet(s.above_shelf_fr)
+
+        # form PCB slot cutters
         c_len = wpbb.ylen + 2*shelf_width + s.extra[2] + s.extra[3] + s.wall[2] + s.wall[3]  # length of the slot cutter
         _pcb_slot_void = (
             CQ()
-            .workplane(offset=-s.wall_height)
+            .workplane(offset=-s.pcb_height)
             .rarray(xSpacing=(s.period[0]), ySpacing=1, xCount=s.array[0], yCount=1)
-            .box(s.pcb_thickness+2*s.pcb_slot_clearance, c_len, s.wall_height, centered=[True, False, False])
+            .box(s.pcb_thickness+2*s.pcb_slot_clearance, c_len, s.pcb_height, centered=[True, False, False])
+            .faces("<Y[-1]").workplane().circle(s.pcb_thickness/2+s.pcb_slot_clearance).extrude(-c_len)
             .translate([0, -c_len+wpbb.ymax+s.extra[3]+s.endblock_thickness, 0]) # so that the slots are cut in the -Y wall
         )
 
+        # cut the PCB slots
         shelved_ring = (
             CQ(shelved_ring.findSolid())
             .cut(_pcb_slot_void.translate([-s.substrate_adapters[0]/2,0,0]))
             .cut(_pcb_slot_void.translate([ s.substrate_adapters[0]/2,0,0]))
         )
 
+        # the side potting pocket
         side_pot_cutter = (
             CQ()
             .box(wpbb.xlen+2*s.potting_pocket_fillet+s.pcb_thickness+2*s.pcb_slot_clearance, 4*s.potting_pocket_depth, s.wall_height+2*s.potting_pocket_fillet, centered=[True, False, False])
@@ -176,15 +202,22 @@ class ChamberNG(object):
         svg = svg.translate((0,srbb.ymin,s.potting_pocket_fillet))
         shelved_ring = shelved_ring.cut(svg)
 
+        # now cut the paths to the entry/exit
+        cone = cq.Solid.makeCone(0,s.potting_pocket_depth, s.potting_pocket_depth, dir=cq.Vector(0,-1,0))
+        cone_right = CQ('XZ').add(cone).translate((srbb.xmax-s.pg_offset,srbb.ymin+s.potting_pocket_depth,0)) # srbb.ymin-s.potting_pocket_depth
+        cone_left = cone_right.mirror(mirrorPlane='YZ')
+        shelved_ring = shelved_ring.cut(cone_right)
+        shelved_ring = shelved_ring.cut(cone_left)
+        btw_path = CQ("YZ").polyline([(0,0),(-s.potting_pocket_depth,-s.potting_pocket_depth),(-s.potting_pocket_depth,s.potting_pocket_depth)]).close().extrude(srbb.xlen-2*s.pg_offset).translate((srbb.xmin+s.pg_offset,srbb.ymin+s.potting_pocket_depth,0))
+        shelved_ring = shelved_ring.cut(btw_path)
+
         # split the two pieces
         top = shelved_ring.faces('>Z[-1]').workplane(-s.top_mid_height).split(keepTop=True)
         middle = shelved_ring.faces('>Z[-1]').workplane(-s.top_mid_height).split(keepBottom=True)
-        
-        # now cut the vgroove for the potting between the pieces
-        grooved = 1
-        offset = 4
-        path = CQ().polyline([(srbb.xmin+offset, srbb.ymin), (srbb.xmin+offset, srbb.ymax-offset), (srbb.xmax-offset, srbb.ymax-offset), (srbb.xmax-offset, srbb.ymin)])
-        pg = tb.groovy.mk_vgroove(path, (srbb.xmin+offset, srbb.ymin,0), grooved)
+
+        # now cut the v potting groove for the potting between the pieces
+        path = CQ().polyline([(srbb.xmin+s.pg_offset, srbb.ymin), (srbb.xmin+s.pg_offset, srbb.ymax-s.pg_offset), (srbb.xmax-s.pg_offset, srbb.ymax-s.pg_offset), (srbb.xmax-s.pg_offset, srbb.ymin)])
+        pg = tb.groovy.mk_vgroove(path, (srbb.xmin+s.pg_offset, srbb.ymin,0), s.pg_depth)
         middle = middle.cut(pg)
 
         return (middle, top)
@@ -216,7 +249,7 @@ class ChamberNG(object):
         return asy
 
 def main():
-    s = ChamberNG(array=(1, 4), subs =(30, 30), spacing=(10, 10))
+    s = ChamberNG(array=(1, 4), subs =(30, 30), spacing=(0, 10))
     asy = s.build()
     
     if "show_object" in globals():
