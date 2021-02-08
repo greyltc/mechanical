@@ -7,7 +7,7 @@ import logging
 
 class ChamberNG(object):
     # wall thicknesses
-    wall = (5, 5, 10, 10)  # -X, +X, -Y, +Y (slots are in -Y wall)
+    wall = (5, 5, 12, 12)  # -X, +X, -Y, +Y (slots are in -Y wall)
 
     # nominal pcb thickness
     pcb_thickness = 1.6
@@ -51,9 +51,26 @@ class ChamberNG(object):
     potting_pocket_depth = 2
     potting_pocket_fillet = 2
 
-    # potting groove offset from the three edges
+    # potting groove center offset from the inside edges of the walls (for the three non-PCB sides)
     pg_offset = 2.5
     pg_depth = 1  #potting groove depth
+
+    pcb_ph_remain = 2  # number of mm of wall to leave on inner wall of pcb passthrough
+    #pcb_phd = wall[2] - 2*pcb_ph_remain  # pcb passthrough potting hole diameter
+    pcb_phd = 7  # pcb passthrough potting hole diameter
+    pdhd = 1  # potting delivery/vent hole diameter
+
+
+    chr = tb.c.std_screw_threads['m5']['close_r']  # corner hole radius
+    cho = 6  # corner hole offset
+
+    spdhd = 4.25  # spring pin dowel hole depth
+    spdd = 2  # spring pin dowel hole diameter
+    spd_shift = 3  # shift spring pin dowel holes towards middle this much along y
+
+    sspdhd = 2.5 # side spring pin dowel hole diameter
+    sspdh_offset = 2.5  # side spring pin dowel hole offset from edge
+    sspdh_depth = 4.25  # side spring pin dowel hole offset from edge
 
     def __init__(self, array = (4, 1), subs =(30, 30), spacing=(10, 10)):
         self.array = array
@@ -164,60 +181,115 @@ class ChamberNG(object):
 
         # fillet the innter corners above the shelf
         shelved_ring = CQ().add(shelved_ring).edges('|Z and >Z[-1]').fillet(s.above_shelf_fr)
+        srbb = shelved_ring.findSolid().BoundingBox()
+
+        # use an offset to find the path for the potting slot
+        pot_slot_path = CQ(shelved_ring.faces(">Z[-1]").wires().vals()[0].offset2D(s.pg_offset)[0])
+
+        # cut the corner holes
+        chp = [  # corner hole points
+        (srbb.xmin+s.cho, srbb.ymin+s.cho),
+        (srbb.xmax-s.cho, srbb.ymin+s.cho),
+        (srbb.xmin+s.cho, srbb.ymax-s.cho),
+        (srbb.xmax-s.cho, srbb.ymax-s.cho),
+        ]
+        shelved_ring = shelved_ring.faces(">Z[-1]").workplane().pushPoints(chp).hole(s.chr*2)
 
         # form PCB slot cutters
         c_len = wpbb.ylen + 2*shelf_width + s.extra[2] + s.extra[3] + s.wall[2] + s.wall[3]  # length of the slot cutter
+        bsrd = s.pcb_thickness+2*s.pcb_slot_clearance # slot bottom round diameter
+        holes_y_spot = srbb.ymin+s.wall[2]-s.pcb_ph_remain-s.pcb_phd/2
         _pcb_slot_void = (
             CQ()
             .workplane(offset=-s.pcb_height)
-            .rarray(xSpacing=(s.period[0]), ySpacing=1, xCount=s.array[0], yCount=1)
-            .box(s.pcb_thickness+2*s.pcb_slot_clearance, c_len, s.pcb_height, centered=[True, False, False])
-            .faces("<Y[-1]").workplane().circle(s.pcb_thickness/2+s.pcb_slot_clearance).extrude(-c_len)
-            .translate([0, -c_len+wpbb.ymax+s.extra[3]+s.endblock_thickness, 0]) # so that the slots are cut in the -Y wall
+            .box(s.pcb_thickness+2*s.pcb_slot_clearance, srbb.ylen, s.pcb_height, centered=[True, False, False])
+        )
+
+        # bottom round the PCB slots
+        _pcb_slot_void = (
+            CQ(_pcb_slot_void.findSolid())
+            .faces("<Y[-1]").workplane(centerOption=co)
+            .move(0, -s.pcb_height/2).circle(bsrd/2).extrude(-srbb.ylen)
+        )
+
+        # so that the slots are cut in the -Y wall
+        _pcb_slot_void = _pcb_slot_void.translate([0, -srbb.ylen+wpbb.ymax+s.extra[3]+s.endblock_thickness, 0])
+
+        # add the pcb passthrough potting holes
+        _pcb_slot_void = (
+            CQ(_pcb_slot_void.findSolid())
+            .faces(">Z[-1]").workplane()
+            .move(0, holes_y_spot).circle(s.pcb_phd/2).extrude(-s.pcb_height-bsrd/2)
+        )
+
+        # drill the fill/vent holes
+        _pcb_slot_void = (
+            CQ(_pcb_slot_void.findSolid())
+            .faces(">Z[-1]").workplane()
+            .move(0, holes_y_spot).circle(s.pdhd/2).extrude(-srbb.zlen)
+        )
+
+        # replicate the pcb slot cutter shapes:
+        _pcb_slot_void = (
+            CQ().rarray(xSpacing=(s.period[0]), ySpacing=1, xCount=s.array[0], yCount=1)
+            .eachpoint(lambda loc: _pcb_slot_void.val().moved(loc), True)
         )
 
         # cut the PCB slots
-        shelved_ring = (
-            CQ(shelved_ring.findSolid())
-            .cut(_pcb_slot_void.translate([-s.substrate_adapters[0]/2,0,0]))
-            .cut(_pcb_slot_void.translate([ s.substrate_adapters[0]/2,0,0]))
-        )
+        shelved_ring = shelved_ring.cut(_pcb_slot_void.translate([-s.substrate_adapters[0]/2,0,0]))
+        shelved_ring = shelved_ring.cut(_pcb_slot_void.translate([ s.substrate_adapters[0]/2,0,0]))
 
         # the side potting pocket
-        side_pot_cutter = (
-            CQ()
-            .box(wpbb.xlen+2*s.potting_pocket_fillet+s.pcb_thickness+2*s.pcb_slot_clearance, 4*s.potting_pocket_depth, s.wall_height+2*s.potting_pocket_fillet, centered=[True, False, False])
-            .translate([0, -4*s.potting_pocket_depth+wpbb.ymin-s.extra[2]-shelf_width-s.wall[2]+s.potting_pocket_depth, -s.wall_height-s.potting_pocket_fillet])
-            #.edges().fillet(s.potting_pocket_fillet)
-            #.edges().chamfer(s.potting_pocket_fillet)
-        )
-        shelved_ring = shelved_ring.cut(side_pot_cutter)
+        #side_pot_cutter = (
+        #    CQ()
+        #    .box(wpbb.xlen+2*s.potting_pocket_fillet+s.pcb_thickness+2*s.pcb_slot_clearance, 4*s.potting_pocket_depth, s.wall_height+2*s.potting_pocket_fillet, centered=[True, False, False])
+        #    .translate([0, -4*s.potting_pocket_depth+wpbb.ymin-s.extra[2]-shelf_width-s.wall[2]+s.potting_pocket_depth, -s.wall_height-s.potting_pocket_fillet])
+        #    #.edges().fillet(s.potting_pocket_fillet)
+        #    #.edges().chamfer(s.potting_pocket_fillet)
+        #)
+        #shelved_ring = shelved_ring.cut(side_pot_cutter)
 
         # now cut the vgroove bevels in the side potting pocket
-        spcbb = side_pot_cutter.findSolid().BoundingBox()
-        svg = tb.groovy.mk_vgroove(CQ().rect(spcbb.xlen, spcbb.zlen, centered=False), (0,spcbb.zlen/2,0), s.potting_pocket_depth)
-        svg = svg.translate((-spcbb.xlen/2, -spcbb.zlen, 0))
-        svg = svg.rotate((0,0,0), (1,0,0), 90)
-        srbb = shelved_ring.findSolid().BoundingBox()
-        svg = svg.translate((0,srbb.ymin,s.potting_pocket_fillet))
-        shelved_ring = shelved_ring.cut(svg)
+        #spcbb = side_pot_cutter.findSolid().BoundingBox()
+        #svg = tb.groovy.mk_vgroove(CQ().rect(spcbb.xlen, spcbb.zlen, centered=False), (0,spcbb.zlen/2,0), s.potting_pocket_depth)
+        #svg = svg.translate((-spcbb.xlen/2, -spcbb.zlen, 0))
+        #svg = svg.rotate((0,0,0), (1,0,0), 90)
+        #svg = svg.translate((0,srbb.ymin,s.potting_pocket_fillet))
+        #shelved_ring = shelved_ring.cut(svg)
 
-        # now cut the paths to the entry/exit
-        cone = cq.Solid.makeCone(0,s.potting_pocket_depth, s.potting_pocket_depth, dir=cq.Vector(0,-1,0))
-        cone_right = CQ('XZ').add(cone).translate((srbb.xmax-s.pg_offset,srbb.ymin+s.potting_pocket_depth,0)) # srbb.ymin-s.potting_pocket_depth
-        cone_left = cone_right.mirror(mirrorPlane='YZ')
-        shelved_ring = shelved_ring.cut(cone_right)
-        shelved_ring = shelved_ring.cut(cone_left)
-        btw_path = CQ("YZ").polyline([(0,0),(-s.potting_pocket_depth,-s.potting_pocket_depth),(-s.potting_pocket_depth,s.potting_pocket_depth)]).close().extrude(srbb.xlen-2*s.pg_offset).translate((srbb.xmin+s.pg_offset,srbb.ymin+s.potting_pocket_depth,0))
-        shelved_ring = shelved_ring.cut(btw_path)
+        ## now cut the paths to the entry/exit
+        #cone = cq.Solid.makeCone(0,s.potting_pocket_depth, s.potting_pocket_depth, dir=cq.Vector(0,-1,0))
+        #cone_right = CQ('XZ').add(cone).translate((srbb.xmax-s.pg_offset,srbb.ymin+s.potting_pocket_depth,0)) # srbb.ymin-s.potting_pocket_depth
+        #cone_left = cone_right.mirror(mirrorPlane='YZ')
+        #shelved_ring = shelved_ring.cut(cone_right)
+        #shelved_ring = shelved_ring.cut(cone_left)
+        #btw_path = CQ("YZ").polyline([(0,0),(-s.potting_pocket_depth,-s.potting_pocket_depth),(-s.potting_pocket_depth,s.potting_pocket_depth)]).close().extrude(srbb.xlen-2*s.pg_offset).translate((srbb.xmin+s.pg_offset,srbb.ymin+s.potting_pocket_depth,0))
+        #shelved_ring = shelved_ring.cut(btw_path)
+
+        # add spring pin dowel holes in the top
+        dowel_points = [
+        (srbb.xmin + s.wall[0] - s.pg_offset, srbb.ymax - s.spd_shift - s.wall[3] + s.pg_offset),
+        (srbb.xmax - s.wall[1] + s.pg_offset, srbb.ymax - s.spd_shift - s.wall[3] + s.pg_offset),
+        (srbb.xmax - s.wall[1] + s.pg_offset, srbb.ymin + s.spd_shift + s.wall[2] - s.pg_offset),
+        (srbb.xmin + s.wall[0] - s.pg_offset, srbb.ymin + s.spd_shift + s.wall[2] - s.pg_offset),
+        ]
+        dowel_voids = CQ().pushPoints(dowel_points).circle(s.spdd/2).extrude(s.spdhd, both=True)
+        shelved_ring = shelved_ring.cut(dowel_voids)
+
+        # add spring pin dowel holes in the pcb side
+        shelved_ring = (
+            CQ(shelved_ring.findSolid())
+            .faces('<Y[-1]').workplane(centerOption=co)
+            .pushPoints([(srbb.xmax-s.sspdh_offset, 0), (srbb.xmin+s.sspdh_offset, 0)])
+            .circle(s.sspdhd/2).cutBlind(-s.sspdh_depth)
+        )
 
         # split the two pieces
         top = shelved_ring.faces('>Z[-1]').workplane(-s.top_mid_height).split(keepTop=True)
         middle = shelved_ring.faces('>Z[-1]').workplane(-s.top_mid_height).split(keepBottom=True)
 
-        # now cut the v potting groove for the potting between the pieces
-        path = CQ().polyline([(srbb.xmin+s.pg_offset, srbb.ymin), (srbb.xmin+s.pg_offset, srbb.ymax-s.pg_offset), (srbb.xmax-s.pg_offset, srbb.ymax-s.pg_offset), (srbb.xmax-s.pg_offset, srbb.ymin)])
-        pg = tb.groovy.mk_vgroove(path, (srbb.xmin+s.pg_offset, srbb.ymin,0), s.pg_depth)
+        # cut the v potting groove for the potting between the pieces
+        pg = tb.groovy.mk_vgroove(pot_slot_path, (srbb.xmin + s.wall[0] - s.pg_offset, 0, 0), s.pg_depth)
         middle = middle.cut(pg)
 
         return (middle, top)

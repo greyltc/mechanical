@@ -14,21 +14,23 @@ pcb_thickness = 1.6
 
 # Standard screw thread paramaters
 # https://www.engineersedge.com/hardware/iso_metric_tap_14585.htm
+# "close" col from here: https://www.accu.co.uk/en/p/117-iso-metric-thread-dimensions
 std_screw_threads = {
-    "m2": {"r": 2 / 2, "tap_r": 1.6 / 2, "clearance_r": 2.4 / 2, "close_r": 2.2 / 2},
-    "m3": {"r": 3 / 2, "tap_r": 2.5 / 2, "clearance_r": 3.4 / 2, "close_r": 3.2 / 2},
-    "m4": {"r": 4 / 2, "tap_r": 3.3 / 2, "clearance_r": 4.5 / 2, "close_r": 4.3 / 2},
-    "m5": {"r": 5 / 2, "tap_r": 4.2 / 2, "clearance_r": 5.5 / 2, "close_r": 5.3 / 2},
-    "m6": {"r": 6 / 2, "tap_r": 5.0 / 2, "clearance_r": 6.6 / 2, "close_r": 6.4 / 2},
+    "m2": {"r": 2 / 2, "tap_r": 1.6 / 2, "clearance_r": 2.4 / 2, "close_r": 2.05 / 2},
+    "m3": {"r": 3 / 2, "tap_r": 2.5 / 2, "clearance_r": 3.4 / 2, "close_r": 3.1  / 2},
+    "m4": {"r": 4 / 2, "tap_r": 3.3 / 2, "clearance_r": 4.5 / 2, "close_r": 4.1  / 2},
+    "m5": {"r": 5 / 2, "tap_r": 4.2 / 2, "clearance_r": 5.5 / 2, "close_r": 5.1  / 2},
+    "m6": {"r": 6 / 2, "tap_r": 5.0 / 2, "clearance_r": 6.6 / 2, "close_r": 6.1  / 2},
 }
 
 # Standard socket screw parameters (ANSI/ASME B18.3.1M, seems equiv. to DIN 912)
 # https://www.engineersedge.com/hardware/_metric_socket_head_cap_screws_14054.htm
 # https://www.amesweb.info/Screws/CounterboreSizes_MetricSocketHeadCapScrews.aspx
 std_socket_screws = {
-    "m3": {"cap_r": 5.5 / 2, "cap_h": 3, "cbore_r": 6.50 / 2, "cbore_h": 3},
-    "m4": {"cap_r": 7.0 / 2, "cap_h": 4, "cbore_r": 8.25 / 2, "cbore_h": 4},
-    "m5": {"cap_r": 8.5 / 2, "cap_h": 5, "cbore_r": 9.75 / 2, "cbore_h": 5},
+    "m3": {"cap_r": 5.5  / 2, "cap_h": 3, "cbore_r": 6.50  / 2, "cbore_h": 3},
+    "m4": {"cap_r": 7.0  / 2, "cap_h": 4, "cbore_r": 8.25  / 2, "cbore_h": 4},
+    "m5": {"cap_r": 8.5  / 2, "cap_h": 5, "cbore_r": 9.75  / 2, "cbore_h": 5},
+    "m6": {"cap_r": 10.0 / 2, "cap_h": 6, "cbore_r": 11.25 / 2, "cbore_h": 6},
 }
 
 # Standard pan-head screw parameters (DIN 7985H)
