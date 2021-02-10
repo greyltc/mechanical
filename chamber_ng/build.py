@@ -43,7 +43,6 @@ class ChamberNG(object):
     use_shelf_PCB_jammers = True
 
     pcb_height = 12
-    wall_height = pcb_height + pcb_thickness/2+pcb_slot_clearance
     shelf_height = 5
     top_mid_height = 5
 
@@ -72,6 +71,9 @@ class ChamberNG(object):
     sspdh_offset = 2.5  # side spring pin dowel hole offset from edge
     sspdh_depth = 4.25  # side spring pin dowel hole offset from edge
 
+    # should the bottom of the pcb slot passthroughs be rounded?
+    round_slot_bottom = False
+
     def __init__(self, array = (4, 1), subs =(30, 30), spacing=(10, 10)):
         self.array = array
         self.substrate_adapters = subs
@@ -93,6 +95,14 @@ class ChamberNG(object):
     def make_middle(self, wp):
         s = self
         co = "CenterOfBoundBox"
+
+        # slot bottom round radius
+        if s.round_slot_bottom == True:
+            bsrr = (s.pcb_thickness+2*s.pcb_slot_clearance)/2
+        else:
+            bsrr = 0
+        
+        wall_height = s.pcb_height + bsrr
         
         if (s.substrate_spacing[0]/2 + s.extra[0]) <  (2*self.pcb_slot_clearance + self.pcb_thickness)/2:
             s.log.warning('Slots will be cut into the inner -X wall')
@@ -114,7 +124,7 @@ class ChamberNG(object):
         wpbb = wpf.BoundingBox()  
 
         # the void under the device array
-        av = wp.extrude(-s.wall_height)
+        av = wp.extrude(-wall_height)
 
         # the void under the device array plus the extra spacing values
         av_ex = CQ(av.findSolid())
@@ -197,7 +207,7 @@ class ChamberNG(object):
 
         # form PCB slot cutters
         c_len = wpbb.ylen + 2*shelf_width + s.extra[2] + s.extra[3] + s.wall[2] + s.wall[3]  # length of the slot cutter
-        bsrd = s.pcb_thickness+2*s.pcb_slot_clearance # slot bottom round diameter
+        
         holes_y_spot = srbb.ymin+s.wall[2]-s.pcb_ph_remain-s.pcb_phd/2
         _pcb_slot_void = (
             CQ()
@@ -205,12 +215,13 @@ class ChamberNG(object):
             .box(s.pcb_thickness+2*s.pcb_slot_clearance, srbb.ylen, s.pcb_height, centered=[True, False, False])
         )
 
-        # bottom round the PCB slots
-        _pcb_slot_void = (
-            CQ(_pcb_slot_void.findSolid())
-            .faces("<Y[-1]").workplane(centerOption=co)
-            .move(0, -s.pcb_height/2).circle(bsrd/2).extrude(-srbb.ylen)
-        )
+        if s.round_slot_bottom == True:
+            # bottom round the PCB slots
+            _pcb_slot_void = (
+                CQ(_pcb_slot_void.findSolid())
+                .faces("<Y[-1]").workplane(centerOption=co)
+                .move(0, -s.pcb_height/2).circle(bsrr).extrude(-srbb.ylen)
+            )
 
         # so that the slots are cut in the -Y wall
         _pcb_slot_void = _pcb_slot_void.translate([0, -srbb.ylen+wpbb.ymax+s.extra[3]+s.endblock_thickness, 0])
@@ -219,7 +230,7 @@ class ChamberNG(object):
         _pcb_slot_void = (
             CQ(_pcb_slot_void.findSolid())
             .faces(">Z[-1]").workplane()
-            .move(0, holes_y_spot).circle(s.pcb_phd/2).extrude(-s.pcb_height-bsrd/2)
+            .move(0, holes_y_spot).circle(s.pcb_phd/2).extrude(-s.pcb_height-bsrr)
         )
 
         # drill the fill/vent holes
