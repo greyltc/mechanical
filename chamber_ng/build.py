@@ -23,7 +23,7 @@ class ChamberNG(object):
 
     # radius on the above shelf fillet
     above_shelf_fr = 10
-    
+
     # extra room between the device plane and the walls on each side: (-X, +X, -Y, +Y)
     # these must be at least 0.7288 to prevent shadowing when spacing = 0 and shelf_height=5
     #x_minus = pcb_slot_clearance + pcb_thickness/2 # makes sense when spacing = 0
@@ -58,7 +58,6 @@ class ChamberNG(object):
     #pcb_phd = wall[2] - 2*pcb_ph_remain  # pcb passthrough potting hole diameter
     pcb_phd = 7  # pcb passthrough potting hole diameter
     pdhd = 1  # potting delivery/vent hole diameter
-
 
     chr = tb.c.std_screw_threads['m5']['close_r']  # corner hole radius
     cho = 6  # corner hole offset
@@ -116,7 +115,7 @@ class ChamberNG(object):
             # TODO
             pass
             #shelf_void_extents[0] = shelf_void_extents[0] + s.extra_x
-        
+
         # werkplane face
         wpf = cq.Face.makeFromWires(wp.val())
 
@@ -357,6 +356,6 @@ def main():
             shapes = val.shapes
             if shapes != []:
                 c = cq.Compound.makeCompound(shapes)
-                cadquery.exporters.export(c, f'{val.name}.stl')
+                cadquery.exporters.export(c.locate(val.loc), f'{val.name}.stl')
 
 main()

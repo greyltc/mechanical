@@ -142,6 +142,6 @@ def main():
             shapes = val.shapes
             if shapes != []:
                 c = cq.Compound.makeCompound(shapes)
-                cq.exporters.export(c, f'{val.name}.stl')
+                cq.exporters.export(c.locate(val.loc), f'{val.name}.stl')
 
 main()
