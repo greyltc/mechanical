@@ -11,13 +11,13 @@ class Badger(object):
 
   reserve_xy = 200
   reserve_h = 20
-  wire_slot_depth = 30
-  wire_slot_offset = 46.5
-  wire_slot_z = 2.095
+  wire_slot_depth = 28  # depth from edge
+  wire_slot_offset = 46.5  # offset y
+  wire_slot_z = 2.095  # offset z
   
   heater_t = 20
   pusher_t = 4
-  slots_t = 3
+
   glass_t = 1.1
   silicone_t = 0.5  # nominal silicone thickness
   compressed_silicone_fraction = 0.9
@@ -25,10 +25,30 @@ class Badger(object):
   pcb_thickness = 1.6
   pin_working_height = 1.6  # above top pcb surface
   cu_tower_h = pcb_spacer_h + pcb_thickness + pin_working_height - silicone_working_t
+  slots_t = cu_tower_h + silicone_working_t + glass_t - (pcb_spacer_h + pcb_thickness)
+
+  cu_nub_h = pcb_spacer_h + pcb_thickness
+
+  dowel_height = 16
 
   glass_xy = 25
 
   screw_depth = 7
+
+  # ventscrew coordinates
+  screw_spots = [
+    (-93, 93),
+    (-31, 93),
+    ( 31, 93),
+    ( 93, 93),
+    ( 93, 31),
+    ( 93,-31),
+    ( 93,-93),
+    ( 31,-93),
+    (-31,-93),
+    (-93,-93),
+    (-93,  0),
+  ]
 
   dxf_filepath = pathlib.Path("2d.dxf")
   pcb_step_filepath = pathlib.Path("pcb.step")
@@ -50,6 +70,9 @@ class Badger(object):
     self.spacer_pcb = self.get_wires("spacer_pcb")
     self.silicone = self.get_wires("silicone")
     self.glass = self.get_wires("glass")
+    self.dowels = self.get_wires("dowels")
+    self.cu_nubs = self.get_wires("cu_nubs")
+    self.cu_dowel_pf = self.get_wires("cu_dowel_pf")
     self.pcb = CQ().add(cadquery.importers.importStep(str(self.pcb_step_filepath)))
     self.vent_screw = CQ().add(cadquery.importers.importStep(str(self.vent_screw_filepath)))
   
@@ -58,19 +81,22 @@ class Badger(object):
     # list of of all layers in the dxf
     dxf_layernames = [
       "0",
-      "Defpoints",
       "base_plate",
       "connector",
+      "cu_nubs",
       "cu_base",
+      "cu_dowel_pf",
       "cu_towers",
+      "Defpoints",
+      "dowels",
+      "glass",
       "pcb",
       "pin_holes",
       "plate_mounts",
       "pusher_plate",
+      "silicone",
       "slot_plate",
       "spacer_pcb",
-      "silicone",
-      "glass",
     ]
     to_exclude = [k for k in dxf_layernames if layername != k]
     dxf_obj = cadquery.importers.importDXF(str(self.dxf_filepath), exclude=to_exclude)
@@ -80,113 +106,76 @@ class Badger(object):
     heater = CQ().add(self.base_plate).toPending().extrude(self.heater_t)
     heater = heater.faces(">Z[-1]").workplane().add(self.plate_mounts).translate((0,0,self.heater_t)).toPending().cutBlind(-self.screw_depth)
 
-    # tags for assembly
-    heater.faces(">Z[-1]").tag("top")
-    heater.faces(">Z[-1]").edges(">Y").tag("top_e")
-    heater.faces(">Z[-1]").edges("<Y").tag("top_e2")
+    heater = heater.translate((0,0,-self.heater_t-self.cu_base_t-self.pcb_thickness/2-self.pcb_spacer_h))
     return (heater)
 
   def make_tower_plate(self):
     towers = CQ().add(self.cu_base).toPending().extrude(self.cu_base_t)
-    towers = towers.faces(">Z[-1]").workplane().add(self.cu_towers).translate((0,0,self.cu_base_t)).toPending().extrude(self.cu_tower_h)
+    towers = towers.faces("<Z[-2]").workplane().add(self.cu_towers).translate((0,0,self.cu_base_t)).toPending().extrude(self.cu_tower_h)
+    towers = towers.faces("<Z[-2]").workplane().add(self.cu_nubs).translate((0,0,self.cu_base_t)).toPending().extrude(self.cu_nub_h)
     towers = towers.add(self.plate_mounts).toPending().cutThruAll()
+    towers = towers.add(self.cu_dowel_pf).toPending().cutThruAll()
 
-    towers.faces(">Z[-2]").tag("top")
-    towers.faces(">Z[-2]").edges(">Y").tag("top_e")
-    towers.faces(">Z[-2]").edges("<Y").tag("top_e2")
-
-    towers.faces("<Z[-1]").tag("bot")
-    towers.faces("<Z[-1]").edges(">Y").tag("bot_e")
-    towers.faces("<Z[-1]").edges("<Y").tag("bot_e2")
+    towers = towers.translate((0,0,-self.cu_base_t-self.pcb_thickness/2-self.pcb_spacer_h))
     return (towers)
 
-  def get_ventscrews(self):
-    hole_spots = [
-      (-93, 93),
-      (-31, 93),
-      ( 31, 93),
-      ( 93, 93),
-      ( 93, 31),
-      ( 93,-31),
-      ( 93,-93),
-      ( 31,-93),
-      (-31,-93),
-      (-93,-93),
-      (-93,  0),
-    ]
-    ventscrew = self.vent_screw.translate((0,0,-1))
-    ventscrews = CQ().pushPoints(hole_spots).eachpoint(lambda loc: ventscrew.val().moved(loc), True)
+  def get_ventscrews_a(self):
+    ventscrew = self.vent_screw.translate((0,0,-1.7))
+    ventscrews = CQ().pushPoints(self.screw_spots).eachpoint(lambda loc: ventscrew.val().moved(loc), True)
+    return ventscrews
+
+  def get_ventscrews_b(self):
+    ventscrew = self.vent_screw.translate((0,0,3.3))
+    ventscrews = CQ().pushPoints(self.screw_spots).eachpoint(lambda loc: ventscrew.val().moved(loc), True)
     return ventscrews
   
   def make_reservation(self):
-    vss = self.get_ventscrews()
+    vss = self.get_ventscrews_a()
     sr = CQ().box(self.reserve_xy,self.reserve_xy,self.reserve_h,centered=(True,True,False))
     sr = sr.translate((0,0,-self.pcb_thickness-self.pcb_spacer_h-self.cu_base_t))
-    wires = CQ().box(30, 2.54*20, 2.54*2, centered=(False, True, False)).translate((-self.reserve_xy/2,0,self.wire_slot_z+self.pcb_thickness/2))
+    wires = CQ().box(self.wire_slot_depth, 2.54*20, 2.54*2, centered=(False, True, False)).translate((-self.reserve_xy/2,0,self.wire_slot_z+self.pcb_thickness/2))
     wiresA = wires.translate((0, self.wire_slot_offset,0))
     wiresB = wires.translate((0,-self.wire_slot_offset,0))
     sr = sr.cut(wiresA).cut(wiresB).add(vss)
+    # these next two lines are very expensive (and optional)!
+    sr = sr.add(self.get_pcb())
+    #sr = CQ().union(sr)
     return sr
 
   def make_silicone(self):
     silicone = CQ().add(self.silicone).toPending().extrude(self.silicone_t)
     silicone = silicone.translate((0,0,-self.pcb_thickness/2-self.pcb_spacer_h+self.cu_tower_h))
-    return (silicone)
+    return silicone
+
+  def make_dowels(self):
+    dowels = CQ().add(self.dowels).toPending().extrude(self.dowel_height)
+    dowels = dowels.translate((0,0,-self.pcb_thickness/2-self.pcb_spacer_h-self.cu_base_t))
+    return dowels
 
   def make_glass(self):
     glass = CQ().add(self.glass).toPending().extrude(self.glass_t)
     glass = glass.translate((0,0,-self.pcb_thickness/2-self.pcb_spacer_h+self.cu_tower_h+self.silicone_working_t))
-    return (glass)
+    return glass
 
   def make_spacer_pcb(self):
     spacer = CQ().add(self.spacer_pcb).toPending().extrude(self.pcb_spacer_h)
-    spacer = spacer.add(self.plate_mounts).toPending().cutThruAll()
     spacer = spacer.translate((0, 0, -self.pcb_thickness/2-self.pcb_spacer_h))  # so that we don't have to move the PCB
-
-    # tags for assembly
-    spacer.faces("<Z[-1]").tag("bot")
-    spacer.faces("<Z[-1]").edges(">Y").tag("bot_e")
-    spacer.faces("<Z[-1]").edges("<Y").tag("bot_e2")
-    spacer.faces(">Z[-1]").tag("top")
-    spacer.faces(">Z[-1]").edges(">Y").tag("top_e")
-    spacer.faces(">Z[-1]").edges("<Y").tag("top_e2")
     return (spacer)
   
   def get_pcb(self):
     pcb = self.pcb
-
-    # tags for assembly
-    pcb.faces("<Z[-1]").tag("bot")
-    pcb.faces("<Z[-1]").edges(">Y").tag("bot_e")
-    pcb.faces("<Z[-1]").edges("<Y").tag("bot_e2")
-    pcb.faces(">Z[-1]").tag("top")
-    pcb.faces(">Z[-1]").edges(">Y").tag("top_e")
-    pcb.faces(">Z[-1]").edges("<Y").tag("top_e2")
-    return pcb
+    return pcb.translate((0,0,-self.pcb_thickness/2))
 
   def make_pusher_plate(self):
     pusher = CQ().add(self.pusher_plate).toPending().extrude(self.pusher_t)
     pusher = pusher.add(self.plate_mounts).toPending().cutThruAll()
-
-    # tags for assembly
-    pusher.faces("<Z[-1]").tag("bot")
-    pusher.faces("<Z[-1]").edges(">Y").tag("bot_e")
-    pusher.faces("<Z[-1]").edges("<Y").tag("bot_e2")
+    pusher = pusher.translate((0,0,self.pcb_thickness/2+self.slots_t))
     return pusher
 
   def make_slot_plate(self):
     slots = CQ().add(self.slot_plate).toPending().extrude(self.slots_t)
     slots = slots.add(self.plate_mounts).toPending().cutThruAll()
-
-    # tags for assembly
-    slots.faces("<Z[-1]").tag("bot")
-    slots.faces("<Z[-1]").edges(">Y").tag("bot_e")
-    slots.faces("<Z[-1]").edges("<Y").tag("bot_e2")
-
-    slots.faces(">Z[-1]").tag("top")
-    slots.faces(">Z[-1]").edges(">Y").tag("top_e")
-    slots.faces(">Z[-1]").edges("<Y").tag("top_e2")
-
+    slots = slots.translate((0,0,self.pcb_thickness/2))
     return (slots)
 
   def build(self):
@@ -201,13 +190,17 @@ class Badger(object):
     tp = self.make_tower_plate()
     asy.add(tp, name="towers", color=cadquery.Color("GOLDENROD"))
 
+    # dowels
+    dwl = self.make_dowels()
+    asy.add(dwl, name="dowels", color=cadquery.Color("BLACK"))
+
     # silicone
     sil = self.make_silicone()
     asy.add(sil, name="silicone", color=cadquery.Color("WHITE"))
 
-    # substrates
+    # glass
     glass = self.make_glass()
-    #asy.add(glass, name="glass", color=cadquery.Color("SKYBLUE"))
+    asy.add(glass, name="glass", color=cadquery.Color("SKYBLUE"))
 
     # the heater base plate
     heater = s.make_heater_plate()
@@ -217,9 +210,10 @@ class Badger(object):
     pcb = self.get_pcb()
     asy.add(pcb, name="pcb", color=cadquery.Color("brown"))
 
-    # the vent screw
-    vss = self.get_ventscrews()
-    asy.add(vss, name="ventscrew")
+    # the vent screws
+    vss_a = self.get_ventscrews_a()
+    vss_b = self.get_ventscrews_b()
+    asy.add(vss_a.add(vss_b), name="ventscrew")
 
     # the alignment slot plate
     slots = self.make_slot_plate()
@@ -231,36 +225,6 @@ class Badger(object):
     reserve = self.make_reservation()
     asy.add(reserve, name="space_reservation")
 
-
-    # constrain assembly
-
-    # towers to spacer PCB
-    asy.constrain("spacer?bot", "towers?top", "Axis")
-    asy.constrain("spacer?bot_e2", "towers?top_e2", "Point")
-    asy.constrain("spacer?bot_e", "towers?top_e", "Point")
-
-    # heater plate to towers PCB
-    asy.constrain("towers?bot", "heater?top", "Axis")
-    asy.constrain("towers?bot_e2", "heater?top_e2", "Point")
-    asy.constrain("towers?bot_e", "heater?top_e", "Point")
-
-    # pcb to spacer PCB
-    asy.constrain("spacer?top", "pcb?bot", "Axis")
-    asy.constrain("spacer?top_e2", "pcb?bot_e2", "Point")
-    asy.constrain("spacer?top_e", "pcb?bot_e", "Point")
-
-    # sample_slots to PCB
-    asy.constrain("pcb?top", "sample_slots?bot", "Axis")
-    asy.constrain("pcb?top_e2", "sample_slots?bot_e2", "Point")
-    asy.constrain("pcb?top_e", "sample_slots?bot_e", "Point")
-    
-    # pusher to sample_slotsts
-    asy.constrain("sample_slots?top", "pusher?bot", "Axis")
-    asy.constrain("sample_slots?top_e2", "pusher?bot_e2", "Point")
-    asy.constrain("sample_slots?top_e", "pusher?bot_e", "Point")  
-
-    # solve constraints
-    asy.solve()
 
     return asy
 
@@ -292,5 +256,6 @@ def main():
       if shapes != []:
         c = cq.Compound.makeCompound(shapes)
         cadquery.exporters.export(c.locate(val.loc), f'{val.name}.stl')
+        cadquery.exporters.export(c.locate(val.loc), f'{val.name}.step')
 
 main()
