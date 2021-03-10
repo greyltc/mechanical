@@ -1,0 +1,20 @@
+Chamber integration notes
+
+We'd like to reserve a block of space, 200x200x20mm in the center of the chamber for our apparatus. Nothing should overhang this footprint.
+We'd like 11 M6 threaded (standard, 1.0mm pitch) holes made 6mm deep into the thermal plate.
+Holes at positions (in mm, assuming the center of the thermal plate is location 0,0):
+(-93, 93)
+(-31, 93)
+( 31, 93)
+( 93, 93)
+( 93, 31)
+( 93,-31)
+( 93,-93)
+( 31,-93)
+(-31,-93)
+(-93,-93)
+(-93,  0)
+The attached files, engineering_sketch.pdf and the 3d step file model in space_claim.zip show this.
+The step file also has details on how the electrical connections should be made.
+Accepts standard 2x20 0.100" pitch IDC connectors.
+The connectors (there are two of them) will be HTSS-120-04-G-D-RA by Samtec.

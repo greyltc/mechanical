@@ -9,14 +9,30 @@ class ChamberNG(object):
     # wall thicknesses
     wall = (5, 5, 12, 12)  # -X, +X, -Y, +Y (slots are in -Y wall)
 
-    # nominal pcb thickness
+    # pcb shape parameters nominal pcb thickness
     pcb_thickness = 1.6
+    pcb_cut_rad = 2
+    pcb_top_bump_up = 5  # gives room for a screw hole
+    pcb_bottom_bump_down = 5 + 0.25  # gives room for a screw hole plus makes numbers height a round number
+    pcb_min_height = 12.75 # anything smaller and I can't fit in all the wires
+    pcb_bottom_bump_offset = 4 # pffset from werkplane, needed to prevent shadowing from endblock extension
+    pcb_mount_hole_offset = 3 # how far in x and y the mount hole centers are from their corners
+    pcb_mount_hole_d = 2.2 # mount hole diameters
+    pcb_external_connector_width = 2.54*6
+    pcb_length_fudge = 0.62  # so that the pcb length is sane
+    pcb_height = pcb_min_height + pcb_top_bump_up + pcb_bottom_bump_down # pcb height max
+
+    # workplane offset from top of PCB
+    woff = pcb_top_bump_up
+
 
     # (normal plane) clearance given around the crossbar PCBs when cutting their slots in the wall
     pcb_slot_clearance = pcb_thickness*0.10  # covers a PCB that's 10 percent too thick
 
-    endblock_wall_spacing = 1  # from + and - Y walls
-    endblock_thickness = 12
+    endblock_wall_spacing = 0.5  # from + and - Y walls
+    endblock_thickness_shelf = 12
+    endblock_thickness_extension = 12+pcb_cut_rad
+    endblock_thickness = endblock_thickness_shelf + endblock_thickness_extension
 
     # radius on the shelf fillet
     shelf_fr = 2
@@ -34,17 +50,16 @@ class ChamberNG(object):
     x_plus = above_shelf_fr
 
     # these must be at least 2.5577 to prevent shadowing when yspacing = 0 and shelf_height=5
-    y_minus = 3
-    y_plus = 3
+    y_minus = endblock_thickness_extension
+    y_plus = endblock_thickness_extension
     extra = (x_minus, x_plus, y_minus, y_plus)
 
     # adds features on the sides of the shelves to ensure the PCBs get jammed up against their endblocks
     # only really makes sense when extra_x > 0 and x spacing = 0
     use_shelf_PCB_jammers = True
 
-    pcb_height = 12
     shelf_height = 5
-    top_mid_height = 5
+    top_mid_height = 4.9+2.2+9.5-pcb_top_bump_up  # estimate
 
     # constants for the slot-side potting pocket
     potting_pocket_depth = 2
@@ -83,6 +98,45 @@ class ChamberNG(object):
         logging.basicConfig(format='%(message)s')
         self.log = logging.getLogger(__name__)
 
+    # the purpose of this is to generate a crossbar outline shape guarentted to match the chamber geometry for import into pcbnew
+    def make_crossbar(self, wp):
+        """makes a crossbar PCB"""
+        # werkplane face
+        wpf = cq.Face.makeFromWires(wp.val())
+
+        # to get the dims of the working array
+        wpbb = wpf.BoundingBox()
+
+        crossbar_half_points = [  # half-board outline points
+            (0,  0),
+            (wpbb.ymax + self.endblock_thickness_extension, 0),
+            (wpbb.ymax + self.endblock_thickness_extension, self.pcb_top_bump_up),
+            (wpbb.ymax + self.endblock_thickness,  self.pcb_top_bump_up),
+            (wpbb.ymax + self.endblock_thickness, -self.pcb_min_height - self.pcb_bottom_bump_down),
+            (wpbb.ymax + self.pcb_bottom_bump_offset, -self.pcb_min_height - self.pcb_bottom_bump_down),
+            (wpbb.ymax + self.pcb_bottom_bump_offset, -self.pcb_min_height),
+            (0,  -self.pcb_min_height),
+        ]
+        crossbar_half_hole_points = [  # locate pcb mounting holes
+            (wpbb.ymax + self.endblock_thickness_extension + self.pcb_mount_hole_offset, self.pcb_top_bump_up - self.pcb_mount_hole_offset),
+            (wpbb.ymax + self.pcb_bottom_bump_offset + self.pcb_mount_hole_offset, -self.pcb_min_height - self.pcb_bottom_bump_down + self.pcb_mount_hole_offset),
+        ]
+
+        # make the mirrored part
+        innter_crossbar = CQ('YZ').polyline(crossbar_half_points).close().mirrorY().extrude(self.pcb_thickness)
+
+        # drill the endblock mounting holes
+        innter_crossbar = innter_crossbar.pushPoints(crossbar_half_hole_points).circle(self.pcb_mount_hole_d/2).mirrorY().cutThruAll()
+
+        # extend to external connectors
+        crossbar = (
+            CQ(innter_crossbar.findSolid())
+            .faces("<Y[-1]").wires().toPending().workplane().extrude(self.endblock_wall_spacing+self.wall[2]+self.pcb_length_fudge+self.pcb_external_connector_width*self.array[1])
+        )
+
+        crossbar = crossbar.edges('|X').fillet(self.pcb_cut_rad)
+        return crossbar.translate((-self.pcb_thickness/2, 0, 0))
+
     def make_plane(self):
         """makes the plane where the devices will be"""
         s = self
@@ -109,7 +163,7 @@ class ChamberNG(object):
         if (s.substrate_spacing[0]/2 + s.extra[1]) <  (2*self.pcb_slot_clearance + self.pcb_thickness)/2:
             s.log.warning('Slots will be cut into the inner +X wall')
 
-        shelf_width = s.endblock_wall_spacing + s.endblock_thickness
+        shelf_width = s.endblock_wall_spacing + s.endblock_thickness_shelf
 
         if self.use_shelf_PCB_jammers == False:
             # TODO
@@ -163,18 +217,18 @@ class ChamberNG(object):
             .add(av_ex_rect).toPending().cutThruAll()
         )
 
-        # non-slot side shelf mounting block holes
+        # non-slot side shelf endblock mounting block holes
         shelved_ring = (
             shelved_ring.faces('+Z').faces('>Y').workplane(centerOption=co, invert=True, offset=s.shelf_height)
-            .center((s.extra[0]-s.extra[1])/2, +shelf_width/2-s.endblock_thickness/2)  # invert=True flips Y but not X
+            .center((s.extra[0]-s.extra[1])/2, +shelf_width/2-s.endblock_thickness_shelf/2)  # invert=True flips Y but not X
             .rarray(xSpacing=(s.period[0]), ySpacing=1, xCount=s.array[0], yCount=1)
             .cskHole(**tb.c.csk('m5', 11))
         )
 
-        # slot side shelf mounting block holes
+        # slot side shelf endblock mounting block holes
         shelved_ring = (
             shelved_ring.faces('+Z').faces('<Y').workplane(centerOption=co, invert=True, offset=s.shelf_height)
-            .center((s.extra[0]-s.extra[1])/2, -shelf_width/2+s.endblock_thickness/2)  # invert=True flips Y but not X
+            .center((s.extra[0]-s.extra[1])/2, -shelf_width/2+s.endblock_thickness_shelf/2)  # invert=True flips Y but not X
             .rarray(xSpacing=(s.period[0]), ySpacing=1, xCount=s.array[0], yCount=1)
             .cskHole(**tb.c.csk('m5', 11))
         )
@@ -223,7 +277,7 @@ class ChamberNG(object):
             )
 
         # so that the slots are cut in the -Y wall
-        _pcb_slot_void = _pcb_slot_void.translate([0, -srbb.ylen+wpbb.ymax+s.extra[3]+s.endblock_thickness, 0])
+        _pcb_slot_void = _pcb_slot_void.translate([0, -srbb.ylen+wpbb.ymax+s.extra[3]+s.endblock_thickness_shelf, 0])
 
         # add the pcb passthrough potting holes
         _pcb_slot_void = (
@@ -312,11 +366,17 @@ class ChamberNG(object):
         # the device plane
         werkplane = self.make_plane()
         asy.add(werkplane, name="werkplane")
+        
 
-        # make the middle piece
+        # make the middle pieces
         middle, top_mid= self.make_middle(werkplane)
-        asy.add(middle, name="middle", color=cadquery.Color("orange"))
-        asy.add(top_mid, name="top_mid", color=cadquery.Color("yellow"))
+        asy.add(middle.translate((0,0,self.woff)), name="middle", color=cadquery.Color("orange"))
+        asy.add(top_mid.translate((0,0,self.woff)), name="top_mid", color=cadquery.Color("yellow"))
+
+        crossbar = self.make_crossbar(werkplane)
+        asy.add(crossbar, name="crossbar", color=cadquery.Color("darkgreen"))
+
+        
 
         # make the top piece
         #top = self.make_top(x, y)
@@ -326,7 +386,7 @@ class ChamberNG(object):
         #asy.constrain("bottom?bottom_mate", "top?top_mate", "Point")
 
         # solve constraints
-        asy.solve()
+        #asy.solve()
 
         return asy
 
