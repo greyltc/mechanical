@@ -29,11 +29,11 @@ def mk_vgroove(cutter_path, entry_point, depth):
 
 def mk_ogroove(cutter_path, entry_point):
     """makes a very special oring grove"""
-    # dims from https://eicac.co.uk/O-Ring-Grooves for a 3mm oring
-    grove_width = 2.45  # from sharp edges
-    grove_depth = 2.40
-    bottom_radius = 0.4
-    top_radius = 0.25 # the important one
+    # dims from https://web.archive.org/web/20210311103938/https://eicac.co.uk/O-Ring-Grooves for a 4mm oring
+    grove_width = 3.10  # from sharp edges
+    grove_depth = 3.20
+    bottom_radius = 0.8  # R1
+    top_radius = 0.25 # r2, the important one
     r = top_radius
 
     # industry standard?
