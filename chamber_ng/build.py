@@ -3,14 +3,16 @@ import cadquery
 from cadquery import CQ, cq
 import geometrics.toolbox as tb
 import logging
+import math
+import numpy as np
 
 
 class ChamberNG(object):
     # wall thicknesses
     wall = (5, 5, 12, 12)  # -X, +X, -Y, +Y (slots are in -Y wall)
 
-    # pcb shape parameters nominal pcb thickness
-    pcb_thickness = 1.6
+    # crossbar pcb shape parameters n
+    pcb_thickness = 1.6  # nominally
     pcb_cut_rad = 2
     pcb_top_bump_up = 5  # gives room for a screw hole
     pcb_bottom_bump_down = 5 + 0.25  # gives room for a screw hole plus makes numbers height a round number
@@ -19,12 +21,17 @@ class ChamberNG(object):
     pcb_mount_hole_offset = 3 # how far in x and y the mount hole centers are from their corners
     pcb_mount_hole_d = 2.2 # mount hole diameters
     pcb_external_connector_width = 2.54*6
-    pcb_length_fudge = 0.62  # so that the pcb length is sane
     pcb_height = pcb_min_height + pcb_top_bump_up + pcb_bottom_bump_down # pcb height max
+
+    # subadapter pcb paramters
+    sa_pcb_thickness = 1
+    sa_pcb_border_thickness = (4.6, 2)  # (pin side, non-pin side)
+    sa_pf_hole_d = 0.5  # for pressfit pins (shaft nominal d = 0.457mm
+    sa_spring_hole_d = 1.75  # for spring pin bum clearance
+    sa_spring_hole_offset = 5.25  # from edge of board
 
     # workplane offset from top of PCB
     woff = pcb_top_bump_up
-
 
     # (normal plane) clearance given around the crossbar PCBs when cutting their slots in the wall
     pcb_slot_clearance = pcb_thickness*0.10  # covers a PCB that's 10 percent too thick
@@ -85,6 +92,8 @@ class ChamberNG(object):
     sspdh_offset = 2.5  # side spring pin dowel hole offset from edge
     sspdh_depth = 4.25  # side spring pin dowel hole offset from edge
 
+    substrate_thickness = 1.1
+
     # should the bottom of the pcb slot passthroughs be rounded?
     round_slot_bottom = False
 
@@ -97,10 +106,70 @@ class ChamberNG(object):
 
         logging.basicConfig(format='%(message)s')
         self.log = logging.getLogger(__name__)
+        self.log.setLevel(logging.INFO)
+    
+    def make_substrates(self):
+        """makes the substrate array"""
+        substrate = CQ().rect(*self.substrate_adapters).extrude(self.substrate_thickness)
 
-    # the purpose of this is to generate a crossbar outline shape guarentted to match the chamber geometry for import into pcbnew
+        substrates = (
+            CQ().rarray(xSpacing=(self.period[0]), ySpacing=self.period[1], xCount=self.array[0], yCount=self.array[1])
+            .eachpoint(lambda loc: substrate.val().moved(loc), True)
+        )
+
+        return substrates
+
+    def make_subadapter(self, wp):
+        """makes the subadapter PCB"""
+
+        subadapter = CQ().add(wp).toPending().extrude(self.sa_pcb_thickness)
+
+        sa_window = CQ().rect(self.substrate_adapters[0]-2*self.sa_pcb_border_thickness[0], self.substrate_adapters[1]-2*self.sa_pcb_border_thickness[1])
+
+        window_cuts = (
+            CQ().rarray(xSpacing=(self.period[0]), ySpacing=self.period[1], xCount=self.array[0], yCount=self.array[1])
+            .eachpoint(lambda loc: sa_window.val().moved(loc), True)
+        )
+        subadapter = subadapter.add(window_cuts).toPending().cutThruAll()
+        subadapter = subadapter.edges('|Z').fillet(self.pcb_cut_rad)
+
+        # places for a bunch of tiny holes for the pressfit pins
+        pf_points = CQ().rarray(self.substrate_adapters[0]-2, 2, 2, 12).vals() + CQ().rarray(self.substrate_adapters[0]+2, 2, 2, 12).vals()
+
+        # places for the spring pin clearance holes
+        pin_points =              CQ().center(0, 2*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0, 1*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0, 0*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0,-1*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0,-2*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
+        
+        # substrate array the hole locs
+        pin_points_array = []
+        pf_points_array = []
+        for point in CQ().rarray(xSpacing=(self.period[0]), ySpacing=self.period[1], xCount=self.array[0], yCount=self.array[1]).vals():
+            pin_points_array = pin_points_array + CQ(origin=point).pushPoints(pin_points).vals()
+            pf_points_array = pf_points_array + CQ(origin=point).pushPoints(pf_points).vals()
+
+        # chuck duplicate hole locations and convert to point tuples
+        pf_points_array_2d = [(p.x, p.y) for p in pf_points_array]
+        pf_points_array_2d = np.unique(pf_points_array_2d, axis=0)
+        pin_points_array_2d = [(p.x, p.y) for p in pin_points_array]
+
+        # make single example cylinders to replicate
+        small_cylinder = CQ().circle(self.sa_pf_hole_d/2).extrude(self.sa_pcb_thickness)
+        less_small_cylinder =  CQ().circle(self.sa_spring_hole_d/2).extrude(self.sa_pcb_thickness)
+
+        # make the hole volumes
+        small_holes = CQ().pushPoints(pf_points_array_2d).eachpoint(lambda l: small_cylinder.val().located(l))
+        less_small_holes = CQ().pushPoints(pin_points_array_2d).eachpoint(lambda l: less_small_cylinder.val().located(l))
+
+        # cut out the hole volumes
+        swiss_cheese = subadapter.cut(less_small_holes).cut(small_holes)
+        return swiss_cheese
+
+    # the purpose of this is to generate a crossbar outline shape guaranteed to match the chamber geometry for import into pcbnew
     def make_crossbar(self, wp):
-        """makes a crossbar PCB"""
+        """makes a crossbar PCBs"""
         # werkplane face
         wpf = cq.Face.makeFromWires(wp.val())
 
@@ -128,14 +197,41 @@ class ChamberNG(object):
         # drill the endblock mounting holes
         innter_crossbar = innter_crossbar.pushPoints(crossbar_half_hole_points).circle(self.pcb_mount_hole_d/2).mirrorY().cutThruAll()
 
-        # extend to external connectors
+        # calculate the extra board length required to ensure the inch connectors are on-grid
+        wall_end = wpbb.ymax + self.endblock_thickness + self.endblock_wall_spacing + self.wall[2]
+        self.pcb_inch_fudge = round(math.ceil(wall_end/1.27)*1.27-wall_end,2)  # so that the inch-based connectors can be on-grid
+
+        extension_length = self.endblock_wall_spacing+self.wall[2]+self.pcb_inch_fudge+self.pcb_external_connector_width*self.array[1]
+        
+        # extra extension length needed to get the board outline on 0.25 mm grid
+        self.pcb_extension_fidge = round(math.ceil(extension_length/0.25)*0.25-extension_length,2)
+
+        # fudge extension length to get it on mm grid
+        extension_length = round(extension_length + self.pcb_extension_fidge,2)
+
+        # extend for external connectors
         crossbar = (
             CQ(innter_crossbar.findSolid())
-            .faces("<Y[-1]").wires().toPending().workplane().extrude(self.endblock_wall_spacing+self.wall[2]+self.pcb_length_fudge+self.pcb_external_connector_width*self.array[1])
+            .faces("<Y[-1]").wires().toPending().workplane().extrude(extension_length)
         )
 
         crossbar = crossbar.edges('|X').fillet(self.pcb_cut_rad)
-        return crossbar.translate((-self.pcb_thickness/2, 0, 0))
+        return(crossbar.translate((-self.pcb_thickness/2, 0, 0)))
+
+    
+    def make_crossbars(self, crossbar):
+        # replicate the crossbars:
+        crossbars = (
+            CQ().rarray(xSpacing=(self.period[0]), ySpacing=1, xCount=self.array[0], yCount=1)
+            .eachpoint(lambda loc: crossbar.val().moved(loc), True)
+        )
+
+        crossbars_a = crossbars.translate([-self.substrate_adapters[0]/2,0,0])
+        crossbars_b = crossbars.translate([ self.substrate_adapters[0]/2,0,0])
+
+        crossbar_array = CQ().add(crossbars_a).add(crossbars_b)
+
+        return crossbar_array
 
     def make_plane(self):
         """makes the plane where the devices will be"""
@@ -373,8 +469,21 @@ class ChamberNG(object):
         asy.add(middle.translate((0,0,self.woff)), name="middle", color=cadquery.Color("orange"))
         asy.add(top_mid.translate((0,0,self.woff)), name="top_mid", color=cadquery.Color("yellow"))
 
+        # generate a crossbar PCB core (needed for outline export) 
         crossbar = self.make_crossbar(werkplane)
-        asy.add(crossbar, name="crossbar", color=cadquery.Color("darkgreen"))
+
+        # replicate the crossbar
+        crossbars = self.make_crossbars(crossbar)
+        asy.add(crossbars, name="crossbars", color=cadquery.Color("darkgreen"))
+
+        substrates = self.make_substrates()
+        #asy.add(substrates.translate((0,0,4)), name="substrates", color=cadquery.Color("lightblue"), alpha=0.4)
+        # shoould be "lightblue" with alpha = 0.3 but alpha is broken?
+        asy.add(substrates.translate((0,0,4)), name="substrates", color=cadquery.Color(107/255,175/255,202/255,0.3))
+
+        subadapter = self.make_subadapter(werkplane)
+        asy.add(subadapter, name="subadapter", color=cadquery.Color("darkgreen"))
+
 
         
 
@@ -388,11 +497,11 @@ class ChamberNG(object):
         # solve constraints
         #asy.solve()
 
-        return asy
+        return (asy, crossbar, subadapter)
 
 def main():
-    s = ChamberNG(array=(1, 4), subs =(30, 30), spacing=(0, 10))
-    asy = s.build()
+    s = ChamberNG(array=(1, 4), subs =(30, 30), spacing=(10, 10))
+    (asy, crossbar, subadapter) = s.build()
     
     if "show_object" in globals():
         #show_object(asy)
@@ -417,5 +526,12 @@ def main():
             if shapes != []:
                 c = cq.Compound.makeCompound(shapes)
                 cadquery.exporters.export(c.locate(val.loc), f'{val.name}.stl')
+        
+        # save DXFs
+        crossbar_outline = CQ().add(crossbar.rotate((0,0,0),(0,1,0),-90).rotate((0,0,0),(0,0,1),-90)).section()
+        cadquery.exporters.exportDXF(crossbar_outline, 'crossbar_outline.dxf')
+
+        subadapter_outline = subadapter.section()
+        cadquery.exporters.exportDXF(subadapter_outline, 'subadapter_outline.dxf')
 
 main()

@@ -5,6 +5,7 @@
 *.csg
 *.stl
 *.pyc
+*.dxf
 __pycache__/
 
 *.vscode/
