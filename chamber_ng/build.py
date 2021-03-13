@@ -14,38 +14,64 @@ class ChamberNG(object):
     # crossbar pcb shape parameters n
     pcb_thickness = 1.6  # nominally
     pcb_cut_rad = 2
-    pcb_top_bump_up = 5  # gives room for a screw hole
+    pcb_top_bump_up = 2.75  # gives room for a screw hole
     pcb_bottom_bump_down = 5 + 0.25  # gives room for a screw hole plus makes numbers height a round number
-    pcb_min_height = 12.75 # anything smaller and I can't fit in all the wires
-    pcb_bottom_bump_offset = 4 # pffset from werkplane, needed to prevent shadowing from endblock extension
-    pcb_mount_hole_offset = 3 # how far in x and y the mount hole centers are from their corners
-    pcb_mount_hole_d = 2.2 # mount hole diameters
+    pcb_min_height = 15  # anything smaller and I can't fit in all the wires
+    pcb_bottom_bump_offset = 4  # offset from werkplane, needed to prevent shadowing from endblock extension
+    pcb_mount_hole_offset = 3  # how far in x and y the mount hole centers are from their corners
+    pcb_mount_hole_d = 2.2  # mount hole diameters
     pcb_external_connector_width = 2.54*6
     pcb_height = pcb_min_height + pcb_top_bump_up + pcb_bottom_bump_down # pcb height max
+    pcb_alignment_hole_d = 3  # nominal for RS pn 374-020
+
 
     # subadapter pcb paramters
-    sa_pcb_thickness = 1
-    sa_pcb_border_thickness = (4.6, 2)  # (pin side, non-pin side)
-    sa_pf_hole_d = 0.5  # for pressfit pins (shaft nominal d = 0.457mm
-    sa_spring_hole_d = 1.75  # for spring pin bum clearance
-    sa_spring_hole_offset = 5.25  # from edge of board
+    #sa_pcb_thickness = 1
+    #sa_pcb_border_thickness = (1.75, 1.75)  # (pin side, non-pin side)
+    #sa_pf_hole_d = 0.5  # for pressfit pins (shaft nominal d = 0.457mm
+    
+    # substrate adapter parameters
+    sa_spring_hole_d = 1.78  # spring pin mount hole diameter (pn 0921-1)
+    sa_spring_hole_offset = 3.25  # from edge of board
+    sa_socket_hole_d = 1.35  # pin socket mounting hole diameter (pn 5342)
+    sa_border_thickness = (5.1, 3)  # defines the window border width (pin side, non-pin side)
+    sa_spacing = 1.26  # distance between the adapter and the substrate surface, such that pin 0921-1 has 0.5mm of travel left
+
+    # adapter spacer
+    #as_thickness = pcb_thickness + 0.76  # 0.76 is the height of the shoulder of the millmax pressfit pins 
 
     # workplane offset from top of PCB
     woff = pcb_top_bump_up
 
     # (normal plane) clearance given around the crossbar PCBs when cutting their slots in the wall
     pcb_slot_clearance = pcb_thickness*0.10  # covers a PCB that's 10 percent too thick
+    pcb_z_float = 0.25  # floats the PCB bottom off the shelf by this much
 
     endblock_wall_spacing = 0.5  # from + and - Y walls
     endblock_thickness_shelf = 12
     endblock_thickness_extension = 12+pcb_cut_rad
+    endblock_screw_offset = 6  # distance from the werkplane edge to clamp screw hole center
     endblock_thickness = endblock_thickness_shelf + endblock_thickness_extension
+    eb_locknut_depth = 5
+    eb_locknut_width = tb.c.std_hex_nuts["m5"]["flat_w"]
+    eb_mount_hole_depth = 6  # threaded mount hole depth
+    eb_mount_hole_tap_r = tb.c.std_screw_threads['m2']["tap_r"]  # for accu screw pn SSB-M2-6-A2
+    pressfit_hole_d_nominal = 3  # alignment pin nominal dimension
+    pressfit_hole_d = pressfit_hole_d_nominal - 0.035
+    alignment_pin_clear_d = pressfit_hole_d_nominal + 0.45
+    spacer_h = 1.6  # for accu pn HPS-3.6-2.2-1.6-N
+    pressfit_hole_depth = 10
+    alignment_pin_spacing = 16
+    pcb_alignment_hole_depth = 4.8  #  for RS pn 374-020, 8mm long
 
-    # radius on the shelf fillet
-    shelf_fr = 2
+    # width of the top of the resulting countersink (everywhere, generally good for M5)
+    csk_diameter = 11
 
     # radius on the above shelf fillet
     above_shelf_fr = 10
+
+    # radius on the shelf fillet
+    shelf_fr = above_shelf_fr
 
     # extra room between the device plane and the walls on each side: (-X, +X, -Y, +Y)
     # these must be at least 0.7288 to prevent shadowing when spacing = 0 and shelf_height=5
@@ -65,7 +91,7 @@ class ChamberNG(object):
     # only really makes sense when extra_x > 0 and x spacing = 0
     use_shelf_PCB_jammers = True
 
-    shelf_height = 5
+    shelf_height = 5 # thickness of the endblock shelves
     top_mid_height = 4.9+2.2+9.5-pcb_top_bump_up  # estimate
 
     # constants for the slot-side potting pocket
@@ -95,7 +121,7 @@ class ChamberNG(object):
     substrate_thickness = 1.1
 
     # should the bottom of the pcb slot passthroughs be rounded?
-    round_slot_bottom = False
+    round_slot_bottom = True  # false is probably impossible to machine (bit becomes too long and thin)
 
     def __init__(self, array = (4, 1), subs =(30, 30), spacing=(10, 10)):
         self.array = array
@@ -118,54 +144,201 @@ class ChamberNG(object):
         )
 
         return substrates
+    
+    def make_endblock(self):
+        """builds one endblock"""
+        co = "CenterOfBoundBox"
+
+        block_width = self.substrate_adapters[0]-self.pcb_thickness-2*self.spacer_h
+        base = CQ().box(block_width, self.endblock_thickness_shelf, self.wall_height, centered=(True,False,False))
+        # drill the mounting hole
+        base = base.faces('<Z[-1]').workplane(centerOption=co).hole(tb.c.std_screw_threads['m5']['close_r']*2)
+        # make upper PCB mount holes
+        base = base.faces('>X[-1]').workplane(centerOption=co).center( self.endblock_thickness_shelf/2-self.pcb_mount_hole_offset, self.wall_height/2-self.pcb_mount_hole_offset).circle(self.eb_mount_hole_tap_r).cutBlind(-self.eb_mount_hole_depth)
+        base = base.faces('<X[-1]').workplane(centerOption=co).center(-self.endblock_thickness_shelf/2+self.pcb_mount_hole_offset, self.wall_height/2-self.pcb_mount_hole_offset).circle(self.eb_mount_hole_tap_r).cutBlind(-self.eb_mount_hole_depth)
+        # make pcb alignment pin holes
+        base = base.faces('>X[-1]').workplane(centerOption=co).center( self.endblock_thickness_shelf/2-self.pcb_mount_hole_offset,-self.wall_height/2+self.pcb_mount_hole_offset).circle(self.pcb_alignment_hole_d/2).cutBlind(-self.pcb_alignment_hole_depth)
+        base = base.faces('<X[-1]').workplane(centerOption=co).center(-self.endblock_thickness_shelf/2+self.pcb_mount_hole_offset,-self.wall_height/2+self.pcb_mount_hole_offset).circle(self.pcb_alignment_hole_d/2).cutBlind(-self.pcb_alignment_hole_depth)
+
+
+        extension_a = CQ().box(block_width, self.endblock_thickness_extension, self.pcb_min_height, centered=(True,False,False))
+        extension_a = extension_a.translate((0, self.endblock_thickness_shelf, self.pcb_z_float+self.pcb_bottom_bump_down))
+
+        b_width = self.endblock_thickness_extension-self.pcb_bottom_bump_offset
+        b_height =  self.pcb_height-self.pcb_top_bump_up
+        extension_b = CQ().box(block_width, b_width, b_height, centered=(True,False,False))
+        extension_b = extension_b.translate((0, self.endblock_thickness_shelf, self.pcb_z_float))
+        # make lower PCB mount holes
+        extension_b = extension_b.faces('>X[-1]').workplane(centerOption=co).center( b_width/2-self.pcb_mount_hole_offset, -b_height/2+self.pcb_mount_hole_offset).circle(self.eb_mount_hole_tap_r).cutBlind(-self.eb_mount_hole_depth)
+        extension_b = extension_b.faces('<X[-1]').workplane(centerOption=co).center(-b_width/2+self.pcb_mount_hole_offset, -b_height/2+self.pcb_mount_hole_offset).circle(self.eb_mount_hole_tap_r).cutBlind(-self.eb_mount_hole_depth)
+
+        # combine extensions
+        endblock = base.union(extension_a)
+        endblock = endblock.union(extension_b)
+
+        # do the counterbore from the bottom
+        endblock = (
+            endblock.faces('<Z[-1]').workplane(centerOption=co)  # must be done in to bottom "face" or else not everything gets cut
+            .center(0, self.endblock_screw_offset-self.endblock_thickness+self.endblock_thickness_shelf/2)
+            .cboreHole(diameter=tb.c.std_screw_threads['m5']['clearance_r']*2, cboreDiameter=tb.c.std_socket_screws['m5']["cbore_r"]*2,cboreDepth=self.pcb_bottom_bump_down+self.pcb_z_float+tb.c.std_socket_screws['m5']["cbore_h"])
+            #.cskHole(**tb.c.csk('m5', self.csk_diameter+2*(self.pcb_bottom_bump_down+self.pcb_z_float)))
+        )
+
+        # make the alignment pin holes
+        endblock = endblock.faces('>Z[-2]').workplane(centerOption=co).center(0,self.pcb_cut_rad/2).rarray(self.alignment_pin_spacing,1,2,1).circle(self.pressfit_hole_d/2).cutBlind(-self.pressfit_hole_depth)
+        
+        # make a lock nut slot in the top extension face
+        endblock = endblock.faces('>Z[-2]').workplane(centerOption=co).center(0,self.pcb_cut_rad/2).slot2D(1.5*self.eb_locknut_width, self.eb_locknut_width).cutBlind(-self.eb_locknut_depth)
+
+        # make a lock nut slot in the top base face
+        endblock = endblock.faces('>Z[-1]').workplane(centerOption=co).slot2D(1.5*self.eb_locknut_width, self.eb_locknut_width).cutBlind(-self.eb_locknut_depth)
+
+        return endblock
+
+    def make_endblocks(self, endblock, wp):
+        wpf = cq.Face.makeFromWires(wp.val())
+
+        # to get the dims of the working array
+        wpbb = wpf.BoundingBox()
+
+        # mirror and space the endblocks
+        endblock = endblock.translate((0,-self.endblock_thickness_shelf+wpbb.ymin-self.endblock_thickness_extension,-self.wall_height+self.pcb_top_bump_up))
+        endblocks = CQ().add(endblock).add(endblock.mirror("ZX")).combine(glue=True)
+
+        # replicate the endblocks:
+        endblock_array = (
+            CQ().rarray(xSpacing=(self.period[0]), ySpacing=1, xCount=self.array[0], yCount=1)
+            .eachpoint(lambda loc: endblocks.val().moved(loc), True)
+        )
+
+        return endblock_array
+
+    def make_adapter(self):
+        """makes one substrate adapter"""
+        adapter = CQ().rect(*self.substrate_adapters).extrude(self.pcb_thickness)
+
+        window = CQ().rect(self.substrate_adapters[0]-2*self.sa_border_thickness[0], self.substrate_adapters[1]-2*self.sa_border_thickness[1])
+        window_void = window.extrude(self.pcb_thickness).edges('|Z').fillet(self.pcb_cut_rad)
+
+        # make window cuts
+        adapter = adapter.cut(window_void)
+
+        # places for the spring pins
+        pin_points =              CQ().center(0, 2*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset*2, 2.5, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0, 1*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset*2, 2.5, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0, 0*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset*2, 2.5, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0,-1*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset*2, 2.5, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0,-2*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset*2, 2.5, 2, 2).vals()
+
+        # fillet corners
+        #adapter = adapter.edges('|Z').fillet(self.pcb_cut_rad)
+
+        # locations for the edge socket holes
+        sh_points = CQ().rarray(self.substrate_adapters[0]-2, 2, 2, 12).vals() + CQ().rarray(self.substrate_adapters[0]+2, 2, 2, 12).vals()
+
+        # make single example cylinders to replicate
+        small_cylinder = CQ().circle(self.sa_socket_hole_d/2).extrude(self.pcb_thickness)
+        less_small_cylinder =  CQ().circle(self.sa_spring_hole_d/2).extrude(self.pcb_thickness)
+
+        # make the hole volumes
+        small_holes = CQ().pushPoints(sh_points).eachpoint(lambda l: small_cylinder.val().located(l))
+        less_small_holes = CQ().pushPoints(pin_points).eachpoint(lambda l: less_small_cylinder.val().located(l))
+
+        # cut out the hole volumes
+        adapter = adapter.cut(small_holes).cut(less_small_holes)
+
+        return adapter
+
+
+    def make_adapters(self, adapter):
+        """make the substrate adapter array"""
+
+        adapters = (
+            CQ().rarray(xSpacing=(self.period[0]), ySpacing=self.period[1], xCount=self.array[0], yCount=self.array[1])
+            .eachpoint(lambda loc: adapter.val().moved(loc), True)
+        )
+
+        return adapters
 
     def make_subadapter(self, wp):
         """makes the subadapter PCB"""
+        co = "CenterOfBoundBox"
+
+        # werkplane face
+        wpf = cq.Face.makeFromWires(wp.val())
+
+        # to get the dims of the working array
+        wpbb = wpf.BoundingBox()
 
         subadapter = CQ().add(wp).toPending().extrude(self.sa_pcb_thickness)
+        subadapter = subadapter.faces("<Y[-1]").wires().toPending().workplane().extrude(self.endblock_thickness_extension - self.pcb_cut_rad)
+        subadapter = subadapter.faces(">Y[-1]").wires().toPending().workplane().extrude(self.endblock_thickness_extension - self.pcb_cut_rad)
+        subadapter = subadapter.faces("<X[-1]").wires().toPending().workplane().extrude(self.extra[0]-1)
+        subadapter = subadapter.faces(">X[-1]").wires().toPending().workplane().extrude(self.extra[1]-1)
 
+        # cut the clamping screw hole
+        subadapter = subadapter.faces(">Z[-1]").workplane(centerOption=co).rarray(1,wpbb.ylen+2*self.endblock_screw_offset,1,2).circle(tb.c.std_screw_threads['m5']['clearance_r']).cutThruAll()
+
+        # timeout for a sec to make the adapter spacer
+        adapter_spacer = CQ().add(subadapter.findSolid()).faces(">Z[-1]").wires().toPending().extrude(self.as_thickness-self.sa_pcb_thickness)
+        #as_window = CQ().rect(self.substrate_adapters[0]+self.pcb_cut_rad, self.substrate_adapters[1]+self.pcb_cut_rad)  # make window
+        #as_windows = CQ().rarray(xSpacing=(self.period[0]), ySpacing=self.period[1], xCount=self.array[0], yCount=self.array[1]).eachpoint(lambda loc: as_window.val().moved(loc), True)  # replicate window
+        #adapter_spacer = adapter_spacer.add(as_windows).toPending().cutThruAll()  # cut windows
+        #adapter_spacer = adapter_spacer.faces(">Z[-1]").workplane(centerOption=co).rarray(self.alignment_pin_spacing,wpbb.ylen+2*self.endblock_screw_offset,2,2).circle(self.alignment_pin_clear_d/2).cutThruAll()
+        #adapter_spacer = adapter_spacer.edges('|Z').fillet(self.pcb_cut_rad)  # fillet corners
+        adapter_spacer = adapter_spacer.translate((0,0,self.sa_pcb_thickness))
+
+        # cut the alignment holes
+        subadapter = subadapter.faces(">Z[-1]").workplane(centerOption=co).rarray(self.alignment_pin_spacing,wpbb.ylen+2*self.endblock_screw_offset,2,2).circle(self.pressfit_hole_d_nominal/2).cutThruAll()
+
+        # make sa window shapes
         sa_window = CQ().rect(self.substrate_adapters[0]-2*self.sa_pcb_border_thickness[0], self.substrate_adapters[1]-2*self.sa_pcb_border_thickness[1])
 
+        # position window cuts
         window_cuts = (
             CQ().rarray(xSpacing=(self.period[0]), ySpacing=self.period[1], xCount=self.array[0], yCount=self.array[1])
             .eachpoint(lambda loc: sa_window.val().moved(loc), True)
         )
+        # make window cuts
         subadapter = subadapter.add(window_cuts).toPending().cutThruAll()
+        
+        # fillet corners
         subadapter = subadapter.edges('|Z').fillet(self.pcb_cut_rad)
 
         # places for a bunch of tiny holes for the pressfit pins
         pf_points = CQ().rarray(self.substrate_adapters[0]-2, 2, 2, 12).vals() + CQ().rarray(self.substrate_adapters[0]+2, 2, 2, 12).vals()
 
         # places for the spring pin clearance holes
-        pin_points =              CQ().center(0, 2*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
-        pin_points = pin_points + CQ().center(0, 1*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
-        pin_points = pin_points + CQ().center(0, 0*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
-        pin_points = pin_points + CQ().center(0,-1*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
-        pin_points = pin_points + CQ().center(0,-2*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
+        #pin_points =              CQ().center(0, 2*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
+        #pin_points = pin_points + CQ().center(0, 1*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
+        #pin_points = pin_points + CQ().center(0, 0*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
+        #pin_points = pin_points + CQ().center(0,-1*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
+        #pin_points = pin_points + CQ().center(0,-2*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
         
         # substrate array the hole locs
-        pin_points_array = []
+        #pin_points_array = []
         pf_points_array = []
         for point in CQ().rarray(xSpacing=(self.period[0]), ySpacing=self.period[1], xCount=self.array[0], yCount=self.array[1]).vals():
-            pin_points_array = pin_points_array + CQ(origin=point).pushPoints(pin_points).vals()
+            #pin_points_array = pin_points_array + CQ(origin=point).pushPoints(pin_points).vals()
             pf_points_array = pf_points_array + CQ(origin=point).pushPoints(pf_points).vals()
 
         # chuck duplicate hole locations and convert to point tuples
         pf_points_array_2d = [(p.x, p.y) for p in pf_points_array]
         pf_points_array_2d = np.unique(pf_points_array_2d, axis=0)
-        pin_points_array_2d = [(p.x, p.y) for p in pin_points_array]
+        #pin_points_array_2d = [(p.x, p.y) for p in pin_points_array]
 
         # make single example cylinders to replicate
         small_cylinder = CQ().circle(self.sa_pf_hole_d/2).extrude(self.sa_pcb_thickness)
-        less_small_cylinder =  CQ().circle(self.sa_spring_hole_d/2).extrude(self.sa_pcb_thickness)
+        #less_small_cylinder =  CQ().circle(self.sa_spring_hole_d/2).extrude(self.sa_pcb_thickness)
 
         # make the hole volumes
         small_holes = CQ().pushPoints(pf_points_array_2d).eachpoint(lambda l: small_cylinder.val().located(l))
-        less_small_holes = CQ().pushPoints(pin_points_array_2d).eachpoint(lambda l: less_small_cylinder.val().located(l))
+        #less_small_holes = CQ().pushPoints(pin_points_array_2d).eachpoint(lambda l: less_small_cylinder.val().located(l))
 
         # cut out the hole volumes
-        swiss_cheese = subadapter.cut(less_small_holes).cut(small_holes)
-        return swiss_cheese
+        swiss_cheese = subadapter.cut(small_holes)#.cut(less_small_holes)
+
+        return (swiss_cheese, adapter_spacer)
 
     # the purpose of this is to generate a crossbar outline shape guaranteed to match the chamber geometry for import into pcbnew
     def make_crossbar(self, wp):
@@ -186,16 +359,18 @@ class ChamberNG(object):
             (wpbb.ymax + self.pcb_bottom_bump_offset, -self.pcb_min_height),
             (0,  -self.pcb_min_height),
         ]
-        crossbar_half_hole_points = [  # locate pcb mounting holes
+        crossbar_half_mount_hole_points = [  # locate pcb mounting holes
             (wpbb.ymax + self.endblock_thickness_extension + self.pcb_mount_hole_offset, self.pcb_top_bump_up - self.pcb_mount_hole_offset),
             (wpbb.ymax + self.pcb_bottom_bump_offset + self.pcb_mount_hole_offset, -self.pcb_min_height - self.pcb_bottom_bump_down + self.pcb_mount_hole_offset),
         ]
+        alignment_hole_point = [(crossbar_half_mount_hole_points[0][0], crossbar_half_mount_hole_points[1][1])]
 
         # make the mirrored part
         innter_crossbar = CQ('YZ').polyline(crossbar_half_points).close().mirrorY().extrude(self.pcb_thickness)
 
         # drill the endblock mounting holes
-        innter_crossbar = innter_crossbar.pushPoints(crossbar_half_hole_points).circle(self.pcb_mount_hole_d/2).mirrorY().cutThruAll()
+        innter_crossbar = innter_crossbar.pushPoints(crossbar_half_mount_hole_points).circle(self.pcb_mount_hole_d/2).mirrorY().cutThruAll()
+        innter_crossbar = innter_crossbar.pushPoints(alignment_hole_point).circle(self.pcb_alignment_hole_d/2).mirrorY().cutThruAll()
 
         # calculate the extra board length required to ensure the inch connectors are on-grid
         wall_end = wpbb.ymax + self.endblock_thickness + self.endblock_wall_spacing + self.wall[2]
@@ -215,7 +390,9 @@ class ChamberNG(object):
             .faces("<Y[-1]").wires().toPending().workplane().extrude(extension_length)
         )
 
-        crossbar = crossbar.edges('|X').fillet(self.pcb_cut_rad)
+        # fillet the edges fails now because of one place
+        #crossbar = crossbar.edges('|X').fillet(self.pcb_cut_rad)
+
         return(crossbar.translate((-self.pcb_thickness/2, 0, 0)))
 
     
@@ -250,8 +427,7 @@ class ChamberNG(object):
             bsrr = (s.pcb_thickness+2*s.pcb_slot_clearance)/2
         else:
             bsrr = 0
-        
-        wall_height = s.pcb_height + bsrr
+        s.wall_height = s.pcb_height + s.pcb_z_float # if we don't round the bottom, leave some z float for the pcb
         
         if (s.substrate_spacing[0]/2 + s.extra[0]) <  (2*self.pcb_slot_clearance + self.pcb_thickness)/2:
             s.log.warning('Slots will be cut into the inner -X wall')
@@ -273,7 +449,7 @@ class ChamberNG(object):
         wpbb = wpf.BoundingBox()  
 
         # the void under the device array
-        av = wp.extrude(-wall_height)
+        av = wp.extrude(-s.wall_height)
 
         # the void under the device array plus the extra spacing values
         av_ex = CQ(av.findSolid())
@@ -318,7 +494,7 @@ class ChamberNG(object):
             shelved_ring.faces('+Z').faces('>Y').workplane(centerOption=co, invert=True, offset=s.shelf_height)
             .center((s.extra[0]-s.extra[1])/2, +shelf_width/2-s.endblock_thickness_shelf/2)  # invert=True flips Y but not X
             .rarray(xSpacing=(s.period[0]), ySpacing=1, xCount=s.array[0], yCount=1)
-            .cskHole(**tb.c.csk('m5', 11))
+            .cskHole(**tb.c.csk('m5', s.csk_diameter))
         )
 
         # slot side shelf endblock mounting block holes
@@ -326,7 +502,7 @@ class ChamberNG(object):
             shelved_ring.faces('+Z').faces('<Y').workplane(centerOption=co, invert=True, offset=s.shelf_height)
             .center((s.extra[0]-s.extra[1])/2, -shelf_width/2+s.endblock_thickness_shelf/2)  # invert=True flips Y but not X
             .rarray(xSpacing=(s.period[0]), ySpacing=1, xCount=s.array[0], yCount=1)
-            .cskHole(**tb.c.csk('m5', 11))
+            .cskHole(**tb.c.csk('m5', s.csk_diameter))
         )
 
         # add on the material for the top-mid piece
@@ -355,13 +531,13 @@ class ChamberNG(object):
         shelved_ring = shelved_ring.faces(">Z[-1]").workplane().pushPoints(chp).hole(s.chr*2)
 
         # form PCB slot cutters
-        c_len = wpbb.ylen + 2*shelf_width + s.extra[2] + s.extra[3] + s.wall[2] + s.wall[3]  # length of the slot cutter
+        c_len = wpbb.ylen + 2*s.endblock_thickness_shelf + s.extra[2] + s.extra[3] + s.wall[2] + s.endblock_wall_spacing  # length of the slot cutter
         
         holes_y_spot = srbb.ymin+s.wall[2]-s.pcb_ph_remain-s.pcb_phd/2
         _pcb_slot_void = (
             CQ()
             .workplane(offset=-s.pcb_height)
-            .box(s.pcb_thickness+2*s.pcb_slot_clearance, srbb.ylen, s.pcb_height, centered=[True, False, False])
+            .box(s.pcb_thickness+2*s.pcb_slot_clearance, c_len, s.pcb_height, centered=[True, False, False])
         )
 
         if s.round_slot_bottom == True:
@@ -369,17 +545,22 @@ class ChamberNG(object):
             _pcb_slot_void = (
                 CQ(_pcb_slot_void.findSolid())
                 .faces("<Y[-1]").workplane(centerOption=co)
-                .move(0, -s.pcb_height/2).circle(bsrr).extrude(-srbb.ylen)
+                .move(0, -s.pcb_height/2).circle(bsrr).extrude(-s.wall[2])
+            )
+        else:  # no rounded bottom, so extend the slot to cover pcb z float
+            _pcb_slot_void = (
+                CQ(_pcb_slot_void.findSolid())
+                .faces("<Z[-1]").wires().toPending().workplane().extrude(s.pcb_z_float)
             )
 
         # so that the slots are cut in the -Y wall
-        _pcb_slot_void = _pcb_slot_void.translate([0, -srbb.ylen+wpbb.ymax+s.extra[3]+s.endblock_thickness_shelf, 0])
+        _pcb_slot_void = _pcb_slot_void.translate([0, -c_len+wpbb.ymax+s.extra[3]+s.endblock_thickness_shelf, 0])
 
         # add the pcb passthrough potting holes
         _pcb_slot_void = (
             CQ(_pcb_slot_void.findSolid())
             .faces(">Z[-1]").workplane()
-            .move(0, holes_y_spot).circle(s.pcb_phd/2).extrude(-s.pcb_height-bsrr)
+            .move(0, holes_y_spot).circle(s.pcb_phd/2).extrude(-s.wall_height)
         )
 
         # drill the fill/vent holes
@@ -452,7 +633,7 @@ class ChamberNG(object):
         pg = tb.groovy.mk_vgroove(pot_slot_path, (srbb.xmin + s.wall[0] - s.pg_offset, 0, 0), s.pg_depth)
         middle = middle.cut(pg)
 
-        return (middle, top)
+        return (middle, top.clean())
 
 
     def build(self):
@@ -479,11 +660,21 @@ class ChamberNG(object):
         substrates = self.make_substrates()
         #asy.add(substrates.translate((0,0,4)), name="substrates", color=cadquery.Color("lightblue"), alpha=0.4)
         # shoould be "lightblue" with alpha = 0.3 but alpha is broken?
-        asy.add(substrates.translate((0,0,4)), name="substrates", color=cadquery.Color(107/255,175/255,202/255,0.3))
+        asy.add(substrates.translate((0, 0, self.pcb_thickness+self.sa_spacing)), name="substrates", color=cadquery.Color(107/255,175/255,202/255,0.3))
 
-        subadapter = self.make_subadapter(werkplane)
-        asy.add(subadapter, name="subadapter", color=cadquery.Color("darkgreen"))
+        #subadapter, adapter_spacer = self.make_subadapter(werkplane)
+        #asy.add(subadapter, name="subadapter", color=cadquery.Color("darkgreen"))
+        #asy.add(adapter_spacer, name="adapter_spacer", color=cadquery.Color("black"))
 
+        adapter = self.make_adapter()
+        adapters = self.make_adapters(adapter)
+        asy.add(adapters, name="adapters", color=cadquery.Color("darkgreen"))
+
+        endblock = self.make_endblock()
+        endblocks = self.make_endblocks(endblock, werkplane)
+        asy.add(endblocks, name="endblocks", color=cadquery.Color("gray"))
+
+        
 
         
 
@@ -497,11 +688,11 @@ class ChamberNG(object):
         # solve constraints
         #asy.solve()
 
-        return (asy, crossbar, subadapter)
+        return (asy, crossbar, adapter)
 
 def main():
     s = ChamberNG(array=(1, 4), subs =(30, 30), spacing=(10, 10))
-    (asy, crossbar, subadapter) = s.build()
+    (asy, crossbar, adapter) = s.build()
     
     if "show_object" in globals():
         #show_object(asy)
@@ -531,7 +722,7 @@ def main():
         crossbar_outline = CQ().add(crossbar.rotate((0,0,0),(0,1,0),-90).rotate((0,0,0),(0,0,1),-90)).section()
         cadquery.exporters.exportDXF(crossbar_outline, 'crossbar_outline.dxf')
 
-        subadapter_outline = subadapter.section()
-        cadquery.exporters.exportDXF(subadapter_outline, 'subadapter_outline.dxf')
+        adapter_outline = adapter.section()
+        cadquery.exporters.exportDXF(adapter_outline, 'adapter_outline.dxf')
 
 main()
