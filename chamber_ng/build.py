@@ -17,7 +17,7 @@ class ChamberNG(object):
     pcb_top_bump_up = 2.75  # gives room for a screw hole
     pcb_bottom_bump_down = 5 + 0.25  # gives room for a screw hole plus makes numbers height a round number
     pcb_min_height = 15  # anything smaller and I can't fit in all the wires
-    pcb_bottom_bump_offset = 4  # offset from werkplane, needed to prevent shadowing from endblock extension
+    pcb_bottom_bump_offset = 22  # offset from edge of PCB, needed to prevent shadowing from endblock extension
     pcb_mount_hole_offset = 3  # how far in x and y the mount hole centers are from their corners
     pcb_mount_hole_d = 2.2  # mount hole diameters
     pcb_external_connector_width = 2.54*6
@@ -37,7 +37,12 @@ class ChamberNG(object):
     sa_border_thickness = (5.1, 3)  # defines the window border width (pin side, non-pin side)
     sa_spacing = 1.20  # distance between the adapter and the substrate surface
     # such that pin 0921-1 has the correct remaining travel when in use. nominally, this remaining travel
-    #  would be 0.5mm and that corresponds to a spacer thickness here of 1.26mm, but a 1.2mm thick PCB is a good option
+    # would be 0.5mm and that corresponds to a spacer thickness here of 1.26mm, but a 1.2mm thick PCB is a good option
+
+    # aux connection parameters
+    aux_con_pad_hole_d = 0.5  # for the holes cut in the adapter spacer pcb that cresspons to where the
+    # auxiliary connection landing pads will be
+    aux_con_pin_clearance_d = 1.9  # size of the holes needed to expose the aux pads
 
     # adapter spacer
     #as_thickness = pcb_thickness + 0.76  # 0.76 is the height of the shoulder of the millmax pressfit pins 
@@ -52,15 +57,16 @@ class ChamberNG(object):
     endblock_wall_spacing = 0.5  # from + and - Y walls
     endblock_thickness_shelf = 12
     endblock_thickness_extension = 12+pcb_cut_rad
-    endblock_screw_offset = 6  # distance from the werkplane edge to clamp screw hole center
+    endblock_screw_offset = 6  # distance from the endblock edge to clamp screw hole center
     endblock_thickness = endblock_thickness_shelf + endblock_thickness_extension
     eb_locknut_depth = 5
     eb_locknut_width = tb.c.std_hex_nuts["m5"]["flat_w"]
     eb_mount_hole_depth = 6  # threaded mount hole depth
     eb_mount_hole_tap_r = tb.c.std_screw_threads['m2']["tap_r"]  # for accu screw pn SSB-M2-6-A2
     pressfit_hole_d_nominal = 3  # alignment pin nominal dimension
-    pressfit_hole_d = pressfit_hole_d_nominal - 0.035
-    alignment_pin_clear_d = pressfit_hole_d_nominal + 0.45
+    pressfit_hole_d = pressfit_hole_d_nominal - 0.035  # used in sizing the holes for endblock pressfits
+    alignment_pin_clear_d = pressfit_hole_d_nominal + 0.45  # used in sizing holes in sandwich layers
+    alignment_pin_slide_d = pressfit_hole_d_nominal + 0.15  # for the holes in the substrate holder layer
     spacer_h = 1.6  # for accu pn HPS-3.6-2.2-1.6-N
     pressfit_hole_depth = 10
     alignment_pin_spacing = 16
@@ -69,13 +75,12 @@ class ChamberNG(object):
     # sandwich parameters
     sandwich_xbuffer = 1  # space to give between sandwich and chamber x walls on both sides
     sapd = 3  # nominal diameter for the substrate alignment pins
-    sapd_press = sapd - 0.05  # no movement, alignment matters
-    sapd_slide = sapd + 0.15  # needs movement, algnment matters
+    sapd_press = sapd - 0.05  # no movement, alignment matters, used in crescent substrate holder layer
+    #sapd_slide = sapd + 0.15  # needs movement, algnment matters
     sapd_clear = sapd + 0.45  # free movement, alignment does not matter
-    sap_offset_fraction = 0.35  # percentage of the substrate dimension(up to 0.50) to offset the alignment pins to prevent device rotation
-    # for RS PRO silicone tubing stock number 667-8448
-    tube_bore = 4.8
-    tube_wall = 1.6
+    sap_offset_fraction = 0.35  # fraction of the substrate dimension(up to 0.50) to offset the alignment pins to prevent device rotation
+    tube_bore = 4.8  # for RS PRO silicone tubing stock number 667-8448
+    tube_wall = 1.6  # for RS PRO silicone tubing stock number 667-8448
     tube_OD = tube_bore + 2*tube_wall
     tube_pocket_OD = tube_OD - 0.5 # for pressfit
     tube_splooge = 0.5  # if the tube was unbotherd, its center point would cause this much overlap with the substrate
@@ -88,24 +93,10 @@ class ChamberNG(object):
     csk_diameter = 11
 
     # radius on the above shelf fillet
-    above_shelf_fr = 10
+    above_shelf_fr = 9
 
     # radius on the shelf fillet
     shelf_fr = above_shelf_fr
-
-    # extra room between the device plane and the walls on each side: (-X, +X, -Y, +Y)
-    # these must be at least 0.7288 to prevent shadowing when spacing = 0 and shelf_height=5
-    #x_minus = pcb_slot_clearance + pcb_thickness/2 # makes sense when spacing = 0
-    #x_plus = pcb_slot_clearance + pcb_thickness/2 # makes sense when spacing = 0
-    #x_minus = 0
-    #x_plus = 0
-    x_minus = above_shelf_fr
-    x_plus = above_shelf_fr
-
-    # these must be at least 2.5577 to prevent shadowing when yspacing = 0 and shelf_height=5
-    y_minus = endblock_thickness_extension
-    y_plus = endblock_thickness_extension
-    extra = (x_minus, x_plus, y_minus, y_plus)
 
     # adds features on the sides of the shelves to ensure the PCBs get jammed up against their endblocks
     # only really makes sense when extra_x > 0 and x spacing = 0
@@ -138,15 +129,29 @@ class ChamberNG(object):
     sspdh_offset = 2.5  # side spring pin dowel hole offset from edge
     sspdh_depth = 4.25  # side spring pin dowel hole offset from edge
 
-    substrate_thickness = 1.1
+    substrate_thickness = 1.1  # only impacts rendering, not any actual geometry of the setup
 
     # should the bottom of the pcb slot passthroughs be rounded?
     round_slot_bottom = True  # false is probably impossible to machine (bit becomes too long and thin)
 
-    def __init__(self, array = (4, 1), subs =(30, 30), spacing=(10, 10)):
+    def __init__(self, array = (4, 1), subs =(30, 30), spacing=(10, 10), padding=(10, 10, 0, 0)):
         self.array = array
         self.substrate_adapters = subs
         self.substrate_spacing = spacing
+
+        # extra room between the device plane and the walls on each side: (-X, +X, -Y, +Y)
+        # these must be at least 0.7288 to prevent shadowing when spacing = 0 and shelf_height=5
+        #x_minus = pcb_slot_clearance + pcb_thickness/2 # makes sense when spacing = 0
+        #x_plus = pcb_slot_clearance + pcb_thickness/2 # makes sense when spacing = 0
+        #x_minus = 0
+        #x_plus = 0
+        x_minus = padding[0]  # was above_shelf_fr
+        x_plus = padding[1] # was above_shelf_fr
+
+        # these must be at least 2.5577 to prevent shadowing when yspacing = 0 and shelf_height=5
+        y_minus = padding[2] + self.endblock_thickness_extension   # must be at minimum endblock_thickness_extension
+        y_plus = padding[3] + self.endblock_thickness_extension  # must be at minimum endblock_thickness_extension
+        self.extra = (x_minus, x_plus, y_minus, y_plus)
 
         self.period = (self.substrate_adapters[0]+self.substrate_spacing[0], self.substrate_adapters[1]+self.substrate_spacing[1])
 
@@ -171,15 +176,14 @@ class ChamberNG(object):
         # make upper PCB mount holes
         base = base.faces('>X[-1]').workplane(centerOption=co).center( self.endblock_thickness_shelf/2-self.pcb_mount_hole_offset, self.wall_height/2-self.pcb_mount_hole_offset).circle(self.eb_mount_hole_tap_r).cutBlind(-self.eb_mount_hole_depth)
         base = base.faces('<X[-1]').workplane(centerOption=co).center(-self.endblock_thickness_shelf/2+self.pcb_mount_hole_offset, self.wall_height/2-self.pcb_mount_hole_offset).circle(self.eb_mount_hole_tap_r).cutBlind(-self.eb_mount_hole_depth)
-        # make pcb alignment pin holes
-        base = base.faces('>X[-1]').workplane(centerOption=co).center( self.endblock_thickness_shelf/2-self.pcb_mount_hole_offset,-self.wall_height/2+self.pcb_mount_hole_offset).circle(self.pcb_alignment_hole_d/2).cutBlind(-self.pcb_alignment_hole_depth)
-        base = base.faces('<X[-1]').workplane(centerOption=co).center(-self.endblock_thickness_shelf/2+self.pcb_mount_hole_offset,-self.wall_height/2+self.pcb_mount_hole_offset).circle(self.pcb_alignment_hole_d/2).cutBlind(-self.pcb_alignment_hole_depth)
-
+        # make crossbar pcb side alignment pin holes
+        base = base.faces('>X[-1]').workplane(centerOption=co).center(-self.endblock_thickness_shelf/2+self.pcb_mount_hole_offset,-self.wall_height/2+self.pcb_mount_hole_offset).circle(self.pcb_alignment_hole_d/2).cutBlind(-self.pcb_alignment_hole_depth)
+        base = base.faces('<X[-1]').workplane(centerOption=co).center( self.endblock_thickness_shelf/2-self.pcb_mount_hole_offset,-self.wall_height/2+self.pcb_mount_hole_offset).circle(self.pcb_alignment_hole_d/2).cutBlind(-self.pcb_alignment_hole_depth)
 
         extension_a = CQ().box(block_width, self.endblock_thickness_extension, self.pcb_min_height, centered=(True,False,False))
         extension_a = extension_a.translate((0, self.endblock_thickness_shelf, self.pcb_z_float+self.pcb_bottom_bump_down))
 
-        b_width = self.endblock_thickness_extension-self.pcb_bottom_bump_offset
+        b_width = self.pcb_bottom_bump_offset - self.endblock_thickness_shelf
         b_height =  self.pcb_height-self.pcb_top_bump_up
         extension_b = CQ().box(block_width, b_width, b_height, centered=(True,False,False))
         extension_b = extension_b.translate((0, self.endblock_thickness_shelf, self.pcb_z_float))
@@ -191,7 +195,7 @@ class ChamberNG(object):
         endblock = base.union(extension_a)
         endblock = endblock.union(extension_b)
 
-        # do the counterbore from the bottom
+        # do the counterbore from the bottom for the pusher-downer screw
         endblock = (
             endblock.faces('<Z[-1]').workplane(centerOption=co)  # must be done in to bottom "face" or else not everything gets cut
             .center(0, self.endblock_screw_offset-self.endblock_thickness+self.endblock_thickness_shelf/2)
@@ -199,7 +203,7 @@ class ChamberNG(object):
             #.cskHole(**tb.c.csk('m5', self.csk_diameter+2*(self.pcb_bottom_bump_down+self.pcb_z_float)))
         )
 
-        # make the alignment pin holes
+        # make the top side alignment pin holes
         endblock = endblock.faces('>Z[-2]').workplane(centerOption=co).center(0,self.pcb_cut_rad/2).rarray(self.alignment_pin_spacing,1,2,1).circle(self.pressfit_hole_d/2).cutBlind(-self.pressfit_hole_depth)
         
         # make a lock nut slot in the top extension face
@@ -221,11 +225,16 @@ class ChamberNG(object):
         # to get the dims of the working array
         wpbb = wpf.BoundingBox()
 
-        # mirror and space the endblocks
-        endblock = endblock.translate((0,-self.endblock_thickness_shelf+wpbb.ymin-self.endblock_thickness_extension,-self.wall_height+self.pcb_top_bump_up))
-        endblocks = CQ().add(endblock).add(endblock.mirror("ZX")).combine(glue=True)
+        # mirror&duplicate the endblock
+        endblockA = CQ().add(endblock.findSolid())
+        endblockB = CQ().add(endblock.findSolid()).mirror("ZX")
 
-        # replicate the endblocks:
+        # position them properly in y
+        endblockA = endblockA.translate((0,-self.endblock_thickness_shelf+wpbb.ymin-self.extra[2],-self.wall_height+self.pcb_top_bump_up))
+        endblockB = endblockB.translate((0, self.endblock_thickness_shelf+wpbb.ymax+self.extra[3],-self.wall_height+self.pcb_top_bump_up))
+        endblocks = CQ().add(endblockA).add(endblockB).combine(glue=True)
+
+        # replicate them along X:
         endblock_array = (
             CQ().rarray(xSpacing=(self.period[0]), ySpacing=1, xCount=self.array[0], yCount=1)
             .eachpoint(lambda loc: endblocks.val().moved(loc), True)
@@ -281,7 +290,7 @@ class ChamberNG(object):
         """converts 2d grid to list of points"""
         return [(float(p[0]), float(p[1])) for p in zip(x_grid.flatten(), y_grid.flatten())]
     
-    def make_sandwich_wires(self, wp, alignment_pin_hole_diameter):
+    def make_sandwich_wires(self, wp, alignment_pin_hole_d, aux_con_hole_d, aux_con_pad_hole_d):
         """makes the wires for the basic sandwich outline shape"""
         co = "CenterOfBoundBox"
         c = type(self)  # this class
@@ -292,27 +301,57 @@ class ChamberNG(object):
         # to get the dims of the working array
         wpbb = wpf.BoundingBox()
 
+        one = 1  # extrude everything here to 1mm just so we can operate in 3D (output is wires)
         # make the board bulk
-        sand = CQ().add(wp).toPending().extrude(1)  # just to make this 3d for now
-        sand = sand.faces("<Y[-1]").wires().toPending().workplane().extrude(self.endblock_thickness_extension - self.pcb_cut_rad)
-        sand = sand.faces(">Y[-1]").wires().toPending().workplane().extrude(self.endblock_thickness_extension - self.pcb_cut_rad)
+        sand = CQ().add(wp).toPending().extrude(one)
+        sand = sand.faces("<Y[-1]").wires().toPending().workplane().extrude(self.extra[2] - self.pcb_cut_rad)
+        sand = sand.faces(">Y[-1]").wires().toPending().workplane().extrude(self.extra[3] - self.pcb_cut_rad)
         sand = sand.faces("<X[-1]").wires().toPending().workplane().extrude(self.extra[0]-self.sandwich_xbuffer)  # come in from xwall
         sand = sand.faces(">X[-1]").wires().toPending().workplane().extrude(self.extra[1]-self.sandwich_xbuffer)  # come in from xwall
 
+        # center of the shelf on the plus and minus y sides
+        shelf_y_minus_center = wpbb.ymin - self.extra[2] + self.endblock_thickness_extension - self.endblock_screw_offset
+        shelf_y_plus_center  = wpbb.ymax + self.extra[3] - self.endblock_thickness_extension + self.endblock_screw_offset
+
         # make clamping screw holes
-        shg = c.mkgrid2d(self.period[0],wpbb.ylen+2*self.endblock_screw_offset,self.array[0],2)  # screw hole point grid
-        shp = c.grid2dtolist(*shg)  # list of points for clamp screw holes
-        shv = CQ().circle(tb.c.std_screw_threads['m5']['clearance_r']).extrude(self.pcb_thickness)  # volume for a single clamp screw hole
+        shg = c.mkgrid2d(self.period[0], 1, self.array[0], 1)  # screw hole point grid
+        shp = c.grid2dtolist(shg[0], shg[1]+shelf_y_minus_center) + c.grid2dtolist(shg[0], shg[1]+shelf_y_plus_center)  # list of points for clamp screw holes
+        shv = CQ().circle(tb.c.std_screw_threads['m5']['clearance_r']).extrude(1)  # volume for a single clamp screw hole
         shvs = CQ().pushPoints(shp).eachpoint(lambda l: shv.val().located(l))  # volumes for all the clamp screw holes
         sand = sand.cut(shvs)  # drill the clamp screw holes
 
         # make alignment pin holes
         ahpag = shg[0]-self.alignment_pin_spacing/2  # alignment pin a x position grid
         ahpbg = shg[0]+self.alignment_pin_spacing/2  # alignment pin b x position grid
-        ahp = c.grid2dtolist(ahpag, shg[1]) + c.grid2dtolist(ahpbg, shg[1])  # list of alignment pin locations
-        ahv = CQ().circle(alignment_pin_hole_diameter/2).extrude(self.pcb_thickness)  # volume for a single alignment pin hole
+        ahp = (  # list of alignment pin locations
+            c.grid2dtolist(ahpag, shg[1] + shelf_y_minus_center) + 
+            c.grid2dtolist(ahpbg, shg[1] + shelf_y_minus_center) + 
+            c.grid2dtolist(ahpag, shg[1] + shelf_y_plus_center) + 
+            c.grid2dtolist(ahpbg, shg[1] + shelf_y_plus_center)
+        )
+        ahv = CQ().circle(alignment_pin_hole_d/2).extrude(one)  # volume for a single alignment pin hole
         ahvs = CQ().pushPoints(ahp).eachpoint(lambda l: ahv.val().located(l))  # volumes for all the alignment pin holes
         sand = sand.cut(ahvs)  # drill the alignment pin holes
+
+        # make aux electrical connection pin receptical holes in the substrate spacer layer
+        # and also put holes assocated with connection pad locations for these
+        row_centerg = c.mkgrid2d(self.period[0],1,self.array[0],1)  # grid of row centers
+        row_centerp = c.grid2dtolist(*row_centerg)   # list of row center points
+        aehg = c.mkgrid2d(self.substrate_adapters[0]-2, 2, 2, 6)  # aux electrical connection point grid
+        aepg = c.mkgrid2d(self.substrate_adapters[0]-2-4, 2, 2, 6)  # aux electrical pad point grid
+        aecy1 = aehg[1] + shelf_y_minus_center  # y vales for the connection points & pads
+        aecy2 = aehg[1] + shelf_y_plus_center  # y vales for the connection points & pads
+        # do array of array to build up a list of the points for all the aux electrical hole and pad locations
+        aehp = []
+        aepp = []
+        for row_center in row_centerp:
+            aehp = aehp + c.grid2dtolist(aehg[0]+row_center[0], aecy1) + c.grid2dtolist(aehg[0]+row_center[0], aecy2)  # for connection points from crossbars
+            aepp = aepp + c.grid2dtolist(aepg[0]+row_center[0], aecy1) + c.grid2dtolist(aepg[0]+row_center[0], aecy2)  # for associated pad points
+        aehv = CQ().circle(aux_con_hole_d/2).extrude(one)  # for connection points from crossbars
+        aepv = CQ().circle(aux_con_pad_hole_d/2).extrude(one)  # for associated pad points
+        aehvs = CQ().pushPoints(aehp).eachpoint(lambda l: aehv.val().located(l))
+        aepvs = CQ().pushPoints(aepp).eachpoint(lambda l: aepv.val().located(l))
+        sand = sand.cut(aehvs).cut(aepvs)  # drill the aux connection holes and holes associated with pad locations
 
         return sand.faces("<Z[-1]").wires()
 
@@ -322,7 +361,7 @@ class ChamberNG(object):
         c = type(self)  # this class
 
         # make adapter spacer basic shape
-        adp_spc = CQ().add(self.make_sandwich_wires(wp, self.alignment_pin_clear_d)).toPending().extrude(self.pcb_thickness)
+        adp_spc = CQ().add(self.make_sandwich_wires(wp, self.alignment_pin_clear_d, self.sa_socket_hole_d, self.aux_con_pad_hole_d)).toPending().extrude(self.pcb_thickness)
 
         # make pcb window(s)
         wv = (  # volume for a single window
@@ -341,47 +380,24 @@ class ChamberNG(object):
         c = type(self)  # this class
         s = self
 
-        # calculate substrate alignment pin grids
-        gx1 = cpg[0]-s.substrate_adapters[0]/2-s.sapd/2
-        gx2 = cpg[0]-s.substrate_adapters[0]/2-s.sapd/2
-        gx3 = cpg[0]-s.substrate_adapters[0]*s.sap_offset_fraction
-        gx4 = cpg[0]+s.substrate_adapters[0]*s.sap_offset_fraction
+        # werkplane face
+        wpf = cq.Face.makeFromWires(wp.val())
 
-        gy1 = cpg[1]+s.substrate_adapters[1]*s.sap_offset_fraction
-        gy2 = cpg[1]-s.substrate_adapters[1]*s.sap_offset_fraction
-        gy3 = cpg[1]-s.substrate_adapters[1]/2-s.sapd/2
-        gy4 = cpg[1]-s.substrate_adapters[1]/2-s.sapd/2
+        # to get the dims of the working array
+        wpbb = wpf.BoundingBox()
 
-        # generate substrate alignment pin points list
-        apps = (
-            c.grid2dtolist(gx1,gy1) +
-            c.grid2dtolist(gx2,gy2) +
-            c.grid2dtolist(gx3,gy3) +
-            c.grid2dtolist(gx4,gy4)
-        )
-
-        # make one substrate alignment pin hole volume for the spring pin spacer layer
-        aphv = CQ().circle(s.sapd/2).extrude(self.sa_spacing)
-        aphvs = CQ().pushPoints(apps).eachpoint(lambda l: aphv.val().located(l))  # replicate that
-
-        # calculate squishy tube centers
-        tgx1 = cpg[0]
-        tgx2 = cpg[0] + s.substrate_adapters[0]/2 + s.tube_OD/2 - s.tube_splooge
-        tgy1 = cpg[1] + s.substrate_adapters[1]/2 + s.tube_OD/2 - s.tube_splooge
-        tgy2 = cpg[1]
-
-        # generate the tube hole center points list
-        tps = (
-            c.grid2dtolist(tgx1,tgy1) +
-            c.grid2dtolist(tgx2,tgy2)
-        )
-
-        # make one tube clearance hole volume for the spring pin spacer layer
-        thv = CQ().circle(s.tube_OD/2).extrude(self.sa_spacing)
-        thvs = CQ().pushPoints(tps).eachpoint(lambda l: thv.val().located(l))  # replicate that
+        if (self.substrate_spacing[0] >= 10) and (self.substrate_spacing[1] >= 10):
+            many_pockets = True  # we have enough room to do pockets for every substrate
+        else:
+            many_pockets = False
+        
+        if (self.substrate_spacing[0] == 0) and (self.substrate_spacing[1] == 0):
+            unipocket = True  # treat all the substrates as a unit, making one big holder pocket
+        else:
+            unipocket = False
 
         # spring pin spacer base
-        sp_spc = CQ().add(self.make_sandwich_wires(wp,self.alignment_pin_clear_d)).toPending().extrude(self.sa_spacing)
+        sp_spc = CQ().add(self.make_sandwich_wires(wp,self.alignment_pin_clear_d, self.sa_socket_hole_d, self.aux_con_pin_clearance_d)).toPending().extrude(self.sa_spacing)
         sp_spc = sp_spc.edges('|Z').fillet(self.pcb_cut_rad)  # round the outside edges
 
         # make spring pin spacer layer windows
@@ -411,6 +427,85 @@ class ChamberNG(object):
         spswvs = CQ().pushPoints(cps).eachpoint(lambda l: spswv.val().located(l))
         sp_spc = sp_spc.cut(spswvs)  # cut out the windows
 
+        # generate the sample holder base
+        sh = CQ().add(self.make_sandwich_wires(wp,self.alignment_pin_slide_d, self.sa_socket_hole_d, self.aux_con_pin_clearance_d)).toPending().extrude(self.sa_spacing)
+
+        apps = []  # no alignment pin points by default
+        tps = []  # no tube points by default
+        if many_pockets == True:
+            # calculate substrate alignment pin grids
+            gx1 = cpg[0]-s.substrate_adapters[0]/2-s.sapd/2
+            gx2 = cpg[0]-s.substrate_adapters[0]/2-s.sapd/2
+            gx3 = cpg[0]-s.substrate_adapters[0]*s.sap_offset_fraction
+            gx4 = cpg[0]+s.substrate_adapters[0]*s.sap_offset_fraction
+
+            gy1 = cpg[1]+s.substrate_adapters[1]*s.sap_offset_fraction
+            gy2 = cpg[1]-s.substrate_adapters[1]*s.sap_offset_fraction
+            gy3 = cpg[1]-s.substrate_adapters[1]/2-s.sapd/2
+            gy4 = cpg[1]-s.substrate_adapters[1]/2-s.sapd/2
+
+            # generate substrate alignment pin points list
+            apps = (
+                c.grid2dtolist(gx1,gy1) +
+                c.grid2dtolist(gx2,gy2) +
+                c.grid2dtolist(gx3,gy3) +
+                c.grid2dtolist(gx4,gy4)
+            )
+
+            # calculate squishy tube centers
+            tgx1 = cpg[0]
+            tgx2 = cpg[0] + s.substrate_adapters[0]/2 + s.tube_OD/2 - s.tube_splooge
+            tgy1 = cpg[1] + s.substrate_adapters[1]/2 + s.tube_OD/2 - s.tube_splooge
+            tgy2 = cpg[1]
+
+            # generate the tube hole center points list
+            tps = (
+                c.grid2dtolist(tgx1,tgy1) +
+                c.grid2dtolist(tgx2,tgy2)
+            )
+        elif unipocket == True:
+            # calculate substrate alignment pin locations
+            x1 =  wpbb.xmin-s.sapd/2
+            x2 =  wpbb.xmin-s.sapd/2
+            x3 = -wpbb.xlen*s.sap_offset_fraction
+            x4 =  wpbb.xlen*s.sap_offset_fraction
+
+            y1 =  wpbb.ylen*s.sap_offset_fraction
+            y2 = -wpbb.ylen*s.sap_offset_fraction
+            y3 =  wpbb.ymin-s.sapd/2
+            y4 =  wpbb.ymin-s.sapd/2
+
+            # generate substrate alignment pin points list
+            apps = [
+                (x1, y1),
+                (x2, y2),
+                (x3, y3),
+                (x4, y4),
+            ]
+
+            # calculate squishy tube centers
+            tx1 = 0
+            tx2 = wpbb.xmax + s.tube_OD/2 - s.tube_splooge
+            ty1 = wpbb.ymax + s.tube_OD/2 - s.tube_splooge
+            ty2 = 0
+
+            # generate the tube hole center points list
+            tps = [
+                (tx1,ty1),
+                (tx2,ty2),
+            ]
+
+        # make one substrate alignment pin hole volume for the spring pin spacer layer
+        aphv = CQ().circle(s.sapd/2).extrude(self.sa_spacing)
+        aphvs = CQ().pushPoints(apps).eachpoint(lambda l: aphv.val().located(l))  # replicate that
+
+        # cut out substrate alignment pin hole volumes
+        sp_spc = sp_spc.cut(aphvs)
+
+        # make one tube clearance hole volume for the spring pin spacer layer
+        thv = CQ().circle(s.tube_OD/2).extrude(self.sa_spacing)
+        thvs = CQ().pushPoints(tps).eachpoint(lambda l: thv.val().located(l))  # replicate that
+
         # cut out substrate alignment pin hole volumes
         sp_spc = sp_spc.cut(aphvs)
 
@@ -418,82 +513,6 @@ class ChamberNG(object):
         sp_spc = sp_spc.cut(thvs)
 
         return sp_spc
-
-        #shp = []  # screw hole positions 
-        #for i in range(self.array[0]):
-        #    shp.append(())
-        #    for j in range(self.array[1]):
-        #        pass
-        #adp_spc = (
-        #    adp_spc.faces(">Z[-1]").workplane(centerOption=co)
-        #    .rarray(self.period[0],wpbb.ylen+2*self.endblock_screw_offset,self.array[0],2)
-        #    .circle(tb.c.std_screw_threads['m5']['clearance_r']).cutThruAll()
-        #)
-        # cut mounting screw holes
-        #adp_spc = adp_spc.faces(">Z[-1]").workplane(centerOption=co).rarray(1,wpbb.ylen+2*self.endblock_screw_offset,1,2).circle(tb.c.std_screw_threads['m5']['clearance_r']).cutThruAll()
-        """
-        # timeout for a sec to make the adapter spacer
-        adapter_spacer = CQ().add(subadapter.findSolid()).faces(">Z[-1]").wires().toPending().extrude(self.as_thickness-self.sa_pcb_thickness)
-        #as_window = CQ().rect(self.substrate_adapters[0]+self.pcb_cut_rad, self.substrate_adapters[1]+self.pcb_cut_rad)  # make window
-        #as_windows = CQ().rarray(xSpacing=(self.period[0]), ySpacing=self.period[1], xCount=self.array[0], yCount=self.array[1]).eachpoint(lambda loc: as_window.val().moved(loc), True)  # replicate window
-        #adapter_spacer = adapter_spacer.add(as_windows).toPending().cutThruAll()  # cut windows
-        #adapter_spacer = adapter_spacer.faces(">Z[-1]").workplane(centerOption=co).rarray(self.alignment_pin_spacing,wpbb.ylen+2*self.endblock_screw_offset,2,2).circle(self.alignment_pin_clear_d/2).cutThruAll()
-        #adapter_spacer = adapter_spacer.edges('|Z').fillet(self.pcb_cut_rad)  # fillet corners
-        adapter_spacer = adapter_spacer.translate((0,0,self.sa_pcb_thickness))
-
-        # cut the alignment holes
-        subadapter = subadapter.faces(">Z[-1]").workplane(centerOption=co).rarray(self.alignment_pin_spacing,wpbb.ylen+2*self.endblock_screw_offset,2,2).circle(self.pressfit_hole_d_nominal/2).cutThruAll()
-
-        # make sa window shapes
-        sa_window = CQ().rect(self.substrate_adapters[0]-2*self.sa_pcb_border_thickness[0], self.substrate_adapters[1]-2*self.sa_pcb_border_thickness[1])
-
-        # position window cuts
-        window_cuts = (
-            CQ().rarray(xSpacing=(self.period[0]), ySpacing=self.period[1], xCount=self.array[0], yCount=self.array[1])
-            .eachpoint(lambda loc: sa_window.val().moved(loc), True)
-        )
-        # make window cuts
-        subadapter = subadapter.add(window_cuts).toPending().cutThruAll()
-        
-        # fillet corners
-        subadapter = subadapter.edges('|Z').fillet(self.pcb_cut_rad)
-
-        # places for a bunch of tiny holes for the pressfit pins
-        pf_points = CQ().rarray(self.substrate_adapters[0]-2, 2, 2, 12).vals() + CQ().rarray(self.substrate_adapters[0]+2, 2, 2, 12).vals()
-
-        # places for the spring pin clearance holes
-        #pin_points =              CQ().center(0, 2*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
-        #pin_points = pin_points + CQ().center(0, 1*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
-        #pin_points = pin_points + CQ().center(0, 0*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
-        #pin_points = pin_points + CQ().center(0,-1*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
-        #pin_points = pin_points + CQ().center(0,-2*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset, 2.5, 2, 2).vals()
-        
-        # substrate array the hole locs
-        #pin_points_array = []
-        pf_points_array = []
-        for point in CQ().rarray(xSpacing=(self.period[0]), ySpacing=self.period[1], xCount=self.array[0], yCount=self.array[1]).vals():
-            #pin_points_array = pin_points_array + CQ(origin=point).pushPoints(pin_points).vals()
-            pf_points_array = pf_points_array + CQ(origin=point).pushPoints(pf_points).vals()
-
-        # chuck duplicate hole locations and convert to point tuples
-        pf_points_array_2d = [(p.x, p.y) for p in pf_points_array]
-        pf_points_array_2d = np.unique(pf_points_array_2d, axis=0)
-        #pin_points_array_2d = [(p.x, p.y) for p in pin_points_array]
-
-        # make single example cylinders to replicate
-        small_cylinder = CQ().circle(self.sa_pf_hole_d/2).extrude(self.sa_pcb_thickness)
-        #less_small_cylinder =  CQ().circle(self.sa_spring_hole_d/2).extrude(self.sa_pcb_thickness)
-
-        # make the hole volumes
-        small_holes = CQ().pushPoints(pf_points_array_2d).eachpoint(lambda l: small_cylinder.val().located(l))
-        #less_small_holes = CQ().pushPoints(pin_points_array_2d).eachpoint(lambda l: less_small_cylinder.val().located(l))
-
-        # cut out the hole volumes
-        swiss_cheese = subadapter.cut(small_holes)#.cut(less_small_holes)
-        """
-
-        #return (adp_spc, sp_spc)
-        #return (swiss_cheese, adapter_spacer)
 
     # the purpose of this is to generate a crossbar outline shape guaranteed to match the chamber geometry for import into pcbnew
     def make_crossbar(self, wp):
@@ -504,32 +523,43 @@ class ChamberNG(object):
         # to get the dims of the working array
         wpbb = wpf.BoundingBox()
 
-        crossbar_half_points = [  # half-board outline points
-            (0,  0),
-            (wpbb.ymax + self.endblock_thickness_extension, 0),
-            (wpbb.ymax + self.endblock_thickness_extension, self.pcb_top_bump_up),
-            (wpbb.ymax + self.endblock_thickness,  self.pcb_top_bump_up),
-            (wpbb.ymax + self.endblock_thickness, -self.pcb_min_height - self.pcb_bottom_bump_down),
-            (wpbb.ymax + self.pcb_bottom_bump_offset, -self.pcb_min_height - self.pcb_bottom_bump_down),
-            (wpbb.ymax + self.pcb_bottom_bump_offset, -self.pcb_min_height),
-            (0,  -self.pcb_min_height),
+        crossbar_points = [  # board outline points
+            (wpbb.ymax + self.extra[3], 0),
+            (wpbb.ymax + self.extra[3], self.pcb_top_bump_up),
+            (wpbb.ymax + self.extra[3] + self.endblock_thickness_shelf,  self.pcb_top_bump_up),
+            (wpbb.ymax + self.extra[3] + self.endblock_thickness_shelf, -self.pcb_min_height - self.pcb_bottom_bump_down),
+            (wpbb.ymax + self.extra[3] + self.endblock_thickness_shelf - self.pcb_bottom_bump_offset, -self.pcb_min_height - self.pcb_bottom_bump_down),
+            (wpbb.ymax + self.extra[3] + self.endblock_thickness_shelf - self.pcb_bottom_bump_offset, -self.pcb_min_height),
+            (wpbb.ymin - self.extra[2] - self.endblock_thickness_shelf + self.pcb_bottom_bump_offset, -self.pcb_min_height),
+            (wpbb.ymin - self.extra[2] - self.endblock_thickness_shelf + self.pcb_bottom_bump_offset, -self.pcb_min_height - self.pcb_bottom_bump_down),
+            (wpbb.ymin - self.extra[2] - self.endblock_thickness_shelf, -self.pcb_min_height - self.pcb_bottom_bump_down),
+            (wpbb.ymin - self.extra[2] - self.endblock_thickness_shelf,  self.pcb_top_bump_up),
+            (wpbb.ymin - self.extra[2], self.pcb_top_bump_up),
+            (wpbb.ymin - self.extra[2], 0),
         ]
-        crossbar_half_mount_hole_points = [  # locate pcb mounting holes
-            (wpbb.ymax + self.endblock_thickness_extension + self.pcb_mount_hole_offset, self.pcb_top_bump_up - self.pcb_mount_hole_offset),
-            (wpbb.ymax + self.pcb_bottom_bump_offset + self.pcb_mount_hole_offset, -self.pcb_min_height - self.pcb_bottom_bump_down + self.pcb_mount_hole_offset),
-        ]
-        alignment_hole_point = [(crossbar_half_mount_hole_points[0][0], crossbar_half_mount_hole_points[1][1])]
 
-        # make the mirrored part
-        innter_crossbar = CQ('YZ').polyline(crossbar_half_points).close().mirrorY().extrude(self.pcb_thickness)
+        crossbar_mount_hole_points = [  # locate pcb mounting holes
+            (wpbb.ymax + self.extra[3] + self.pcb_mount_hole_offset, self.pcb_top_bump_up - self.pcb_mount_hole_offset),
+            (wpbb.ymax + self.extra[3] + self.endblock_thickness_shelf - self.pcb_bottom_bump_offset + self.pcb_mount_hole_offset, -self.pcb_min_height - self.pcb_bottom_bump_down + self.pcb_mount_hole_offset),
+            (wpbb.ymin - self.extra[2] - self.pcb_mount_hole_offset, self.pcb_top_bump_up - self.pcb_mount_hole_offset),
+            (wpbb.ymin - self.extra[2] - self.endblock_thickness_shelf + self.pcb_bottom_bump_offset - self.pcb_mount_hole_offset, -self.pcb_min_height - self.pcb_bottom_bump_down + self.pcb_mount_hole_offset),
+        ]
+
+        alignment_hole_point = [
+            (wpbb.ymax + self.extra[3] + self.endblock_thickness_shelf - self.pcb_mount_hole_offset, crossbar_mount_hole_points[1][1]),
+            (wpbb.ymin - self.extra[2] - self.endblock_thickness_shelf + self.pcb_mount_hole_offset, crossbar_mount_hole_points[3][1]),
+        ]
+
+        # make the part
+        innter_crossbar = CQ('YZ').polyline(crossbar_points).close().extrude(self.pcb_thickness)
 
         # drill the endblock mounting holes
-        innter_crossbar = innter_crossbar.pushPoints(crossbar_half_mount_hole_points).circle(self.pcb_mount_hole_d/2).mirrorY().cutThruAll()
-        innter_crossbar = innter_crossbar.pushPoints(alignment_hole_point).circle(self.pcb_alignment_hole_d/2).mirrorY().cutThruAll()
+        innter_crossbar = innter_crossbar.pushPoints(crossbar_mount_hole_points).circle(self.pcb_mount_hole_d/2).cutThruAll()
+        innter_crossbar = innter_crossbar.pushPoints(alignment_hole_point).circle(self.pcb_alignment_hole_d/2).cutThruAll()
 
         # calculate the extra board length required to ensure the inch connectors are on-grid
-        wall_end = wpbb.ymax + self.endblock_thickness + self.endblock_wall_spacing + self.wall[2]
-        self.pcb_inch_fudge = round(math.ceil(wall_end/1.27)*1.27-wall_end,2)  # so that the inch-based connectors can be on-grid
+        wall_end = wpbb.ymax + self.extra[2] + self.endblock_thickness_shelf + self.endblock_wall_spacing + self.wall[2]
+        self.pcb_inch_fudge = round(math.ceil(wall_end/1.27)*1.27-wall_end, 2)  # so that the inch-based connectors can be on-grid
 
         extension_length = self.endblock_wall_spacing+self.wall[2]+self.pcb_inch_fudge+self.pcb_external_connector_width*self.array[1]
         
@@ -537,7 +567,7 @@ class ChamberNG(object):
         self.pcb_extension_fidge = round(math.ceil(extension_length/0.25)*0.25-extension_length,2)
 
         # fudge extension length to get it on mm grid
-        extension_length = round(extension_length + self.pcb_extension_fidge,2)
+        extension_length = round(extension_length + self.pcb_extension_fidge, 2)
 
         # extend for external connectors
         crossbar = (
@@ -550,7 +580,6 @@ class ChamberNG(object):
 
         return(crossbar.translate((-self.pcb_thickness/2, 0, 0)))
 
-    
     def make_crossbars(self, crossbar):
         # replicate the crossbars:
         crossbars = (
@@ -814,7 +843,6 @@ class ChamberNG(object):
 
         return (middle, top.clean())  # clean() to remove unwanted lines in faces
 
-
     def build(self):
         s = self
         asy = cadquery.Assembly()
@@ -858,26 +886,12 @@ class ChamberNG(object):
         spring_pin_spacer = self.make_some_layers(werkplane, cpg)
         asy.add(spring_pin_spacer.translate((0,0,self.pcb_thickness)), name="spring_pin_spacer", color=cadquery.Color("black"))
 
-
-
-        
-
-        
-
-        # make the top piece
-        #top = self.make_top(x, y)
-        #asy.add(vg, name="vg")
-
-        # constrain assembly
-        #asy.constrain("bottom?bottom_mate", "top?top_mate", "Point")
-
-        # solve constraints
-        #asy.solve()
-
         return (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer)
 
 def main():
-    s = ChamberNG(array=(1, 4), subs =(30, 30), spacing=(10, 10))
+    s = ChamberNG(array=(1, 1), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
+    #s = ChamberNG(array=(1, 4), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
+    #s = ChamberNG(array=(5, 5), subs =(30, 30), spacing=(0, 0), padding=(10,10,5,5))
     (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer) = s.build()
     
     if "show_object" in globals():
