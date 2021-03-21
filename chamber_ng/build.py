@@ -38,17 +38,15 @@ class ChamberNG(object):
     sa_spring_hole_offset = 3.25  # from edge of board
     sa_socket_hole_d = 1.35  # pin socket mounting hole diameter (pn 5342)
     sa_border_thickness = (5.1, 3)  # defines the window border width (pin side, non-pin side)
-    sa_spacing = 1.20  # distance between the adapter and the substrate surface
-    # such that pin 0921-1 has the correct remaining travel when in use. nominally, this remaining travel
-    # would be 0.5mm and that corresponds to a spacer thickness here of 1.26mm, but a 1.2mm thick PCB is a good option
 
     # aux connection parameters
-    aux_con_pad_hole_d = 0.5  # for the holes cut in the adapter spacer pcb that cresspons to where the
+    aux_con_pad_hole_d = 0.5  # for the holes cut in the adapter spacer pcb that corresponds to where the
     # auxiliary connection landing pads will be
     aux_con_pin_clearance_d = 1.9  # size of the holes needed to expose the aux pads
+    aux_pads_n = 5  # number of pads/connections in row
+    aux_pad_center_shift = 1  # shift the pads to center of array by this much
 
-    # adapter spacer
-    #as_thickness = pcb_thickness + 0.76  # 0.76 is the height of the shoulder of the millmax pressfit pins 
+    # adapter spacer parameters
 
     # workplane offset from top of PCB
     woff = pcb_top_bump_up
@@ -85,16 +83,20 @@ class ChamberNG(object):
     tube_bore = 4.8  # for RS PRO silicone tubing stock number 667-8448
     tube_wall = 1.6  # for RS PRO silicone tubing stock number 667-8448
     tube_OD = tube_bore + 2*tube_wall
-    tube_pocket_OD = tube_OD - 0.5 # for pressfit
+    tube_pocket_OD = tube_OD - 0.5  # for pressfit
+    tube_clearance_OD = tube_OD*1.2  # to ensure the pusher downer doesn't get interfered with by the tube splooges
     tube_splooge = 0.5  # if the tube was unbotherd, its center point would cause this much overlap with the substrate
 
     # spring pin spacer parameters
     sp_spacer_encroachment = 2  # amount to encroach on the adapter board non-pin edges
     sp_spacer_encroachment_keepout = 6  # width of central keepout ear/zone
     sp_cut_ears = True  # true to cut ears to expose adapter board smt components
+    sp_spacer_t = 1.20  # distance between the adapter and the substrate surface
+    # such that pin 0921-1 has the correct remaining travel when in use. nominally, this remaining travel
+    # would be 0.5mm and that corresponds to a spacer thickness here of 1.26mm, but a 1.2mm thick PCB is a good option
 
     # holder layer parameters
-    holder_t = 3  # holder thickness
+    holder_t = 3.5  # holder thickness, 2.2mm =thickest glass + 
     holder_aux_con_d = 0.8  # diameter for the holes above the aux connection points
     crescent_angle = 270  # make crescents that enclose round things by this many degrees
     holder_corner_r = 1.0  # max cutting tool radius that can be used to mill the pockets
@@ -111,8 +113,11 @@ class ChamberNG(object):
     pd_width_offset = 0.2  # come in this far on + and -X sides from the substrate edges
     pd_substrate_encroachment = 2.0  # enter the substrate area by this much, maximum
     pd_x_side_thickness = 9  # thickness on the x edges, more causes shadowing
-    pd_y_side_thickness = 7  # thickness on the y edges, more causes shadowing
+    pd_y_side_thickness = 3  # thickness on the y edges, more causes shadowing
     pd_y_side_width = 15  # width of region where y side thickness is important
+    pd_cut_tool_r_big = 2.5  # max radius of cutting tool that can be used to finish the big rounds
+    pd_cut_tool_r_small = 1.5  # max radius of cutting tool that can be used to finish the little rounds
+    pd_chamfer_l = 0.5  # chamfer edges for handling
 
     # width of the top of the resulting countersink (everywhere, generally good for M5)
     csk_diameter = 11
@@ -367,10 +372,10 @@ class ChamberNG(object):
         # and also put holes assocated with connection pad locations for these
         row_centerg = c.mkgrid2d(self.period[0],1,self.array[0], 1)  # grid of row centers
         row_centerp = c.grid2dtolist(*row_centerg)   # list of row center points
-        aehg = c.mkgrid2d(self.substrate_adapters[0]-2, 2, 2, 6)  # aux electrical connection point grid
-        aepg = c.mkgrid2d(self.substrate_adapters[0]-2-4, 2, 2, 6)  # aux electrical pad point grid
-        aecy1 = aehg[1] + shelf_y_minus_center  # y vales for the connection points & pads
-        aecy2 = aehg[1] + shelf_y_plus_center  # y vales for the connection points & pads
+        aehg = c.mkgrid2d(self.substrate_adapters[0]-2, 2, 2, self.aux_pads_n)  # aux electrical connection point grid
+        aepg = c.mkgrid2d(self.substrate_adapters[0]-2-4, 2, 2, self.aux_pads_n)  # aux electrical pad point grid
+        aecy1 = aehg[1] + shelf_y_minus_center + self.aux_pad_center_shift  # y vales for the connection points & pads
+        aecy2 = aehg[1] + shelf_y_plus_center - self.aux_pad_center_shift # y vales for the connection points & pads
         # do array of array to build up a list of the points for all the aux electrical hole and pad locations
         aehp = []
         aepp = []
@@ -431,30 +436,30 @@ class ChamberNG(object):
             unipocket = False
 
         # spring pin spacer base
-        sp_spc = CQ().add(s.make_sandwich_wires(wp,s.alignment_pin_clear_d, s.sa_socket_hole_d, s.aux_con_pin_clearance_d)).toPending().extrude(s.sa_spacing)
+        sp_spc = CQ().add(s.make_sandwich_wires(wp,s.alignment_pin_clear_d, s.sa_socket_hole_d, s.aux_con_pin_clearance_d)).toPending().extrude(s.sp_spacer_t)
         sp_spc = sp_spc.edges('|Z').fillet(self.pcb_cut_rad)  # round the outside edges
 
         # make spring pin spacer layer windows
         spswv = (  # volume for a single window
             CQ().rect(s.substrate_adapters[0]+s.pcb_cut_rad, s.substrate_adapters[1]-2*s.sp_spacer_encroachment)
-            .extrude(s.sa_spacing)
+            .extrude(s.sp_spacer_t)
         )
         spswv = spswv.cut(
             CQ().rect(s.substrate_adapters[0]-2*s.sa_border_thickness[0], s.substrate_adapters[1]+s.pcb_cut_rad)
-            .extrude(s.sa_spacing)
+            .extrude(s.sp_spacer_t)
         )
         # come way in on the y edges
         spswv = spswv.edges('|Z').fillet(s.pcb_cut_rad)  # round the window edges
         spswv = spswv.union(
             CQ().rect(s.substrate_adapters[0], s.substrate_adapters[1]-2*s.sa_border_thickness[1])
-            .extrude(s.sa_spacing)
+            .extrude(s.sp_spacer_t)
         )
         # but leave ears for the smt parts on the adapters (TODO: this creates impossible geometry for zero spacing case)
         spswv = spswv.edges('|Z').fillet(s.pcb_cut_rad)  # round the window edges
         if s.sp_cut_ears:
             spswv = spswv.union(
                 CQ().rect(s.sp_spacer_encroachment_keepout, s.substrate_adapters[1])
-                .extrude(s.sa_spacing)
+                .extrude(s.sp_spacer_t)
                 .edges('|Z').fillet(s.pcb_cut_rad)
             )
 
@@ -588,15 +593,15 @@ class ChamberNG(object):
             hps = hp
 
         # make one substrate alignment pin hole volume for the spring pin spacer layer
-        aphv = CQ().circle(s.sapd/2).extrude(s.sa_spacing+1).translate((0,0,-0.5))  # this works around a bug in step file export
+        aphv = CQ().circle(s.sapd/2).extrude(s.sp_spacer_t+1).translate((0,0,-0.5))  # this works around a bug in step file export
         # see https://github.com/CadQuery/cadquery/issues/697
-        #aphv = CQ().circle(s.sapd/2).extrude(s.sa_spacing)  # this line should look like this
+        #aphv = CQ().circle(s.sapd/2).extrude(s.sp_spacer_t)  # this line should look like this
         aphhv = CQ().circle(s.sapd_press/2).extrude(s.holder_t)
         aphvs  = CQ().pushPoints(apps).eachpoint(lambda l:  aphv.val().located(l))  # replicate that
         aphhvs = CQ().pushPoints(apps).eachpoint(lambda l: aphhv.val().located(l))  # replicate that
         
         # make one tube clearance hole volume for the spring pin spacer layer
-        thv =  CQ().circle(s.tube_OD/2).extrude(s.sa_spacing)
+        thv =  CQ().circle(s.tube_OD/2).extrude(s.sp_spacer_t)
         thhv = CQ().circle(s.tube_pocket_OD/2).extrude(s.holder_t)
         thvs =  CQ().pushPoints(tps).eachpoint(lambda l:  thv.val().located(l))  # replicate that
         thhvs = CQ().pushPoints(tps).eachpoint(lambda l: thhv.val().located(l))  # replicate that
@@ -622,28 +627,69 @@ class ChamberNG(object):
         # generate the pusher downer base shape
         pd = CQ().add(s.make_sandwich_wires(wp, s.alignment_pin_slide_d, 0, s.aux_con_pin_clearance_d)).toPending().extrude(s.pd_x_side_thickness)
 
-        # slice out one col and center it if needed
-        if self.array[0]%2 == 1:
-            pd = pd.intersect(CQ().box(s.substrate_adapters[0]-2*s.pd_width_offset, s.substrate_adapters[1]*s.array[1]*2, s.pd_x_side_thickness, centered=(True, True, False)))
-        else:  # even number of cols
-            slicer = CQ().box(s.substrate_adapters[0]-2*s.pd_width_offset, s.substrate_adapters[1]*s.array[1]*2, s.pd_x_side_thickness, centered=(True, True, False))
-            slicer = slicer.translate((s.period[0]/2, 0, 0))
-            pd = pd.intersect(slicer)
-            pd = pd.translate((-s.period[0]/2, 0, 0))
-        
         # now remove some area so it can push down
         pd_edge = pd.faces('<Z[-1]').edges('%LINE').vals()
         del_vol = CQ().add(cq.Wire.assembleEdges(pd_edge)).toPending().extrude(s.holder_t)
-        del_vol = del_vol.rarray(1, s.period[1], 1, s.array[1]).rect(s.substrate_adapters[0], s.substrate_adapters[1]).cutThruAll()
+        del_vol = del_vol.rarray(s.period[0], s.period[1], s.array[0], s.array[1]).rect(s.substrate_adapters[0], s.substrate_adapters[1]).cutThruAll()
         pd = pd.cut (del_vol)
 
         # cut the windows
-        pd = pd.rarray(1, s.period[1], 1, s.array[1]).rect(s.substrate_adapters[0]-2*s.pd_substrate_encroachment, s.substrate_adapters[1]-2*s.pd_substrate_encroachment).cutThruAll()
+        pd = pd.rarray(s.period[0], s.period[1], s.array[0], s.array[1]).rect(s.substrate_adapters[0]-2*s.pd_substrate_encroachment, s.substrate_adapters[1]-2*s.pd_substrate_encroachment).cutThruAll()
 
-        # cut the y-side shadow preventor dent
-        dentv = CQ().box(s.pd_y_side_width, s.substrate_adapters[1], s.pd_x_side_thickness-s.pd_y_side_thickness, centered=(True, True, False))
-        dentvs = CQ().rarray(1, s.period[1], 1, s.array[1]).eachpoint(lambda l: dentv.val().located(l))  # replicate that
-        pd = pd.cut(dentvs.translate((0,0,s.pd_y_side_thickness)))
+        # slice out one col and center it if needed
+        slicer = CQ().box(s.substrate_adapters[0]-2*s.pd_width_offset, s.substrate_adapters[1]*s.array[1]*2, s.pd_x_side_thickness, centered=(True, True, False))
+        if self.array[0]%2 == 1:
+            translation = (0, 0, 0)
+        else:  # even number of cols
+            translation = (s.period[0]/2, 0, 0)
+        pd = pd.translate(translation).intersect(slicer)
+
+        # cut the y-side shadow preventor dent(s)
+        if unipocket == True:
+            dent_y_l = s.array[1]*s.substrate_adapters[1]
+            n_dent_y = 1
+        else:
+            dent_y_l = s.substrate_adapters[1]
+            n_dent_y = s.array[1]
+        dentv = CQ().box(s.pd_y_side_width, dent_y_l, s.pd_x_side_thickness-s.pd_y_side_thickness, centered=(True, True, False))
+        dentvs = CQ().rarray(s.period[0], s.period[1], s.array[0], n_dent_y).eachpoint(lambda l: dentv.val().located(l))  # replicate that
+        dentvs = dentvs.edges('|Z').fillet(s.pd_cut_tool_r_big)  # round for manufacturability
+        pd = pd.cut(dentvs.translate((translation[0], 0, s.pd_y_side_thickness)))
+
+        # select edges to round by z position
+        #pd = CQ().add(pd.findSolid()).edges('<Z[-1] or <Z[-3] or <Z[-4] or <Z[-5]').fillet(0.6)  #use this radius to explore the edge heights if needed
+        # -1 is the level of the edges of the bottom pusher(s)
+        # -2 is the level of the tiny edges in the y shadow preventor dents
+        # -3 is the level of the edges of the window inner
+        # -4 is the level of the edges of the y shadow preventor dent
+        # -5 is the level of the edges of the outermost edges
+        pd = CQ().add(pd.findSolid()).edges('<Z[-1] or <Z[-3] or <Z[-5]').fillet(s.pd_cut_tool_r_big)
+        if unipocket == True:  # in multipocket case, this is handled by the negative dent shape's round
+            pd = pd.edges('<Z[-4]').fillet(s.pd_cut_tool_r_small)
+
+        # chamfer outer edges for improved hand friendliness
+        if unipocket == True:  # BUG in OCCT makes nonsense geometry here except in unipocket case
+            pd = pd.faces('<Z[-1]').edges().chamfer(s.pd_chamfer_l)  # bottom edges 
+        pd = pd.faces('<Z[-3]').edges('<Y or >Y or <X or >X').chamfer(s.pd_chamfer_l)  # "middle" edges
+        pd = pd.faces('>Z[-1]').edges('not(%CIRCLE)').chamfer(s.pd_chamfer_l)  # top edges
+
+        # chamfer the big holes for ease of assembly/alignment
+        pd = pd.edges('%CIRCLE').edges('<<Y[-5]').chamfer(s.pd_chamfer_l)  # three in line holes at one end
+        pd = pd.edges('%CIRCLE').edges('>>Y[-5]').chamfer(s.pd_chamfer_l)  # three in line holes at the other end
+
+        # drill the alignment pin clearance holes (translating them, untranslating if needed)
+        # TODO: need to handle these drills correctly for unipocket case
+        apphv = CQ().circle(s.sapd_clear/2).extrude(s.pd_x_side_thickness)  # make one hole volume for alignment pin clearance
+        apphvs = CQ().pushPoints(apps).eachpoint(lambda l:  apphv.val().located(l))  # replicate that
+        pd = pd.translate((translation[0]*-1, 0, 0)).cut(apphvs)
+        pd = pd.translate(translation)
+
+        # make one tube clearance holes (translating them, untranslating if needed)
+        # and translated properly in z so they can only cut the pusher part
+        tphv =  CQ().circle(s.tube_clearance_OD/2).extrude(s.pd_x_side_thickness).translate((0, 0, -s.pd_x_side_thickness+s.holder_t))
+        tphvs =  CQ().pushPoints(tps).eachpoint(lambda l:  tphv.val().located(l))  # replicate that
+        pd = pd.translate((translation[0]*-1, 0, 0)).cut(tphvs)
+        pd = pd.translate(translation)
 
         return sp_spc, sh, pd
 
@@ -1015,7 +1061,7 @@ class ChamberNG(object):
         cpg = self.find_substrate_grid()
 
         substrate = CQ().rect(*self.substrate_adapters).extrude(self.substrate_thickness)
-        substrates = self.replicate(substrate, cpg).translate((0, 0, self.pcb_thickness+self.sa_spacing))
+        substrates = self.replicate(substrate, cpg).translate((0, 0, self.pcb_thickness+self.sp_spacer_t))
         #asy.add(substrates.translate((0,0,4)), name="substrates", color=cadquery.Color("lightblue"), alpha=0.4)
         # shoould be "lightblue" with alpha = 0.3 but alpha is broken?
         asy.add(substrates, name="substrates", color=cadquery.Color(107/255,175/255,202/255,0.3))
@@ -1029,18 +1075,18 @@ class ChamberNG(object):
 
         spring_pin_spacer, substraet_holder, pusher_downer = self.make_some_layers(werkplane, cpg)
         pusher_downers = self.replicate(pusher_downer, c.mkgrid2d(self.period[0], 1, self.array[0], 1))
-        asy.add(pusher_downers.translate((0, 0, self.pcb_thickness+self.sa_spacing+self.substrate_thickness_worst_case)), name="pusher_downers", color=cadquery.Color("brown"))
+        asy.add(pusher_downers.translate((0, 0, self.pcb_thickness+self.sp_spacer_t+self.substrate_thickness_worst_case)), name="pusher_downers", color=cadquery.Color("brown"))
         asy.add(spring_pin_spacer.translate((0, 0, self.pcb_thickness)), name="spring_pin_spacer", color=cadquery.Color("black"))
-        asy.add(substraet_holder.translate((0, 0, self.pcb_thickness+self.sa_spacing)), name="substrate_holder", color=cadquery.Color("red"))
+        asy.add(substraet_holder.translate((0, 0, self.pcb_thickness+self.sp_spacer_t)), name="substrate_holder", color=cadquery.Color("red"))
 
-        return (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substraet_holder)
+        return (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substraet_holder, pusher_downer)
 
 def main():
     #s = ChamberNG(array=(1, 1), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
-    #s = ChamberNG(array=(1, 4), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
-    s = ChamberNG(array=(4, 4), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
+    s = ChamberNG(array=(1, 4), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
+    #s = ChamberNG(array=(4, 4), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
     #s = ChamberNG(array=(5, 5), subs =(30, 30), spacing=(0, 0), padding=(10,10,5,5))
-    (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substraet_holder) = s.build()
+    (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substraet_holder, pusher_downer) = s.build()
     
     if "show_object" in globals():
         #show_object(asy)
@@ -1059,8 +1105,8 @@ def main():
         # save step
         asy.save('chamber_ng.step')
 
-        save_indivitual_stls = False
-        save_indivitual_steps = False
+        save_indivitual_stls = True
+        save_indivitual_steps = True
 
         if (save_indivitual_stls == True) or (save_indivitual_steps == True):
             # loop through individual pieces STLs
@@ -1069,8 +1115,12 @@ def main():
                 if shapes != []:
                     c = cq.Compound.makeCompound(shapes)
                     if save_indivitual_stls == True:
+                        if val.name == 'pusher_downers':
+                            cadquery.exporters.export(pusher_downer.findSolid().locate(val.loc), 'pusher_downer.stl')
                         cadquery.exporters.export(c.locate(val.loc), f'{val.name}.stl')
                     if save_indivitual_steps == True:
+                        if val.name == 'pusher_downers':
+                            cadquery.exporters.export(pusher_downer.findSolid().locate(val.loc), 'pusher_downer.step')
                         cadquery.exporters.export(c.locate(val.loc), f'{val.name}.step')
         
         # save DXFs
