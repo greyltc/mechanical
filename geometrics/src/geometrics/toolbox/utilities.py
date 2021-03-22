@@ -109,13 +109,13 @@ def set_directories(wd_filename="assemble_system.py"):
     """
     global wd, tld
 
-    tld = pathlib.Path(__file__).resolve().parent.parent
+    tld = pathlib.Path(__file__).absolute().parent.parent
     logger.info(f'So the top level directory is "{tld}"')
     # NOTE: I'm sure there's a better way to find wd...
     this_filename = wd_filename
     wd = None
     for element in sys.path:
-        potential_wd = pathlib.Path(str(element)).resolve()
+        potential_wd = pathlib.Path(str(element)).absolute()
         if potential_wd.joinpath(this_filename).is_file():
             wd = potential_wd
         if wd is not None:

@@ -118,6 +118,10 @@ class ChamberNG(object):
     pd_cut_tool_r_big = 2.5  # max radius of cutting tool that can be used to finish the big rounds
     pd_cut_tool_r_small = 1.5  # max radius of cutting tool that can be used to finish the little rounds
     pd_chamfer_l = 0.5  # chamfer edges for handling
+    pd_tiny_chamfer_l = 0.04  # chamfer length for small holes spring pin passthroughs
+    pd_pcb_mount_hole_r = tb.c.std_screw_threads['m2']["tap_r"]  # pusherdowner pcb mount hole radius
+    pd_pcb_mount_hole_d = 4  # pusherdowner pcb mount hole depth
+
 
     # width of the top of the resulting countersink (everywhere, generally good for M5)
     csk_diameter = 11
@@ -419,12 +423,6 @@ class ChamberNG(object):
         s = self
         co = "CenterOfBoundBox"
 
-        # werkplane face
-        wpf = cq.Face.makeFromWires(wp.val())
-
-        # to get the dims of the working array
-        wpbb = wpf.BoundingBox()
-
         if (s.substrate_spacing[0] >= 10) and (s.substrate_spacing[1] >= 10):
             many_pockets = True  # we have enough room to do pockets for every substrate
         else:
@@ -469,7 +467,8 @@ class ChamberNG(object):
 
         # generate the sample holder base
         sh = CQ().add(s.make_sandwich_wires(wp, s.alignment_pin_slide_d, s.holder_aux_con_d, s.aux_con_pin_clearance_d)).toPending().extrude(s.holder_t)
-        
+        sh = sh.edges('|Z').fillet(self.pcb_cut_rad)  # round the outside edges
+
         # calculate width of extra pocket space that the crescent design feature gives us
         pocket_extra_tube_side = s.tube_pocket_OD/2*(1-s.crescent_opening_radial_fraction_offset)
         pocket_extra_pin_side = s.sapd_press/2*(1-s.crescent_opening_radial_fraction_offset)
@@ -676,6 +675,8 @@ class ChamberNG(object):
         # chamfer the big holes for ease of assembly/alignment
         pd = pd.edges('%CIRCLE').edges('<<Y[-5]').chamfer(s.pd_chamfer_l)  # three in line holes at one end
         pd = pd.edges('%CIRCLE').edges('>>Y[-5]').chamfer(s.pd_chamfer_l)  # three in line holes at the other end
+        # the spring pin passthroughs on the top
+        pd = pd.faces('>Z[-1]').edges('%CIRCLE').edges(cadquery.selectors.RadiusNthSelector(0)).chamfer(s.pd_tiny_chamfer_l)  
 
         # drill the alignment pin clearance holes (translating them, untranslating if needed)
         # TODO: need to handle these drills correctly for unipocket case
@@ -690,6 +691,13 @@ class ChamberNG(object):
         tphvs =  CQ().pushPoints(tps).eachpoint(lambda l:  tphv.val().located(l))  # replicate that
         pd = pd.translate((translation[0]*-1, 0, 0)).cut(tphvs)
         pd = pd.translate(translation)
+
+        # top pcb mounting holes
+        pdpmhg = c.mkgrid2d(2*s.sap_offset_fraction*s.substrate_adapters[0],s.period[1], 2, s.array[1])
+        pdpmhp = c.grid2dtolist(pdpmhg[0], pdpmhg[1]+s.substrate_adapters[1]/2)
+        pdpmhv = CQ().circle(s.pd_pcb_mount_hole_r).extrude(s.pd_pcb_mount_hole_d).translate((0,0,-s.pd_pcb_mount_hole_d))
+        pdpmhvs = CQ().pushPoints(pdpmhp).eachpoint(lambda l:  pdpmhv.val().located(l))  # replicate that
+        pd = pd.cut(pdpmhvs.translate((0, 0, s.pd_x_side_thickness)))
 
         return sp_spc, sh, pd
 
