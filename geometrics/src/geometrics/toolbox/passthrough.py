@@ -51,8 +51,8 @@ def make_cut(self, rows=8, angle=0, kind="C", mfg="samtec"):
 
         # find the source thing's thickness at the cut point
         # TODO: check that this works when cutting into objects from a non-"<Z" face
-        swiss = self.copyWorkplane(self)
-        cheese = self.copyWorkplane(self).pushPoints([center]).circle(0.5).cutThruAll()
+        swiss = self
+        cheese = self.pushPoints([center]).circle(0.5).cutThruAll()
         core = swiss.cut(cheese)
         this_thikness = u.find_length(core, along="Z", bb_method=True)
 
