@@ -45,7 +45,8 @@ class Aligner:
         s.ah = [-2.5, -3.3]
         
         s.ec = [-12.5, s.step_width/2+s.ah[1]+1.625]  # edge cutout position
-        s.ecd = s.step_height + 0.439 + 0.1024  # edge cutout depth
+        s.ecr = 5  # edge cutout radius
+        s.ecd = s.bd  # edge cutout depth
 
         s.bottom_step_width = 11
 
@@ -93,12 +94,12 @@ class Aligner:
         al = al.faces(">Z").edges("|X").chamfer(s.chamfer_l)
 
         # the funny edge cutout
-        al = al.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(s.ec[0], s.ec[1]).hole(5, depth=s.ecd)
+        al = al.faces(">Z").workplane(centerOption='CenterOfBoundBox').center(s.ec[0], s.ec[1]).hole(s.ecr, depth=s.ecd)
 
         # makes it a bit easier to get into position later
         al = al.translate((0, -bso/2, 0))
 
-        # allows for the endblock to be tightened down after the aligner is on
+        # allows for a tool to read in so the endblock to be tightened down after the aligner is on
         boreDir = cq.Vector(0, 0, 1)
         cyl_len = al.largestDimension()
         cyl = cq.Solid.makeCylinder(s.driver_hole_d/2, cyl_len, cq.Vector(0, 0, 0), boreDir).translate((0, 0, -cyl_len/2))
@@ -110,7 +111,8 @@ class Aligner:
 if "show_object" in locals():
     import sys
     import os
-    sys.path.insert(1, str(os.path.join(sys.path[-1], '..')))
+    sys.path.insert(1, str(os.path.join(sys.path[0], '..')))
+    print(f"syspath = {sys.path}\n")
     import toolbox
 
     a = Aligner(toolbox)
