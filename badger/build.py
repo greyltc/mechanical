@@ -19,12 +19,13 @@ class Badger(object):
   pusher_t = 4
 
   glass_t = 1.1
-  silicone_t = 0.5  # nominal silicone thickness
+  silicone_t = 0.5  # uncompressed silicone thickness ()
   compressed_silicone_fraction = 0.9
   silicone_working_t = silicone_t * compressed_silicone_fraction  # working silicone thickness
   pcb_thickness = 1.6
-  pin_working_height = 1.6  # above top pcb surface
-  cu_tower_h = pcb_spacer_h + pcb_thickness + pin_working_height - silicone_working_t
+  #pin_working_height = 1.6  # above top pcb surface
+  cu_tower_h = pcb_spacer_h + pcb_thickness + 0.8  # 0.8 here just ensures the 0921 pins can never bottom out
+  # thus the thermal pad material can be any thickness 0 through pin working travel (about 1.4mm, but lets say 1.3mm to be safe)
   slots_t = cu_tower_h + silicone_working_t + glass_t - (pcb_spacer_h + pcb_thickness)
 
   cu_nub_h = pcb_spacer_h + pcb_thickness
