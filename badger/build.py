@@ -19,16 +19,17 @@ class Badger(object):
   pusher_t = 4
 
   glass_t = 1.1
-  silicone_t = 0.5  # uncompressed silicone thickness ()
-  compressed_silicone_fraction = 0.9
-  silicone_working_t = silicone_t * compressed_silicone_fraction  # working silicone thickness
+  silicone_t = 0.508  # uncompressed silicone thickness (0.02 in https://www.mcmaster.com/86915K22/)
+  compressed_silicone_fraction = 0.8  # let's say it'll compress to 0.8 of its initial thickness
+  silicone_working_t = silicone_t * compressed_silicone_fraction  # working silicone thickness (just sets up where the glass and the pusher end up in the model)
   pcb_thickness = 1.6
   #pin_working_height = 1.6  # above top pcb surface
-  cu_tower_h = pcb_spacer_h + pcb_thickness + 0.8  # 0.8 here just ensures the 0921 pins can never bottom out
+  min_min_height = 0.8  # pins are fully depressed on a surface this far from the PCB
+  cu_tower_h = pcb_spacer_h + pcb_thickness + min_min_height  # 0.8 here just ensures the 0921 pins can never bottom out
   # thus the thermal pad material can be any thickness 0 through pin working travel (about 1.4mm, but lets say 1.3mm to be safe)
-  slots_t = cu_tower_h + silicone_working_t + glass_t - (pcb_spacer_h + pcb_thickness)
+  slots_t = min_min_height + glass_t
 
-  cu_nub_h = pcb_spacer_h + pcb_thickness
+  cu_nub_h = pcb_spacer_h + pcb_thickness - 0.3
 
   dowel_height = 16
 
@@ -160,17 +161,16 @@ class Badger(object):
 
   def make_spacer_pcb(self):
     spacer = CQ().add(self.spacer_pcb).toPending().extrude(self.pcb_spacer_h)
-    spacer = spacer.translate((0, 0, -self.pcb_thickness/2-self.pcb_spacer_h))  # so that we don't have to move the PCB
+    spacer = spacer.translate((0, 0, -self.pcb_thickness/2-self.pcb_spacer_h))
     return (spacer)
   
   def get_pcb(self):
-    pcb = self.pcb
-    return pcb.translate((0,0,-self.pcb_thickness/2))
+    return self.pcb
 
   def make_pusher_plate(self):
     pusher = CQ().add(self.pusher_plate).toPending().extrude(self.pusher_t)
     pusher = pusher.add(self.plate_mounts).toPending().cutThruAll()
-    pusher = pusher.translate((0,0,self.pcb_thickness/2+self.slots_t))
+    pusher = pusher.translate((0,0,self.pcb_thickness/2+self.slots_t + self.silicone_working_t))
     return pusher
 
   def make_slot_plate(self):
