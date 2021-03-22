@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # NOTE: The toolbox module's folder must be found on your PYTHONPATH
 # or in a parent directory of an item in your PYTHONPATH.
@@ -14,27 +14,27 @@ import cadquery as cq  # type: ignore[import]
 import aligner
 
 # attempt to import the toolbox module
+# hint = simlink the toolbox folder into the parent of the folder this file is in
+# (if not already done)
 try:
     import toolbox as tb
 except ImportError:
-    pass
-
-for element in sys.path:
-    if "tb" in locals():
-        break
-    this_path = pathlib.Path(str(element)).resolve()
-    sys.path.insert(0, str(this_path.parent))  # look for toolbox in a parent
-    try:
-        import toolbox as tb  # noqa: F811
-    except ImportError:
-        del sys.path[0]
-    sys.path.insert(
-        0, str(this_path.parent.joinpath("mechanical"))
-    )  # look for toolbox in a parent
-    try:
-        import toolbox as tb  # noqa: F811
-    except ImportError:
-        del sys.path[0]
+    for element in sys.path:
+        this_path = pathlib.Path(str(element)).resolve()
+        sys.path.insert(0, str(this_path.parent))  # look for toolbox in a parent
+        try:
+            import toolbox as tb  # noqa: F811
+            break
+        except ImportError:
+            del sys.path[0]
+        sys.path.insert(
+            0, str(this_path.parent.joinpath("mechanical"))
+        )  # look for toolbox in a parent/mechanical
+        try:
+            import toolbox as tb  # noqa: F811
+            break
+        except ImportError:
+            del sys.path[0]
 
 if "tb" not in locals():
     # we failed to import toolbox

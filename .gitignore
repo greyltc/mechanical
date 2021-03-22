@@ -8,4 +8,6 @@
 *.dxf
 __pycache__/
 
+/toolbox
+
 *.vscode/
