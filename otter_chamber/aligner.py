@@ -99,7 +99,7 @@ class Aligner:
         # makes it a bit easier to get into position later
         al = al.translate((0, -bso/2, 0))
 
-        # allows for a tool to read in so the endblock to be tightened down after the aligner is on
+        # allows for a tool to reach in so the endblock to be tightened down after the aligner is on
         boreDir = cq.Vector(0, 0, 1)
         cyl_len = al.largestDimension()
         cyl = cq.Solid.makeCylinder(s.driver_hole_d/2, cyl_len, cq.Vector(0, 0, 0), boreDir).translate((0, 0, -cyl_len/2))
