@@ -45,7 +45,7 @@ class Aligner:
         s.ah = [-2.5, -3.3]
         
         s.ec = [-12.5, s.step_width/2+s.ah[1]+1.625]  # edge cutout position
-        s.ecr = 5  # edge cutout radius
+        s.ecr = 5 - 0.05  # edge cutout radius, subtract 0.05 to workaround some funny geometry
         s.ecd = s.bd  # edge cutout depth
 
         s.bottom_step_width = 11
