@@ -6,6 +6,9 @@ import logging
 import math
 import numpy as np
 
+import serial
+s = serial.Serial()
+
 
 class ChamberNG(object):
     # wall thicknesses
@@ -40,13 +43,12 @@ class ChamberNG(object):
     sa_border_thickness = (5.1, 3)  # defines the window border width (pin side, non-pin side)
 
     # aux connection parameters
-    aux_con_pad_hole_d = 0.5  # for the holes cut in the adapter spacer pcb that corresponds to where the
-    # auxiliary connection landing pads will be
-    aux_con_pin_clearance_d = 1.9  # size of the holes needed to expose the aux pads
-    aux_pads_n = 5  # number of pads/connections in row
-    aux_pad_center_shift = 1  # shift the pads to center of array by this much
+    aux_pads_n = 6  # number of pads/connections in row
+    aux_pad_center_shift = 0  # shift the pads to center of array by this much
 
     # adapter spacer parameters
+    as_aux_pad_hole_d = 0  # for the holes that correspond to where the aux pads would be
+    as_aux_pin_clearance_d = 1.0  # for the holes above the connector pins
 
     # workplane offset from top of PCB
     woff = pcb_top_bump_up
@@ -57,20 +59,20 @@ class ChamberNG(object):
 
     endblock_wall_spacing = 0.5  # from + and - Y walls
     endblock_thickness_shelf = 12
-    endblock_thickness_extension = 12+pcb_cut_rad
+    endblock_thickness_extension = 12 + pcb_cut_rad
     endblock_screw_offset = 6  # distance from the endblock edge to clamp screw hole center
     endblock_thickness = endblock_thickness_shelf + endblock_thickness_extension
     eb_locknut_depth = 5
     eb_locknut_width = tb.c.std_hex_nuts["m5"]["flat_w"]
-    eb_mount_hole_depth = 6  # threaded mount hole depth
+    eb_mount_hole_depth = 4  # threaded mount hole depth
     eb_mount_hole_tap_r = tb.c.std_screw_threads['m2']["tap_r"]  # for accu screw pn SSB-M2-6-A2
     pressfit_hole_d_nominal = 3  # alignment pin nominal dimension
     pressfit_hole_d = pressfit_hole_d_nominal - 0.035  # used in sizing the holes for endblock pressfits
     alignment_pin_clear_d = pressfit_hole_d_nominal + 0.45  # used in sizing holes in sandwich layers
     alignment_pin_slide_d = pressfit_hole_d_nominal + 0.15  # for the holes in the substrate holder layer
-    spacer_h = 1.6  # for accu pn HPS-3.6-2.2-1.6-N
-    pressfit_hole_depth = 10
-    alignment_pin_spacing = 16
+    spacer_h = 2.0  # for accu pn HPS-5-2-BR-NI
+    alignment_pin_spacing = 12
+    pressfit_hole_depth = 10  # for alignment pins
     pcb_alignment_hole_depth = 4.8  #  for RS pn 374-020, 8mm long
 
     # sandwich parameters
@@ -94,13 +96,17 @@ class ChamberNG(object):
     sp_spacer_t = 1.20  # distance between the adapter and the substrate surface
     # such that pin 0921-1 has the correct remaining travel when in use. nominally, this remaining travel
     # would be 0.5mm and that corresponds to a spacer thickness here of 1.26mm, but a 1.2mm thick PCB is a good option
+    sp_spacer_aux_pad_hole_d = 0  # for the holes that correspond to where the aux pads would be
+    sp_spacer_aux_pin_clearance_d = 1.0  # for the holes above the connector pins
 
     # holder layer parameters
-    holder_t = 3.5  # holder thickness, 2.2mm =thickest glass + 
+    holder_t = 3.5  # holder thickness, 2.2mm =thickest glass + pin travel
     holder_aux_con_d = 0.8  # diameter for the holes above the aux connection points
     crescent_angle = 270  # make crescents that enclose round things by this many degrees
     holder_corner_r = 1.0  # max cutting tool radius that can be used to mill the pockets
     crescent_opening_radial_fraction_offset = math.sin((360-crescent_angle)/2*math.pi/180)
+    holder_aux_pad_hole_d = 0    # for the holes that correspond to where the aux pads would be
+    holder_aux_pin_clearance_d = 1.0  # for the holes above the connector pins
 
     # multiply this by radius to get the distance between the center and the edge of the pocket
 
@@ -116,12 +122,17 @@ class ChamberNG(object):
     pd_y_side_thickness = 3  # thickness on the y edges, more causes shadowing
     pd_y_side_width = 15  # width of region where y side thickness is important
     pd_cut_tool_r_big = 2.5  # max radius of cutting tool that can be used to finish the big rounds
-    pd_cut_tool_r_small = 1.5  # max radius of cutting tool that can be used to finish the little rounds
+    pd_cut_tool_r_small = 1.5  # max radius of cutting tool that can be used to finish the small rounds
+    pd_cut_tool_r_smaller = 1.0  # max radius of cutting tool that can be used to finish the smaller rounds
     pd_chamfer_l = 0.5  # chamfer edges for handling
     pd_tiny_chamfer_l = 0.04  # chamfer length for small holes spring pin passthroughs
     pd_pcb_mount_hole_r = tb.c.std_screw_threads['m2']["tap_r"]  # pusherdowner pcb mount hole radius
     pd_pcb_mount_hole_d = 4  # pusherdowner pcb mount hole depth
-
+    pd_subs_alignment_z_allowance = 2  # allow space for the substrate alignment pins to be too long by this much
+    pd_pcb_aux_mount_hole_offsets = (6, -12)  # for positioning the pcb mounting holes by the aux connections
+    # (offset from x-pcb edges, offset from end of extra on +/-y side)
+    pd_aux_pad_hole_d = 0  # for the holes that correspond to where the aux pads would be
+    pd_aux_pin_clearance_d = 0  # for the holes above the connector pins
 
     # width of the top of the resulting countersink (everywhere, generally good for M5)
     csk_diameter = 11
@@ -242,10 +253,11 @@ class ChamberNG(object):
         endblock = endblock.faces('>Z[-2]').workplane(centerOption=co).center(0,self.pcb_cut_rad/2).rarray(self.alignment_pin_spacing,1,2,1).circle(self.pressfit_hole_d/2).cutBlind(-self.pressfit_hole_depth)
         
         # make a lock nut slot in the top extension face
-        endblock = endblock.faces('>Z[-2]').workplane(centerOption=co).center(0,self.pcb_cut_rad/2).slot2D(1.5*self.eb_locknut_width, self.eb_locknut_width).cutBlind(-self.eb_locknut_depth)
+        ln_pocket_move = lambda loc: CQ().box(tb.c.std_hex_nuts["m5"]["flat_w"]+0.1, tb.c.std_hex_nuts["m5"]["corner_w"]+0.1, self.eb_locknut_depth).translate((0,0,-self.eb_locknut_depth/2)).edges('|Z').fillet(2).findSolid().move(loc)
+        endblock = endblock.faces('>Z[-2]').workplane(centerOption=co).center(0,self.pcb_cut_rad/2).cutEach(ln_pocket_move)
 
         # make a lock nut slot in the top base face
-        endblock = endblock.faces('>Z[-1]').workplane(centerOption=co).slot2D(1.5*self.eb_locknut_width, self.eb_locknut_width).cutBlind(-self.eb_locknut_depth)
+        endblock = endblock.faces('>Z[-1]').workplane(centerOption=co).cutEach(ln_pocket_move)
 
         return endblock
 
@@ -376,7 +388,8 @@ class ChamberNG(object):
         # and also put holes assocated with connection pad locations for these
         row_centerg = c.mkgrid2d(self.period[0],1,self.array[0], 1)  # grid of row centers
         row_centerp = c.grid2dtolist(*row_centerg)   # list of row center points
-        aehg = c.mkgrid2d(self.substrate_adapters[0]-2, 2, 2, self.aux_pads_n)  # aux electrical connection point grid
+        aux_pins_x_offset_from_edge = self.pcb_thickness/2+1
+        aehg = c.mkgrid2d(self.substrate_adapters[0]-2*aux_pins_x_offset_from_edge, 2, 2, self.aux_pads_n)  # aux electrical connection point grid
         aepg = c.mkgrid2d(self.substrate_adapters[0]-2-4, 2, 2, self.aux_pads_n)  # aux electrical pad point grid
         aecy1 = aehg[1] + shelf_y_minus_center + self.aux_pad_center_shift  # y vales for the connection points & pads
         aecy2 = aehg[1] + shelf_y_plus_center - self.aux_pad_center_shift # y vales for the connection points & pads
@@ -403,7 +416,7 @@ class ChamberNG(object):
         c = type(self)  # this class
 
         # make adapter spacer basic shape
-        adp_spc = CQ().add(self.make_sandwich_wires(wp, self.alignment_pin_clear_d, self.sa_socket_hole_d, self.aux_con_pad_hole_d)).toPending().extrude(self.pcb_thickness)
+        adp_spc = CQ().add(self.make_sandwich_wires(wp, self.alignment_pin_clear_d, self.as_aux_pin_clearance_d, self.as_aux_pad_hole_d)).toPending().extrude(self.pcb_thickness)
 
         # make pcb window(s)
         wv = (  # volume for a single window
@@ -434,7 +447,7 @@ class ChamberNG(object):
             unipocket = False
 
         # spring pin spacer base
-        sp_spc = CQ().add(s.make_sandwich_wires(wp,s.alignment_pin_clear_d, s.sa_socket_hole_d, s.aux_con_pin_clearance_d)).toPending().extrude(s.sp_spacer_t)
+        sp_spc = CQ().add(s.make_sandwich_wires(wp,s.alignment_pin_clear_d, s.sp_spacer_aux_pin_clearance_d, s.sp_spacer_aux_pad_hole_d)).toPending().extrude(s.sp_spacer_t)
         sp_spc = sp_spc.edges('|Z').fillet(self.pcb_cut_rad)  # round the outside edges
 
         # make spring pin spacer layer windows
@@ -466,7 +479,7 @@ class ChamberNG(object):
         sp_spc = sp_spc.cut(spswvs)  # cut out the windows
 
         # generate the sample holder base
-        sh = CQ().add(s.make_sandwich_wires(wp, s.alignment_pin_slide_d, s.holder_aux_con_d, s.aux_con_pin_clearance_d)).toPending().extrude(s.holder_t)
+        sh = CQ().add(s.make_sandwich_wires(wp, s.alignment_pin_slide_d, s.holder_aux_pin_clearance_d, s.holder_aux_pad_hole_d)).toPending().extrude(s.holder_t)
         sh = sh.edges('|Z').fillet(self.pcb_cut_rad)  # round the outside edges
 
         # calculate width of extra pocket space that the crescent design feature gives us
@@ -624,7 +637,7 @@ class ChamberNG(object):
         sh = sh.cut(hps.edges('|Z').chamfer(s.holder_corner_r))  # need to chamfer here to avoid OCCT bug
 
         # generate the pusher downer base shape
-        pd = CQ().add(s.make_sandwich_wires(wp, s.alignment_pin_slide_d, 0, s.aux_con_pin_clearance_d)).toPending().extrude(s.pd_x_side_thickness)
+        pd = CQ().add(s.make_sandwich_wires(wp, s.alignment_pin_slide_d, s.pd_aux_pin_clearance_d, s.pd_aux_pad_hole_d)).toPending().extrude(s.pd_x_side_thickness)
 
         # now remove some area so it can push down
         pd_edge = pd.faces('<Z[-1]').edges('%LINE').vals()
@@ -643,11 +656,26 @@ class ChamberNG(object):
             translation = (s.period[0]/2, 0, 0)
         pd = pd.translate(translation).intersect(slicer)
 
+        # cut the edges on the ends to allow for the aux connections
+        pd = (
+            pd.faces('<Y[-1]').workplane(centerOption=co)
+            .pushPoints([(-s.substrate_adapters[0]/2, 0), (s.substrate_adapters[0]/2, 0)])
+            .rect(4+s.pcb_thickness, s.pd_x_side_thickness)
+            .cutBlind(-s.aux_pads_n*2)
+        )
+
+        pd = (
+            pd.faces('>Y[-1]').workplane(centerOption=co)
+            .pushPoints([(-s.substrate_adapters[0]/2, 0), (s.substrate_adapters[0]/2, 0)])
+            .rect(4+s.pcb_thickness, s.pd_x_side_thickness)
+            .cutBlind(-s.aux_pads_n*2)
+        )
+
         # cut the y-side shadow preventor dent(s)
         if unipocket == True:
             dent_y_l = s.array[1]*s.substrate_adapters[1]
             n_dent_y = 1
-        else:
+        elif many_pockets == True:
             dent_y_l = s.substrate_adapters[1]
             n_dent_y = s.array[1]
         dentv = CQ().box(s.pd_y_side_width, dent_y_l, s.pd_x_side_thickness-s.pd_y_side_thickness, centered=(True, True, False))
@@ -662,8 +690,10 @@ class ChamberNG(object):
         # -3 is the level of the edges of the window inner
         # -4 is the level of the edges of the y shadow preventor dent
         # -5 is the level of the edges of the outermost edges
+        pd = CQ().add(pd.findSolid()).edges('<Z[-5] except (<<Y or >>Y)').fillet(s.pd_cut_tool_r_smaller)  # shoulder edges
         pd = CQ().add(pd.findSolid()).edges('<Z[-1] or <Z[-3] or <Z[-5]').fillet(s.pd_cut_tool_r_big)
-        if unipocket == True:  # in multipocket case, this is handled by the negative dent shape's round
+
+        if unipocket == True:  # in manypocket case, this is handled by the negative dent shape's round
             pd = pd.edges('<Z[-4]').fillet(s.pd_cut_tool_r_small)
 
         # chamfer outer edges for improved hand friendliness
@@ -673,30 +703,49 @@ class ChamberNG(object):
         pd = pd.faces('>Z[-1]').edges('not(%CIRCLE)').chamfer(s.pd_chamfer_l)  # top edges
 
         # chamfer the big holes for ease of assembly/alignment
-        pd = pd.edges('%CIRCLE').edges('<<Y[-5]').chamfer(s.pd_chamfer_l)  # three in line holes at one end
-        pd = pd.edges('%CIRCLE').edges('>>Y[-5]').chamfer(s.pd_chamfer_l)  # three in line holes at the other end
-        # the spring pin passthroughs on the top
-        pd = pd.faces('>Z[-1]').edges('%CIRCLE').edges(cadquery.selectors.RadiusNthSelector(0)).chamfer(s.pd_tiny_chamfer_l)  
+        pd = pd.edges('%CIRCLE').edges('<<Y[-3]').chamfer(s.pd_chamfer_l)  # three in line holes at one end
+        pd = pd.edges('%CIRCLE').edges('>>Y[-3]').chamfer(s.pd_chamfer_l)  # three in line holes at the other end
 
-        # drill the alignment pin clearance holes (translating them, untranslating if needed)
-        # TODO: need to handle these drills correctly for unipocket case
-        apphv = CQ().circle(s.sapd_clear/2).extrude(s.pd_x_side_thickness)  # make one hole volume for alignment pin clearance
+        # now we remove material so that the pusher doesn't bother the squishy tubes and the substrate alignment pins
+        # make one hole volume for alignment pin clearance
+        apphv = CQ().circle(s.sapd_clear/2).extrude(s.pd_x_side_thickness).translate((0, 0, -s.pd_x_side_thickness+s.holder_t+s.pd_subs_alignment_z_allowance))
         apphvs = CQ().pushPoints(apps).eachpoint(lambda l:  apphv.val().located(l))  # replicate that
-        pd = pd.translate((translation[0]*-1, 0, 0)).cut(apphvs)
-        pd = pd.translate(translation)
-
-        # make one tube clearance holes (translating them, untranslating if needed)
-        # and translated properly in z so they can only cut the pusher part
+        # make the tube clearance volumes, translated properly in z so they can only cut the bottom pusher part
         tphv =  CQ().circle(s.tube_clearance_OD/2).extrude(s.pd_x_side_thickness).translate((0, 0, -s.pd_x_side_thickness+s.holder_t))
         tphvs =  CQ().pushPoints(tps).eachpoint(lambda l:  tphv.val().located(l))  # replicate that
-        pd = pd.translate((translation[0]*-1, 0, 0)).cut(tphvs)
-        pd = pd.translate(translation)
+        all_cut = CQ().add(apphvs.vals()).add(tphvs.vals())  # unify the things we want to cut so we can do it in one step
+        if many_pockets == True:
+            # drill the alignment pin and sube clearance holes (translating the part, then untranslating if needed)
+            pd = pd.translate((translation[0]*-1, 0, 0))  # make sure the part is in its "native" home
+            pd = pd.cut(all_cut)
+            pd = pd.translate(translation)  # put the part back into its non-native, centered spot (if needed)
+        elif unipocket == True:
+            # step the piece through all possible positions and subtract whatever intersects at each location
+            # this ensures the pusher isn't unique to a specific slot
+            ip = c.grid2dtolist(*c.mkgrid2d(s.period[0],1,s.array[0],1))  # install points
+            for point in ip:
+                # translate --> cut --> untranslate, for each possible install position
+                pd = (
+                    CQ().add(pd.findSolid())
+                    .translate((point[0], 0 ,0))
+                    .cut(all_cut)
+                    .translate((-point[0], 0 ,0))
+                )
 
         # top pcb mounting holes
+        # the per-substrate ones
         pdpmhg = c.mkgrid2d(2*s.sap_offset_fraction*s.substrate_adapters[0],s.period[1], 2, s.array[1])
         pdpmhp = c.grid2dtolist(pdpmhg[0], pdpmhg[1]+s.substrate_adapters[1]/2)
+        # ones next to the aux connections
+        pdpmhp.append(( s.substrate_adapters[0]/2-s.pd_pcb_aux_mount_hole_offsets[0],  s.array[1]*s.period[1]/2+s.extra[3]+s.pd_pcb_aux_mount_hole_offsets[1]))
+        pdpmhp.append((-s.substrate_adapters[0]/2+s.pd_pcb_aux_mount_hole_offsets[0],  s.array[1]*s.period[1]/2+s.extra[3]+s.pd_pcb_aux_mount_hole_offsets[1]))
+        pdpmhp.append(( s.substrate_adapters[0]/2-s.pd_pcb_aux_mount_hole_offsets[0], -s.array[1]*s.period[1]/2-s.extra[2]-s.pd_pcb_aux_mount_hole_offsets[1]))
+        pdpmhp.append((-s.substrate_adapters[0]/2+s.pd_pcb_aux_mount_hole_offsets[0], -s.array[1]*s.period[1]/2-s.extra[2]-s.pd_pcb_aux_mount_hole_offsets[1]))
+
+        # one hole volume
         pdpmhv = CQ().circle(s.pd_pcb_mount_hole_r).extrude(s.pd_pcb_mount_hole_d).translate((0,0,-s.pd_pcb_mount_hole_d))
         pdpmhvs = CQ().pushPoints(pdpmhp).eachpoint(lambda l:  pdpmhv.val().located(l))  # replicate that
+
         pd = pd.cut(pdpmhvs.translate((0, 0, s.pd_x_side_thickness)))
 
         return sp_spc, sh, pd
@@ -1113,8 +1162,8 @@ def main():
         # save step
         asy.save('chamber_ng.step')
 
-        save_indivitual_stls = True
-        save_indivitual_steps = True
+        save_indivitual_stls = False
+        save_indivitual_steps = False
 
         if (save_indivitual_stls == True) or (save_indivitual_steps == True):
             # loop through individual pieces STLs
