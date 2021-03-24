@@ -28,7 +28,7 @@ class ChamberNG(object):
     pcb_alignment_hole_d = 3  # nominal for RS pn 374-020
 
     # gas feedthroughs from the sides
-    do_gas_feedthroughs = True
+    do_gas_feedthroughs = False
     feedthrough_d = 10
 
     # subadapter pcb paramters
@@ -132,7 +132,8 @@ class ChamberNG(object):
     pd_pcb_aux_mount_hole_offsets = (6, -12)  # for positioning the pcb mounting holes by the aux connections
     # (offset from x-pcb edges, offset from end of extra on +/-y side)
     pd_aux_pad_hole_d = 0  # for the holes that correspond to where the aux pads would be
-    pd_aux_pin_clearance_d = 0  # for the holes above the connector pins
+    pd_aux_pin_clearance_d = sa_socket_hole_d  # for the holes above the connector pins
+    # (actually only shows up in the top pcb) because they get cut off in the pusher downer
 
     # width of the top of the resulting countersink (everywhere, generally good for M5)
     csk_diameter = 11
@@ -148,7 +149,7 @@ class ChamberNG(object):
     use_shelf_PCB_jammers = True
 
     shelf_height = 5 # thickness of the endblock shelves
-    top_mid_height = 4.9+2.2+9.5-pcb_top_bump_up  # estimate
+    top_mid_height = 4.9+2.2+9.5-pcb_top_bump_up  # estimate TODO: double check this
 
     # constants for the slot-side potting pocket
     potting_pocket_depth = 2
@@ -179,6 +180,15 @@ class ChamberNG(object):
 
     # should the bottom of the pcb slot passthroughs be rounded?
     round_slot_bottom = True  # false is probably impossible to machine (bit becomes too long and thin)
+
+    # leave this much of a gap between the side pcb protection flaps and the main body
+    protection_flap_offset_from_body = 1.0
+
+    # fillet radius for the outer fillets
+    outer_fillet = 3
+
+    # chamfer length for the outer chamfers
+    outer_chamfer = 0.5
 
     def __init__(self, array = (4, 1), subs =(30, 30), spacing=(10, 10), padding=(10, 10, 0, 0)):
         self.array = array
@@ -649,12 +659,15 @@ class ChamberNG(object):
         pd = pd.rarray(s.period[0], s.period[1], s.array[0], s.array[1]).rect(s.substrate_adapters[0]-2*s.pd_substrate_encroachment, s.substrate_adapters[1]-2*s.pd_substrate_encroachment).cutThruAll()
 
         # slice out one col and center it if needed
-        slicer = CQ().box(s.substrate_adapters[0]-2*s.pd_width_offset, s.substrate_adapters[1]*s.array[1]*2, s.pd_x_side_thickness, centered=(True, True, False))
+        slicer = CQ().center(0,-s.extra[2]).box(s.substrate_adapters[0]-2*s.pd_width_offset, s.extra[2]+s.extra[3]+s.period[1]*s.array[1]*2, s.pd_x_side_thickness, centered=(True, True, False))
         if self.array[0]%2 == 1:
             translation = (0, 0, 0)
         else:  # even number of cols
             translation = (s.period[0]/2, 0, 0)
         pd = pd.translate(translation).intersect(slicer)
+
+        # save the wires we'll use to construct the top PCB
+        top_pcb_wires = pd.translate((0,0,-s.pd_x_side_thickness)).faces('>Z[-1]').wires().vals()
 
         # cut the edges on the ends to allow for the aux connections
         pd = (
@@ -747,8 +760,18 @@ class ChamberNG(object):
         pdpmhvs = CQ().pushPoints(pdpmhp).eachpoint(lambda l:  pdpmhv.val().located(l))  # replicate that
 
         pd = pd.cut(pdpmhvs.translate((0, 0, s.pd_x_side_thickness)))
+        # pusher downer done
 
-        return sp_spc, sh, pd
+        # make the top PCB bulk
+        top_pcb = CQ().add(top_pcb_wires).toPending().extrude(s.pcb_thickness)
+
+        # cut the top pcb mounting holes
+        tpmhv = CQ().circle(tb.c.std_screw_threads['m2']['clearance_r']).extrude(s.pcb_thickness)
+        tpmhvs = CQ().pushPoints(pdpmhp).eachpoint(lambda l:  tpmhv.val().located(l))  # replicate that
+        top_pcb = top_pcb.cut(tpmhvs)
+        # top PCB done
+
+        return sp_spc, sh, pd, top_pcb
 
     # the purpose of this is to generate a crossbar outline shape guaranteed to match the chamber geometry for import into pcbnew
     def make_crossbar(self, wp):
@@ -1076,8 +1099,20 @@ class ChamberNG(object):
         top = shelved_ring.faces('>Z[-1]').workplane(-s.top_mid_height).split(keepTop=True)
         middle = shelved_ring.faces('>Z[-1]').workplane(-s.top_mid_height).split(keepBottom=True)
 
-        # extend the top to protect the PCBs
+        # add features for PCB protection
+        # extend the top
         top = top.faces("<Y[-1]").wires().toPending().workplane().extrude(s.crossbar_chamber_extra)
+        # give the extended top protection flaps
+        top = (
+            CQ().add(top.findSolid()).faces('<Z[-1]').workplane()
+            # y values are inverted becuse we're downsideup
+            .moveTo(srbb.xmin, -srbb.ymin+s.protection_flap_offset_from_body)
+            .rect(s.wall[0], s.crossbar_chamber_extra - s.protection_flap_offset_from_body, centered=(False,False))
+            .extrude(s.wall_height+s.shelf_height)
+            .moveTo(srbb.xmax-s.wall[1], -srbb.ymin+s.protection_flap_offset_from_body)
+            .rect(s.wall[1], s.crossbar_chamber_extra - s.protection_flap_offset_from_body, centered=(False,False))
+            .extrude(s.wall_height+s.shelf_height)
+        )
 
         # cut the v potting groove for the potting between the pieces
         pg = tb.groovy.mk_vgroove(pot_slot_path, (srbb.xmin + s.wall[0] - s.pg_offset, 0, 0), s.pg_depth)
@@ -1086,8 +1121,17 @@ class ChamberNG(object):
         # gas feedthroughs
         if s.do_gas_feedthroughs == True:
             middle = middle.faces('<X[-1]').workplane(origin=(0, 0, -s.pcb_top_bump_up-s.wall_height/2)).circle(s.feedthrough_d/2).cutThruAll()
+        
+        # fillet some Z lines and chamfer x-y ones for handling/beauty
+        middle = CQ().add(middle.findSolid()).edges('|Z').edges('>>Y[-1]').fillet(s.outer_fillet)
+        top =    CQ().add(top   .findSolid()).edges('|Z').edges('>>X[-1] or <<X[-1]').edges('>>Y[-1] or <<Y[-1]').fillet(s.outer_fillet)
 
-        return (middle, top.clean())  # clean() to remove unwanted lines in faces
+        middle = middle.faces('<Z[-1]').edges('not %CIRCLE').chamfer(s.outer_chamfer)
+        top = top.faces('>Z[-1] or <Z[-1] or <Y[-1]').edges().chamfer(s.outer_chamfer)
+        #top = top.faces('<Y[-1]').edges('not >Z[-1]').chamfer(s.outer_chamfer)
+        #top =    CQ().add(top   .findSolid()).edges('|Z').edges('<<Y[-1]').fillet(s.outer_fillet)
+
+        return (middle, top)  # clean() to remove unwanted lines in faces
 
     def build(self):
         s = self
@@ -1120,7 +1164,7 @@ class ChamberNG(object):
         substrate = CQ().rect(*self.substrate_adapters).extrude(self.substrate_thickness)
         substrates = self.replicate(substrate, cpg).translate((0, 0, self.pcb_thickness+self.sp_spacer_t))
         #asy.add(substrates.translate((0,0,4)), name="substrates", color=cadquery.Color("lightblue"), alpha=0.4)
-        # shoould be "lightblue" with alpha = 0.3 but alpha is broken?
+        # should be "lightblue" with alpha = 0.3 but alpha is broken?
         asy.add(substrates, name="substrates", color=cadquery.Color(107/255,175/255,202/255,0.3))
 
         adapter = self.make_adapter()
@@ -1130,20 +1174,22 @@ class ChamberNG(object):
         adapter_spacer = self.make_adapter_spacer(werkplane, cpg)
         asy.add(adapter_spacer, name="adapter_spacer", color=cadquery.Color("darkgreen"))
 
-        spring_pin_spacer, substraet_holder, pusher_downer = self.make_some_layers(werkplane, cpg)
+        spring_pin_spacer, substrate_holder, pusher_downer, top_pcb = self.make_some_layers(werkplane, cpg)
         pusher_downers = self.replicate(pusher_downer, c.mkgrid2d(self.period[0], 1, self.array[0], 1))
-        asy.add(pusher_downers.translate((0, 0, self.pcb_thickness+self.sp_spacer_t+self.substrate_thickness_worst_case)), name="pusher_downers", color=cadquery.Color("brown"))
+        top_pcbs = self.replicate(top_pcb, c.mkgrid2d(self.period[0], 1, self.array[0], 1))
         asy.add(spring_pin_spacer.translate((0, 0, self.pcb_thickness)), name="spring_pin_spacer", color=cadquery.Color("black"))
-        asy.add(substraet_holder.translate((0, 0, self.pcb_thickness+self.sp_spacer_t)), name="substrate_holder", color=cadquery.Color("red"))
+        asy.add(substrate_holder.translate((0, 0, self.pcb_thickness+self.sp_spacer_t)), name="substrate_holder", color=cadquery.Color("red"))
+        asy.add(pusher_downers.translate((0, 0, self.pcb_thickness+self.sp_spacer_t+self.substrate_thickness_worst_case)), name="pusher_downers", color=cadquery.Color("brown"))
+        asy.add(top_pcbs.translate((0, 0, self.pcb_thickness+self.sp_spacer_t+self.substrate_thickness_worst_case+self.pd_x_side_thickness)), name="top_pcbs", color=cadquery.Color("darkgreen"))
 
-        return (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substraet_holder, pusher_downer)
+        return (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substrate_holder, pusher_downer, top_pcb)
 
 def main():
     #s = ChamberNG(array=(1, 1), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
     s = ChamberNG(array=(1, 4), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
     #s = ChamberNG(array=(4, 4), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
     #s = ChamberNG(array=(5, 5), subs =(30, 30), spacing=(0, 0), padding=(10,10,5,5))
-    (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substraet_holder, pusher_downer) = s.build()
+    (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substrate_holder, pusher_downer, top_pcb) = s.build()
     
     if "show_object" in globals():
         #show_object(asy)
@@ -1193,7 +1239,10 @@ def main():
         spring_pin_spacer_outline = spring_pin_spacer.section()
         cadquery.exporters.exportDXF(spring_pin_spacer_outline, 'spring_pin_spacer_outline.dxf')
 
-        substraet_holder_outline = substraet_holder.section()
-        cadquery.exporters.exportDXF(substraet_holder_outline, 'substraet_holder_outline.dxf')
+        substrate_holder_outline = substrate_holder.section()
+        cadquery.exporters.exportDXF(substrate_holder_outline, 'substrate_holder_outline.dxf')
+
+        top_pcb_outline = top_pcb.section()
+        cadquery.exporters.exportDXF(top_pcb_outline, 'top_pcb_outline.dxf')
 
 main()
