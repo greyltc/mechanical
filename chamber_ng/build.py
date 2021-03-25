@@ -144,10 +144,6 @@ class ChamberNG(object):
     # radius on the shelf fillet
     shelf_fr = above_shelf_fr
 
-    # adds features on the sides of the shelves to ensure the PCBs get jammed up against their endblocks
-    # only really makes sense when extra_x > 0 and x spacing = 0
-    use_shelf_PCB_jammers = True
-
     shelf_height = 5 # thickness of the endblock shelves
     top_mid_height = 4.9+2.2+9.5-pcb_top_bump_up  # estimate TODO: double check this
 
@@ -884,11 +880,6 @@ class ChamberNG(object):
             s.log.warning('Slots will be cut into the inner +X wall')
 
         shelf_width = s.endblock_wall_spacing + s.endblock_thickness_shelf
-
-        if self.use_shelf_PCB_jammers == False:
-            # TODO
-            pass
-            #shelf_void_extents[0] = shelf_void_extents[0] + s.extra_x
 
         # werkplane face
         wpf = cq.Face.makeFromWires(wp.val())
