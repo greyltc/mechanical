@@ -834,7 +834,7 @@ class ChamberNG(object):
         )
 
         # fillet the edges fails now because of one place and so we won't do it here
-        #crossbar = crossbar.edges('|X').fillet(self.pcb_cut_rad)
+        crossbar = crossbar.edges('|X except (>Z[-1])').fillet(self.pcb_cut_rad)  # need to except some edges and do them manually in pcbnew
 
         return(crossbar.translate((-self.pcb_thickness/2, 0, 0)))
 
@@ -1198,24 +1198,33 @@ def main():
     elif __name__ == "__main__":
         # save step
         asy.save('chamber_ng.step')
+        # Open CASCADE Technology Application Framework (OCAF) (MDTV-Standard) format
+        # https://dev.opencascade.org/doc/overview/html/occt_user_guides__test_harness.html#occt_draw_5
+        cadquery.exporters.assembly.exportCAF(asy, 'chamber_ng.std')
 
         save_indivitual_stls = False
         save_indivitual_steps = False
+        save_indivitual_breps = True
 
-        if (save_indivitual_stls == True) or (save_indivitual_steps == True):
-            # loop through individual pieces STLs
+        if (save_indivitual_stls == True) or (save_indivitual_steps == True) or (save_indivitual_breps == True):
+            # loop through individual pieces
             for key, val in asy.traverse():
                 shapes = val.shapes
                 if shapes != []:
-                    c = cq.Compound.makeCompound(shapes)
+                    # make sure we're only taking one of whatever this is
+                    this = val.obj.val()
+                    if hasattr(this, '__iter__'):
+                        one = next(val.obj.val().__iter__())
+                    else:
+                        one = this
+
+                    # save as needed
                     if save_indivitual_stls == True:
-                        if val.name == 'pusher_downers':
-                            cadquery.exporters.export(pusher_downer.findSolid().locate(val.loc), 'pusher_downer.stl')
-                        cadquery.exporters.export(c.locate(val.loc), f'{val.name}.stl')
+                        cadquery.exporters.export(one, f'{val.name}.stl')
                     if save_indivitual_steps == True:
-                        if val.name == 'pusher_downers':
-                            cadquery.exporters.export(pusher_downer.findSolid().locate(val.loc), 'pusher_downer.step')
-                        cadquery.exporters.export(c.locate(val.loc), f'{val.name}.step')
+                        cadquery.exporters.export(one, f'{val.name}.step')
+                    if save_indivitual_breps == True:
+                        cq.Shape.exportBrep(one, f'{val.name}.brep')
         
         # save DXFs
         crossbar_outline = CQ().add(crossbar.rotate((0,0,0),(0,1,0),-90).rotate((0,0,0),(0,0,1),-90)).section()
