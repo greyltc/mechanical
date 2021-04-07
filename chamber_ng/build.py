@@ -79,7 +79,7 @@ class ChamberNG(object):
     sandwich_xbuffer = 1  # space to give between sandwich and chamber x walls on both sides
     sapd = 3  # nominal diameter for the substrate alignment pins
     sapd_press = sapd - 0.05  # no movement, alignment matters, used in crescent substrate holder layer
-    #sapd_slide = sapd + 0.15  # needs movement, algnment matters
+    sapd_slide = sapd + 0.15  # needs movement, algnment matters
     sapd_clear = sapd + 0.45  # free movement, alignment does not matter
     sap_offset_fraction = 0.35  # fraction of the substrate dimension(up to 0.50) to offset the alignment pins to prevent device rotation
     tube_bore = 4.8  # for RS PRO silicone tubing stock number 667-8448
@@ -611,9 +611,7 @@ class ChamberNG(object):
             hps = hp
 
         # make one substrate alignment pin hole volume for the spring pin spacer layer
-        aphv = CQ().circle(s.sapd/2).extrude(s.sp_spacer_t+1).translate((0,0,-0.5))  # this works around a bug in step file export
-        # see https://github.com/CadQuery/cadquery/issues/697
-        #aphv = CQ().circle(s.sapd/2).extrude(s.sp_spacer_t)  # this line should look like this
+        aphv = CQ().circle(s.sapd_slide/2).extrude(s.sp_spacer_t)
         aphhv = CQ().circle(s.sapd_press/2).extrude(s.holder_t)
         aphvs  = CQ().pushPoints(apps).eachpoint(lambda l:  aphv.val().located(l))  # replicate that
         aphhvs = CQ().pushPoints(apps).eachpoint(lambda l: aphhv.val().located(l))  # replicate that
@@ -1107,7 +1105,7 @@ class ChamberNG(object):
 
         # cut the v potting groove for the potting between the pieces
         pg = tb.groovy.mk_vgroove(pot_slot_path, (srbb.xmin + s.wall[0] - s.pg_offset, 0, 0), s.pg_depth)
-        middle = middle.cut(pg)
+        middle = middle.cut(pg.findSolid())
 
         # gas feedthroughs
         if s.do_gas_feedthroughs == True:
