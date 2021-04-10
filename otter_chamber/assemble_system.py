@@ -81,6 +81,9 @@ else:
     have_so = False
     logger.info("Probably running from a terminal")
 
+# if true, draw a 4 50x50 substrate version
+do_big_four = True  # TODO
+
 # a list for holding all the things
 assembly = []  # type: ignore[var-annotated] # noqa: F821
 
