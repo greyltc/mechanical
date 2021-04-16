@@ -229,16 +229,20 @@ class ChamberNG(object):
         base = base.faces('>X[-1]').workplane(centerOption=co).center( self.endblock_thickness_shelf/2-self.pcb_mount_hole_offset, self.wall_height/2-self.pcb_mount_hole_offset).circle(self.eb_mount_hole_tap_r).cutBlind(-self.eb_mount_hole_depth)
         base = base.faces('<X[-1]').workplane(centerOption=co).center(-self.endblock_thickness_shelf/2+self.pcb_mount_hole_offset, self.wall_height/2-self.pcb_mount_hole_offset).circle(self.eb_mount_hole_tap_r).cutBlind(-self.eb_mount_hole_depth)
         # make crossbar pcb side alignment pin holes
-        base = base.faces('>X[-1]').workplane(centerOption=co).center(-self.endblock_thickness_shelf/2+self.pcb_mount_hole_offset,-self.wall_height/2+self.pcb_mount_hole_offset).circle(self.pcb_alignment_hole_d/2).cutBlind(-self.pcb_alignment_hole_depth)
-        base = base.faces('<X[-1]').workplane(centerOption=co).center( self.endblock_thickness_shelf/2-self.pcb_mount_hole_offset,-self.wall_height/2+self.pcb_mount_hole_offset).circle(self.pcb_alignment_hole_d/2).cutBlind(-self.pcb_alignment_hole_depth)
+        base = base.faces('>X[-1]').workplane(centerOption=co).center(-self.endblock_thickness_shelf/2+self.pcb_mount_hole_offset,-self.wall_height/2+self.pcb_mount_hole_offset+self.pcb_z_float).circle(self.pcb_alignment_hole_d/2).cutBlind(-self.pcb_alignment_hole_depth)
+        base = base.faces('<X[-1]').workplane(centerOption=co).center( self.endblock_thickness_shelf/2-self.pcb_mount_hole_offset,-self.wall_height/2+self.pcb_mount_hole_offset+self.pcb_z_float).circle(self.pcb_alignment_hole_d/2).cutBlind(-self.pcb_alignment_hole_depth)
 
+        # the endblock extension chunk that reaches furthest towards the middle
         extension_a = CQ().box(block_width, self.endblock_thickness_extension, self.pcb_min_height, centered=(True,False,False))
         extension_a = extension_a.translate((0, self.endblock_thickness_shelf, self.pcb_z_float+self.pcb_bottom_bump_down))
 
         b_width = self.pcb_bottom_bump_offset - self.endblock_thickness_shelf
         b_height =  self.pcb_height-self.pcb_top_bump_up
+
+        # the endblock extension chunk that floats just above the shelf
         extension_b = CQ().box(block_width, b_width, b_height, centered=(True,False,False))
         extension_b = extension_b.translate((0, self.endblock_thickness_shelf, self.pcb_z_float))
+
         # make lower PCB mount holes
         extension_b = extension_b.faces('>X[-1]').workplane(centerOption=co).center( b_width/2-self.pcb_mount_hole_offset, -b_height/2+self.pcb_mount_hole_offset).circle(self.eb_mount_hole_tap_r).cutBlind(-self.eb_mount_hole_depth)
         extension_b = extension_b.faces('<X[-1]').workplane(centerOption=co).center(-b_width/2+self.pcb_mount_hole_offset, -b_height/2+self.pcb_mount_hole_offset).circle(self.eb_mount_hole_tap_r).cutBlind(-self.eb_mount_hole_depth)
@@ -256,7 +260,7 @@ class ChamberNG(object):
         )
 
         # make the top side alignment pin holes
-        endblock = endblock.faces('>Z[-2]').workplane(centerOption=co).center(0,self.pcb_cut_rad/2).rarray(self.alignment_pin_spacing,1,2,1).circle(self.pressfit_hole_d/2).cutBlind(-self.pressfit_hole_depth)
+        endblock = endblock.faces('>Z[-2]').workplane(centerOption=co).center(0, self.pcb_cut_rad/2).rarray(self.alignment_pin_spacing,1,2,1).circle(self.pressfit_hole_d/2).cutBlind(-self.pressfit_hole_depth)
         
         # make a lock nut slot in the top extension face
         ln_pocket_move = lambda loc: CQ().box(tb.c.std_hex_nuts["m5"]["flat_w"]+0.1, tb.c.std_hex_nuts["m5"]["corner_w"]+0.1, self.eb_locknut_depth).translate((0,0,-self.eb_locknut_depth/2)).edges('|Z').fillet(2).findSolid().move(loc)
@@ -832,7 +836,7 @@ class ChamberNG(object):
         )
 
         # fillet the edges fails now because of one place and so we won't do it here
-        crossbar = crossbar.edges('|X except (>Z[-1])').fillet(self.pcb_cut_rad)  # need to except some edges and do them manually in pcbnew
+        crossbar = crossbar.edges('|X except (>>Z[-3])').fillet(self.pcb_cut_rad)  # need to except some edges and do them manually in pcbnew
 
         return(crossbar.translate((-self.pcb_thickness/2, 0, 0)))
 
@@ -1201,7 +1205,7 @@ def main():
         cadquery.exporters.assembly.exportCAF(asy, 'chamber_ng.std')
 
         save_indivitual_stls = False
-        save_indivitual_steps = False
+        save_indivitual_steps = True
         save_indivitual_breps = True
 
         if (save_indivitual_stls == True) or (save_indivitual_steps == True) or (save_indivitual_breps == True):
