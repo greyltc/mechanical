@@ -1,6 +1,4 @@
 .mypy_cache/
-*.brep
-*.std
 *.step
 *.bak
 *.stp
