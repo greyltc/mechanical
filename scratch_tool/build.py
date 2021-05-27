@@ -4,7 +4,11 @@ from cadquery import CQ, cq
 import geometrics.toolbox as tb
 import pathlib
 
-# fit calc URL=https://www.trelleborg.com/en/seals/resources/design-support-and-engineering-tools/iso-fits-and-limits
+# engineering fit values used found from hints in
+# https://www.trelleborg.com/en/seals/resources/design-support-and-engineering-tools/iso-fits-and-limits
+# and
+# https://de.misumi-ec.com/pdf/press/us_12e_pr1261.pdf
+# dowel pins are d= 3 m6 12mm ones from RS 270-552 (15mm would be better) 
 #m6 shaft plus K7 hole ~= striking or cold press fit
 #Minimum interference	=	-18  micrometer [µm]
 #Maximum interference	=	-2  micrometer [µm]
