@@ -1205,7 +1205,7 @@ def main():
         cadquery.exporters.assembly.exportCAF(asy, 'chamber_ng.std')
 
         save_indivitual_stls = False
-        save_indivitual_steps = True
+        save_indivitual_steps = False
         save_indivitual_breps = True
 
         if (save_indivitual_stls == True) or (save_indivitual_steps == True) or (save_indivitual_breps == True):
