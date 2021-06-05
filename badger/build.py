@@ -51,17 +51,11 @@ class Badger(object):
     (-93,  0),
   ]
 
-  dxf_filepath = pathlib.Path("2d.dxf")
-  pcb_step_filepath = pathlib.Path("pcb.step")
-  vent_screw_filepath = pathlib.Path("vent_screw.step")
+  dxf_filepath = pathlib.Path(__file__) / "drawings" / "2d.dxf"
+  pcb_step_filepath = pathlib.Path(__file__) / "components" / "pcb.step"
+  vent_screw_filepath = pathlib.Path(__file__) "components" / "vent_screw.step"
 
   def __init__(self):
-    if not self.dxf_filepath.exists():
-      # probably running from the top of the repo in debug mode...
-      self.dxf_filepath = pathlib.Path.cwd()/'badger'/self.dxf_filepath
-      self.pcb_step_filepath = pathlib.Path.cwd()/'badger'/self.pcb_step_filepath
-      self.vent_screw_filepath = pathlib.Path.cwd()/'badger'/self.vent_screw_filepath
-
     self.cu_towers = self.get_wires("cu_towers")
     self.base_plate = self.get_wires("base_plate")
     self.cu_base = self.get_wires("cu_base")

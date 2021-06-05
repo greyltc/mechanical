@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
+
 import cadquery
 from cadquery import CQ, cq
-import geometrics.toolbox as tb
+
 import logging
 import math
 import numpy as np
 
-import serial
-s = serial.Serial()
+import sys
+from pathlib import Path
 
+import geometrics.toolbox as tb
 
 class ChamberNG(object):
     # wall thicknesses
@@ -37,10 +39,12 @@ class ChamberNG(object):
     #sa_pf_hole_d = 0.5  # for pressfit pins (shaft nominal d = 0.457mm
     
     # substrate adapter parameters
-    sa_spring_hole_d = 1.78  # spring pin mount hole diameter (pn 0921-1)
-    sa_spring_hole_offset = 3.25  # from edge of board
-    sa_socket_hole_d = 1.35  # pin socket mounting hole diameter (pn 5342)
+    sa_spring_hole_d = 1.778  # spring pin PTH finished diameter = 0.070 in. (pn 0921-1)
+    sa_spring_hole_offset = 3.0  # center offset from edge of board
+    sa_socket_hole_d = 0.8128  # pressfit pin socket drill diameter = 0.035 in., drill #65. PTH finished diameter = 0.032in. (0.03in. for HASL finsh)= 0.8128mm (pn ptt)
     sa_border_thickness = (5.1, 3)  # defines the window border width (pin side, non-pin side)
+    sa_spring_hole_major_period = 2*2.54  # spacing between the pin pairs
+    sa_spring_hole_minor_period = 2.5  # spaicing between each pin in the pair
 
     # aux connection parameters
     aux_pads_n = 6  # number of pads/connections in row
@@ -48,7 +52,8 @@ class ChamberNG(object):
 
     # adapter spacer parameters
     as_aux_pad_hole_d = 0  # for the holes that correspond to where the aux pads would be
-    as_aux_pin_clearance_d = 1.0  # for the holes above the connector pins
+    as_aux_pin_clearance_d = 0.9  # for the holes around/above the connector pins
+    as_aux_spring_clearance_d = 2  # for the holes around/above the spring pins
 
     # workplane offset from top of PCB
     woff = pcb_top_bump_up
@@ -304,6 +309,7 @@ class ChamberNG(object):
 
     def make_adapter(self):
         """makes one substrate adapter"""
+        s = self
         adapter = CQ().rect(*self.substrate_adapters).extrude(self.pcb_thickness)
 
         window = CQ().rect(self.substrate_adapters[0]-2*self.sa_border_thickness[0], self.substrate_adapters[1]-2*self.sa_border_thickness[1])
@@ -313,11 +319,11 @@ class ChamberNG(object):
         adapter = adapter.cut(window_void)
 
         # places for the spring pins
-        pin_points =              CQ().center(0, 2*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset*2, 2.5, 2, 2).vals()
-        pin_points = pin_points + CQ().center(0, 1*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset*2, 2.5, 2, 2).vals()
-        pin_points = pin_points + CQ().center(0, 0*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset*2, 2.5, 2, 2).vals()
-        pin_points = pin_points + CQ().center(0,-1*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset*2, 2.5, 2, 2).vals()
-        pin_points = pin_points + CQ().center(0,-2*2*2.54).rarray(self.substrate_adapters[0]-self.sa_spring_hole_offset*2, 2.5, 2, 2).vals()
+        pin_points =              CQ().center(0, 2*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0, 1*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0, 0*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0,-1*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0,-2*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
 
         # fillet corners
         #adapter = adapter.edges('|Z').fillet(self.pcb_cut_rad)
@@ -1184,7 +1190,7 @@ def main():
     #s = ChamberNG(array=(5, 5), subs =(30, 30), spacing=(0, 0), padding=(10,10,5,5))
     (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substrate_holder, pusher_downer, top_pcb) = s.build()
     
-    if "show_object" in globals():
+    if "show_object" in globals():  # we're in cq-editor
         #show_object(asy)
         for key, val in asy.traverse():
             shapes = val.shapes
@@ -1196,13 +1202,11 @@ def main():
                     rgb = (co.Red(), co.Green(), co.Blue())
                     odict['color'] = rgb
                 show_object(c.locate(val.loc), name=val.name, options=odict)
-
-    elif __name__ == "__main__":
-        # save step
-        asy.save('chamber_ng.step')
+    else:  # we're not in cq-editor, generate output files
+        asy.save(str(Path(__file__).parent / 'output' / 'chamber_ng.step'))  # save step
         # Open CASCADE Technology Application Framework (OCAF) (MDTV-Standard) format
         # https://dev.opencascade.org/doc/overview/html/occt_user_guides__test_harness.html#occt_draw_5
-        cadquery.exporters.assembly.exportCAF(asy, 'chamber_ng.std')
+        cadquery.exporters.assembly.exportCAF(asy, str(Path(__file__).parent / "output" / 'chamber_ng.std'))
 
         save_indivitual_stls = False
         save_indivitual_steps = False
@@ -1222,29 +1226,32 @@ def main():
 
                     # save as needed
                     if save_indivitual_stls == True:
-                        cadquery.exporters.export(one, f'{val.name}.stl')
+                        cadquery.exporters.export(one, str(Path(__file__).parent / 'output' / f'{val.name}.stl'))
                     if save_indivitual_steps == True:
-                        cadquery.exporters.export(one, f'{val.name}.step')
+                        cadquery.exporters.export(one, str(Path(__file__).parent / 'output' / f'{val.name}.step'))
                     if save_indivitual_breps == True:
-                        cq.Shape.exportBrep(one, f'{val.name}.brep')
-        
+                        cq.Shape.exportBrep(one, str(Path(__file__).parent / 'output' / f'{val.name}.brep'))
+
         # save DXFs
         crossbar_outline = CQ().add(crossbar.rotate((0,0,0),(0,1,0),-90).rotate((0,0,0),(0,0,1),-90)).section()
-        cadquery.exporters.exportDXF(crossbar_outline, 'crossbar_outline.dxf')
+        cadquery.exporters.exportDXF(crossbar_outline,str(Path(__file__).parent / 'output' / 'crossbar_outline.dxf'))
 
         adapter_outline = adapter.section()
-        cadquery.exporters.exportDXF(adapter_outline, 'adapter_outline.dxf')
+        cadquery.exporters.exportDXF(adapter_outline, str(Path(__file__).parent / 'output' / 'adapter_outline.dxf'))
 
         adapter_spacer_outline = CQ().add(adapter_spacer.findSolid()).section()  # add to new wp to fix orientation
-        cadquery.exporters.exportDXF(adapter_spacer_outline, 'adapter_spacer_outline.dxf')
+        cadquery.exporters.exportDXF(adapter_spacer_outline, str(Path(__file__).parent / 'output' / 'adapter_spacer_outline.dxf'))
 
         spring_pin_spacer_outline = spring_pin_spacer.section()
-        cadquery.exporters.exportDXF(spring_pin_spacer_outline, 'spring_pin_spacer_outline.dxf')
+        cadquery.exporters.exportDXF(spring_pin_spacer_outline, str(Path(__file__).parent / 'output' /  'spring_pin_spacer_outline.dxf'))
 
         substrate_holder_outline = substrate_holder.section()
-        cadquery.exporters.exportDXF(substrate_holder_outline, 'substrate_holder_outline.dxf')
+        cadquery.exporters.exportDXF(substrate_holder_outline, str(Path(__file__).parent / 'output' / 'substrate_holder_outline.dxf'))
 
         top_pcb_outline = top_pcb.section()
-        cadquery.exporters.exportDXF(top_pcb_outline, 'top_pcb_outline.dxf')
+        cadquery.exporters.exportDXF(top_pcb_outline, str(Path(__file__).parent / 'output' / 'top_pcb_outline.dxf'))
 
-main()
+
+# temp is what we get when run via cq-editor
+if __name__ in ['__main__', 'temp']:
+    main()

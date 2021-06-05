@@ -1,13 +1,10 @@
 .mypy_cache/
-*.step
+*/output/*.step
+*/output/*.dxf
+*/output/*.stl
 *.bak
-*.stp
 *.csg
-*.stl
 *.pyc
-*.dxf
 __pycache__/
-
-/toolbox
 
 *.vscode/
