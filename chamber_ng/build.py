@@ -33,11 +33,8 @@ class ChamberNG(object):
     do_gas_feedthroughs = False
     feedthrough_d = 10
 
-    # subadapter pcb paramters
-    #sa_pcb_thickness = 1
-    #sa_pcb_border_thickness = (1.75, 1.75)  # (pin side, non-pin side)
-    #sa_pf_hole_d = 0.5  # for pressfit pins (shaft nominal d = 0.457mm
-    
+    tweezer_allower_hole_d = 6  # allows tweezer access to lift out substrates
+
     # substrate adapter parameters
     sa_spring_hole_d = 1.778  # spring pin PTH finished diameter = 0.070 in. (pn 0921-1)
     sa_spring_hole_offset = 3.0  # center offset from edge of board
@@ -52,8 +49,8 @@ class ChamberNG(object):
 
     # adapter spacer parameters
     as_aux_pad_hole_d = 0  # for the holes that correspond to where the aux pads would be
-    as_aux_pin_clearance_d = 0.9  # for the holes around/above the connector pins
-    as_aux_spring_clearance_d = 2  # for the holes around/above the spring pins
+    as_aux_pin_clearance_d = 1.5  # for the holes around/above the aux connector pins
+    as_opening_clearance = [2, 1]  # clearance left around the substrate in x and y
 
     # workplane offset from top of PCB
     woff = pcb_top_bump_up
@@ -77,7 +74,7 @@ class ChamberNG(object):
     alignment_pin_slide_d = pressfit_hole_d_nominal + 0.15  # for the holes in the substrate holder layer
     spacer_h = 2.0  # for accu pn HPS-5-2-BR-NI
     alignment_pin_spacing = 12
-    pressfit_hole_depth = 10  # for alignment pins
+    pressfit_hole_depth = 11  # for alignment pins (deep enough to ensure entry into the pocket below)
     pcb_alignment_hole_depth = 4.8  #  for RS pn 374-020, 8mm long
 
     # sandwich parameters
@@ -86,23 +83,24 @@ class ChamberNG(object):
     sapd_press = sapd - 0.05  # no movement, alignment matters, used in crescent substrate holder layer
     sapd_slide = sapd + 0.15  # needs movement, algnment matters
     sapd_clear = sapd + 0.45  # free movement, alignment does not matter
-    sap_offset_fraction = 0.35  # fraction of the substrate dimension(up to 0.50) to offset the alignment pins to prevent device rotation
-    tube_bore = 4.8  # for RS PRO silicone tubing stock number 667-8448
+    sap_offset_fraction = 0.30  # fraction of the substrate dimension(up to 0.50) to offset the alignment pins to prevent device rotation
+    tube_bore_d = 4.8  # for RS PRO silicone tubing stock number 667-8448
     tube_wall = 1.6  # for RS PRO silicone tubing stock number 667-8448
-    tube_OD = tube_bore + 2*tube_wall
-    tube_pocket_OD = tube_OD - 0.5  # for pressfit
+    tube_OD = tube_bore_d + 2*tube_wall
+    tube_pocket_OD = tube_OD - 0.5  # for securing the tube
     tube_clearance_OD = tube_OD*1.2  # to ensure the pusher downer doesn't get interfered with by the tube splooges
     tube_splooge = 0.5  # if the tube was unbotherd, its center point would cause this much overlap with the substrate
 
     # spring pin spacer parameters
-    sp_spacer_encroachment = 2  # amount to encroach on the adapter board non-pin edges
-    sp_spacer_encroachment_keepout = 6  # width of central keepout ear/zone
-    sp_cut_ears = True  # true to cut ears to expose adapter board smt components
-    sp_spacer_t = 1.20  # distance between the adapter and the substrate surface
+    sp_spacer_encroachment = [3.0, 0.5]  # amount to encroach on the adapter board on the [pin, non-pin] edges
+    sp_spacer_t = 1.20  # distance between the adapter and the final substrate surface (ska spacer piece thickness)
     # such that pin 0921-1 has the correct remaining travel when in use. nominally, this remaining travel
     # would be 0.5mm and that corresponds to a spacer thickness here of 1.26mm, but a 1.2mm thick PCB is a good option
     sp_spacer_aux_pad_hole_d = 0  # for the holes that correspond to where the aux pads would be
-    sp_spacer_aux_pin_clearance_d = 1.0  # for the holes above the connector pins
+    sp_spacer_aux_pin_clearance_d = 1.5  # for the holes above the aux connector pins
+    sp_spring_clearance_d = 2.1  # for the holes around/above the spring pins
+    sp_pin_clearance_d = 0.9   # for the holes around/above the adapter connection pins
+
 
     # holder layer parameters
     holder_t = 3.5  # holder thickness, 2.2mm =thickest glass + pin travel
@@ -111,7 +109,7 @@ class ChamberNG(object):
     holder_corner_r = 1.0  # max cutting tool radius that can be used to mill the pockets
     crescent_opening_radial_fraction_offset = math.sin((360-crescent_angle)/2*math.pi/180)
     holder_aux_pad_hole_d = 0    # for the holes that correspond to where the aux pads would be
-    holder_aux_pin_clearance_d = 1.0  # for the holes above the connector pins
+    holder_aux_pin_clearance_d = 1.5  # for the holes above the connector pins
 
     # multiply this by radius to get the distance between the center and the edge of the pocket
 
@@ -306,6 +304,22 @@ class ChamberNG(object):
 
         return endblock_array
 
+    def find_adapter_hole_points(self):
+        """calculates where the holes should be for the spring pins and the substrate connection pins"""
+        s = self
+
+        # places for the spring pins
+        pin_points =              CQ().center(0, 2*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0, 1*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0, 0*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0,-1*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
+        pin_points = pin_points + CQ().center(0,-2*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
+        
+        # locations for the edge socket holes
+        sh_points = CQ().rarray(self.substrate_adapters[0]-2, 2, 2, 12).vals() + CQ().rarray(self.substrate_adapters[0]+2, 2, 2, 12).vals()
+
+        return (pin_points, sh_points)
+
 
     def make_adapter(self):
         """makes one substrate adapter"""
@@ -318,18 +332,11 @@ class ChamberNG(object):
         # make window cuts
         adapter = adapter.cut(window_void)
 
-        # places for the spring pins
-        pin_points =              CQ().center(0, 2*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
-        pin_points = pin_points + CQ().center(0, 1*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
-        pin_points = pin_points + CQ().center(0, 0*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
-        pin_points = pin_points + CQ().center(0,-1*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
-        pin_points = pin_points + CQ().center(0,-2*s.sa_spring_hole_major_period).rarray(s.substrate_adapters[0]-s.sa_spring_hole_offset*2, s.sa_spring_hole_minor_period, 2, 2).vals()
-
         # fillet corners
         #adapter = adapter.edges('|Z').fillet(self.pcb_cut_rad)
 
-        # locations for the edge socket holes
-        sh_points = CQ().rarray(self.substrate_adapters[0]-2, 2, 2, 12).vals() + CQ().rarray(self.substrate_adapters[0]+2, 2, 2, 12).vals()
+        # find coordinates of the holes we'll make
+        pin_points, sh_points = self.find_adapter_hole_points()
 
         # make single example cylinders to replicate
         small_cylinder = CQ().circle(self.sa_socket_hole_d/2).extrude(self.pcb_thickness)
@@ -356,7 +363,8 @@ class ChamberNG(object):
     def grid2dtolist(x_grid, y_grid):
         """converts 2d grid to list of points"""
         return [(float(p[0]), float(p[1])) for p in zip(x_grid.flatten(), y_grid.flatten())]
-    
+
+
     def make_sandwich_wires(self, wp, alignment_pin_hole_d, aux_con_hole_d, aux_con_pad_hole_d):
         """makes the wires for the basic sandwich outline shape"""
         co = "CenterOfBoundBox"
@@ -436,7 +444,7 @@ class ChamberNG(object):
 
         # make pcb window(s)
         wv = (  # volume for a single window
-            CQ().rect(self.substrate_adapters[0]+self.pcb_cut_rad, self.substrate_adapters[1]+self.pcb_cut_rad)
+            CQ().rect(self.substrate_adapters[0]+self.as_opening_clearance[0]*2, self.substrate_adapters[1]+self.as_opening_clearance[1]*2)
             .extrude(self.pcb_thickness)
         )
         cps = c.grid2dtolist(*cpg)  # list of points for centers
@@ -466,33 +474,32 @@ class ChamberNG(object):
         sp_spc = CQ().add(s.make_sandwich_wires(wp,s.alignment_pin_clear_d, s.sp_spacer_aux_pin_clearance_d, s.sp_spacer_aux_pad_hole_d)).toPending().extrude(s.sp_spacer_t)
         sp_spc = sp_spc.edges('|Z').fillet(self.pcb_cut_rad)  # round the outside edges
 
-        # make spring pin spacer layer windows
+        # make spring pin spacer layer central windows
         spswv = (  # volume for a single window
-            CQ().rect(s.substrate_adapters[0]+s.pcb_cut_rad, s.substrate_adapters[1]-2*s.sp_spacer_encroachment)
+            CQ().rect(s.substrate_adapters[0]-2*s.sp_spacer_encroachment[0], s.substrate_adapters[1]-2*s.sp_spacer_encroachment[1])
             .extrude(s.sp_spacer_t)
         )
-        spswv = spswv.cut(
-            CQ().rect(s.substrate_adapters[0]-2*s.sa_border_thickness[0], s.substrate_adapters[1]+s.pcb_cut_rad)
-            .extrude(s.sp_spacer_t)
-        )
-        # come way in on the y edges
         spswv = spswv.edges('|Z').fillet(s.pcb_cut_rad)  # round the window edges
-        spswv = spswv.union(
-            CQ().rect(s.substrate_adapters[0], s.substrate_adapters[1]-2*s.sa_border_thickness[1])
-            .extrude(s.sp_spacer_t)
-        )
-        # but leave ears for the smt parts on the adapters (TODO: this creates impossible geometry for zero spacing case)
-        spswv = spswv.edges('|Z').fillet(s.pcb_cut_rad)  # round the window edges
-        if s.sp_cut_ears:
-            spswv = spswv.union(
-                CQ().rect(s.sp_spacer_encroachment_keepout, s.substrate_adapters[1])
-                .extrude(s.sp_spacer_t)
-                .edges('|Z').fillet(s.pcb_cut_rad)
-            )
 
         cps = c.grid2dtolist(*cpg)  # list of center points for substrates
         spswvs = CQ().pushPoints(cps).eachpoint(lambda l: spswv.val().located(l))
         sp_spc = sp_spc.cut(spswvs)  # cut out the windows
+
+        pin_points, sh_points = self.find_adapter_hole_points()
+        spps = [] # list of center points for spring pins
+        shps = [] # list of center points for connector pins
+        for cp in cps:  # loop over the substrate center places
+            pp_offsetted = [(pp.toTuple()[0]+cp[0], pp.toTuple()[1]+cp[1]) for pp in pin_points]
+            sh_offsetted = [(sh.toTuple()[0]+cp[0], sh.toTuple()[1]+cp[1]) for sh in sh_points]
+            spps = spps + pp_offsetted
+            shps = shps + sh_offsetted
+        shps = list(set(shps))  # make sure there are no duplicated coordinates (there would be in the zero spacing case)
+        spphv = CQ().circle(s.sp_spring_clearance_d/2).extrude(s.sp_spacer_t)  # one spacer layer pin hole volume
+        spchv = CQ().circle(s.sp_pin_clearance_d/2).extrude(s.sp_spacer_t)  # one spacer layer connector hole volume
+        spphvs = CQ().pushPoints(spps).eachpoint(lambda l:  spphv.val().located(l))  # replicate that
+        spchvs = CQ().pushPoints(shps).eachpoint(lambda l:  spchv.val().located(l))  # replicate that
+        sp_spc = sp_spc.cut(spphvs)  # drill out the spring pin holes
+        sp_spc = sp_spc.cut(spchvs)  # drill out the spring pin holes
 
         # generate the sample holder base
         sh = CQ().add(s.make_sandwich_wires(wp, s.alignment_pin_slide_d, s.holder_aux_pin_clearance_d, s.holder_aux_pad_hole_d)).toPending().extrude(s.holder_t)
@@ -539,6 +546,13 @@ class ChamberNG(object):
                 c.grid2dtolist(tgx1,tgy1) +
                 c.grid2dtolist(tgx2,tgy2)
             )
+
+            # calculate the tweezer allower hole centers
+            tax = cpg[0] - s.substrate_adapters[0]/2
+            tay = cpg[1] - s.substrate_adapters[1]/2
+
+            # generate the tweezer allower center points list
+            taps = c.grid2dtolist(tax,tay)
 
             # generate one substrate holder base pocket shape
             hp = CQ().box(s.substrate_adapters[0], s.substrate_adapters[1], s.holder_t, centered=(True, True, False))
@@ -591,6 +605,9 @@ class ChamberNG(object):
                 (tx2,ty2),
             ]
 
+            # the tweezer allower hole center
+            taps = [(-s.substrate_adapters[0]*s.array[0]/2, -s.substrate_adapters[1]*s.array[1]/2)]
+
             # generate a uni substrate holder pocket
             hp = CQ().box(s.substrate_adapters[0]*s.array[0], s.substrate_adapters[1]*s.array[1], s.holder_t, centered=(True, True, False))
 
@@ -619,6 +636,12 @@ class ChamberNG(object):
             hps = s.replicate(hp, cpg)
         elif unipocket == True:
             hps = hp
+        
+        # make one tweezer allower hole(s)
+        tahv = CQ().circle(s.tweezer_allower_hole_d/2).extrude(s.sp_spacer_t)
+        tahhv = CQ().circle(s.tweezer_allower_hole_d/2).extrude(s.holder_t)
+        tahvs  = CQ().pushPoints(taps).eachpoint(lambda l:  tahv.val().located(l))  # replicate that
+        tahhvs = CQ().pushPoints(taps).eachpoint(lambda l: tahhv.val().located(l))  # replicate that
 
         # make one substrate alignment pin hole volume for the spring pin spacer layer
         aphv = CQ().circle(s.sapd_slide/2).extrude(s.sp_spacer_t)
@@ -635,6 +658,10 @@ class ChamberNG(object):
         # make one holder pocket corner rounding cylinder
         hpcv = CQ().circle(s.holder_corner_r).extrude(s.holder_t)
         hpcvs = CQ().pushPoints(pcps).eachpoint(lambda l: hpcv.val().located(l))  # replicate that
+
+        # cut out tweezer allower hole volumes
+        sp_spc = sp_spc.cut(tahvs)
+        sh     =     sh.cut(tahhvs)
 
         # cut out substrate alignment pin hole volumes
         sp_spc = sp_spc.cut(aphvs)
@@ -1181,14 +1208,17 @@ class ChamberNG(object):
         asy.add(pusher_downers.translate((0, 0, self.pcb_thickness+self.sp_spacer_t+self.substrate_thickness_worst_case)), name="pusher_downers", color=cadquery.Color("brown"))
         asy.add(top_pcbs.translate((0, 0, self.pcb_thickness+self.sp_spacer_t+self.substrate_thickness_worst_case+self.pd_x_side_thickness)), name="top_pcbs", color=cadquery.Color("darkgreen"))
 
-        return (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substrate_holder, pusher_downer, top_pcb)
+        return (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substrate_holder, top_pcb)
 
 def main():
     #s = ChamberNG(array=(1, 1), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
     s = ChamberNG(array=(1, 4), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
     #s = ChamberNG(array=(4, 4), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
     #s = ChamberNG(array=(5, 5), subs =(30, 30), spacing=(0, 0), padding=(10,10,5,5))
-    (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substrate_holder, pusher_downer, top_pcb) = s.build()
+    #s = ChamberNG(array=(4, 4), subs =(25.4, 25.4), spacing=(10, 10), padding=(5,5,0,0))
+    #s = ChamberNG(array=(1, 4), subs =(25.4, 25.4), spacing=(10, 10), padding=(5,5,0,0))
+    #s = ChamberNG(array=(1, 4), subs =(28, 28), spacing=(10, 10), padding=(5,5,0,0))
+    (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, substrate_holder, top_pcb) = s.build()
     
     if "show_object" in globals():  # we're in cq-editor
         #show_object(asy)
@@ -1206,10 +1236,11 @@ def main():
         asy.save(str(Path(__file__).parent / 'output' / 'chamber_ng.step'))  # save step
         # Open CASCADE Technology Application Framework (OCAF) (MDTV-Standard) format
         # https://dev.opencascade.org/doc/overview/html/occt_user_guides__test_harness.html#occt_draw_5
+        # TODO: investigate nondeterministic output
         cadquery.exporters.assembly.exportCAF(asy, str(Path(__file__).parent / "output" / 'chamber_ng.std'))
 
         save_indivitual_stls = False
-        save_indivitual_steps = False
+        save_indivitual_steps = True
         save_indivitual_breps = True
 
         if (save_indivitual_stls == True) or (save_indivitual_steps == True) or (save_indivitual_breps == True):
@@ -1230,6 +1261,7 @@ def main():
                     if save_indivitual_steps == True:
                         cadquery.exporters.export(one, str(Path(__file__).parent / 'output' / f'{val.name}.step'))
                     if save_indivitual_breps == True:
+                        # TODO: investigate nondeterministic output
                         cq.Shape.exportBrep(one, str(Path(__file__).parent / 'output' / f'{val.name}.brep'))
 
         # save DXFs
