@@ -2,6 +2,7 @@
 import cadquery
 from cadquery import CQ, cq
 from pathlib import Path
+import itertools
 
 class Badger(object):
   cu_base_t = 3
@@ -241,6 +242,7 @@ def main():
     # save assembly
     asy.save( str(Path(__file__).parent / "output" / 'badger.step'))
     cadquery.exporters.assembly.exportCAF(asy, str(Path(__file__).parent / "output" / 'badger.std'))
+    #cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(Path(__file__).parent / 'output' / 'badger.brep'))
 
     save_indivitual_stls = False
     save_indivitual_steps = True
