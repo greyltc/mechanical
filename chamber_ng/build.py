@@ -7,7 +7,6 @@ import logging
 import math
 import numpy as np
 
-import sys
 from pathlib import Path
 
 import geometrics.toolbox as tb

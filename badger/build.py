@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 import cadquery
 from cadquery import CQ, cq
-import geometrics.toolbox as tb
-import logging
-import pathlib
+from pathlib import Path
 
 class Badger(object):
   cu_base_t = 3
@@ -51,9 +49,9 @@ class Badger(object):
     (-93,  0),
   ]
 
-  dxf_filepath = pathlib.Path(__file__) / "drawings" / "2d.dxf"
-  pcb_step_filepath = pathlib.Path(__file__) / "components" / "pcb.step"
-  vent_screw_filepath = pathlib.Path(__file__) "components" / "vent_screw.step"
+  dxf_filepath = Path(__file__).parent / "drawings" / "2d.dxf"
+  pcb_step_filepath = Path(__file__).parent / "components" / "pcb.step"
+  vent_screw_filepath = Path(__file__).parent / "components" / "vent_screw.step"
 
   def __init__(self):
     self.cu_towers = self.get_wires("cu_towers")
@@ -227,7 +225,7 @@ def main():
   s = Badger()
   asy = s.build()
   
-  if "show_object" in globals():
+  if "show_object" in globals():  # we're in cq-editor
     #show_object(asy)
     for key, val in asy.traverse():
       shapes = val.shapes
@@ -239,17 +237,28 @@ def main():
           rgb = (co.Red(), co.Green(), co.Blue())
           odict['color'] = rgb
         show_object(c.locate(val.loc), name=val.name, options=odict)
+  else:
+    # save assembly
+    asy.save( str(Path(__file__).parent / "output" / 'badger.step'))
+    cadquery.exporters.assembly.exportCAF(asy, str(Path(__file__).parent / "output" / 'badger.std'))
 
-  elif __name__ == "__main__":
-    # save step
-    asy.save('badger.step')
+    save_indivitual_stls = False
+    save_indivitual_steps = True
+    save_indivitual_breps = True
 
     # save STLs
     for key, val in asy.traverse():
       shapes = val.shapes
       if shapes != []:
         c = cq.Compound.makeCompound(shapes)
-        cadquery.exporters.export(c.locate(val.loc), f'{val.name}.stl')
-        cadquery.exporters.export(c.locate(val.loc), f'{val.name}.step')
+        if save_indivitual_stls == True:
+          cadquery.exporters.export(c.locate(val.loc),  str(Path(__file__).parent / "output" / f'{val.name}.stl'))
+        if save_indivitual_steps == True:
+          cadquery.exporters.export(c.locate(val.loc), str(Path(__file__).parent / "output" / f'{val.name}.step'))
+        if save_indivitual_breps == True:
+          cq.Shape.exportBrep(c.locate(val.loc), str(Path(__file__).parent / 'output' / f'{val.name}.brep'))
 
-main()
+
+# temp is what we get when run via cq-editor
+if __name__ in ['__main__', 'temp']:
+    main()
