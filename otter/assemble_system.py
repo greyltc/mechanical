@@ -1,54 +1,28 @@
 #!/usr/bin/env python3
 
-# NOTE: The toolbox module's folder must be found on your PYTHONPATH
-# or in a parent directory of an item in your PYTHONPATH.
-# File loads are done relative to the toolbox module's folder.
-# File saves are made into the working directory.
-# The working directory is set to be a directory on your PYTHONPATH
-# containing this file. Failing that, it becomes pathlib.Path.cwd()
+import cadquery
+from cadquery import CQ, cq
 
 import sys
 import logging
-import pathlib
-import cadquery as cq  # type: ignore[import]
+import numpy as np
+
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
 import aligner
 
-# attempt to import the toolbox module
-# hint = simlink the toolbox folder into the parent of the folder this file is in
-# (if not already done)
-try:
-    import toolbox as tb
-except ImportError:
-    for element in sys.path:
-        this_path = pathlib.Path(str(element)).resolve()
-        sys.path.insert(0, str(this_path.parent))  # look for toolbox in a parent
-        try:
-            import toolbox as tb  # noqa: F811
-            break
-        except ImportError:
-            del sys.path[0]
-        sys.path.insert(
-            0, str(this_path.parent.joinpath("mechanical"))
-        )  # look for toolbox in a parent/mechanical
-        try:
-            import toolbox as tb  # noqa: F811
-            break
-        except ImportError:
-            del sys.path[0]
+# import the chamber drawer
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'environment_chamber'))
+import chamber
 
-if "tb" not in locals():
-    # we failed to import toolbox
-    error_string = (
-        "Failed to import the toolbox module. "
-        "That means the toolbox module's folder is not "
-        "on your PYTHONPATH (or one of its parent dirs). "
-        f"Your PYTHONPATH is {sys.path}"
-    )
-    raise (ValueError(error_string))
-else:
-    logger = logging.getLogger("cadbuilder")
-    logger.info(f'toolbox module imported from "{tb.__file__}"')
+# import the stage mounting plate
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'otter_mounting_plate'))
+import plate
 
+import geometrics.toolbox as tb
+logger = logging.getLogger("cadbuilder")
+logger.info(f'toolbox module imported from "{tb.__file__}"')
 
 def to_holder(this_thing, y_offset):
     """
@@ -60,18 +34,6 @@ def to_holder(this_thing, y_offset):
     )
     ret_obj = ret_obj.translate((0, y_offset, 0))
     return ret_obj
-
-
-# figure out working and top level dirs
-tb.u.set_directories()
-
-# import the chamber drawer
-sys.path.insert(0, str(tb.u.tld.parent.joinpath("environment_chamber")))
-import chamber
-
-# import the stage mounting plate
-sys.path.insert(0, str(tb.u.tld.parent.joinpath("otter_mounting_plate")))
-import plate
 
 # check to see if we can/should use the "show_object" function
 if "show_object" in locals():
@@ -132,17 +94,13 @@ assembly.extend(chamber_build.Solids())
 # get the baseboard PCB step
 pcb_project = "otter_baseboard"
 this_stepfile_name = pcb_project + ".step"
-this_stepfile = tb.u.tld.parent.joinpath(
-    "electronics", pcb_project, "3dOut", this_stepfile_name
-)
+this_stepfile = Path(__file__).parent.parent.parent / "electronics" / pcb_project / "3dOut" / this_stepfile_name
 baseboard = tb.u.import_step(this_stepfile)
 
 # get the crossbar PCB step
 pcb_project = "otter_crossbar"
 this_stepfile_name = pcb_project + ".step"
-this_stepfile = tb.u.tld.parent.joinpath(
-    "electronics", pcb_project, "3dOut", this_stepfile_name
-)
+this_stepfile = Path(__file__).parent.parent.parent / "electronics" / pcb_project / "3dOut" / this_stepfile_name
 crossbar = tb.u.import_step(this_stepfile)
 crossbar_pcb_top_height = 19.5  # from crossbar PCB design
 
@@ -286,9 +244,7 @@ relay_pcb5 = relay_pcb4.translate((0, 0, inter_standoff))
 del relay_pcb
 
 # load mux box
-mux_box = tb.u.import_step(
-    tb.u.tld.parent.joinpath("enclosures", "mux_box", "mux_box.step")
-)
+mux_box = tb.u.import_step(Path(__file__).parent.parent.parent / "enclosures" / "mux_box" / "mux_box.step")
 mux_box = mux_box.rotate((0, 0, 0), (0, 0, 1), 90)
 mux_box_lid_screw_cap_h = 2.77
 mux_box_dims = [
@@ -299,15 +255,13 @@ mux_box_dims = [
 mux_box = mux_box.translate((mux_box_dims[0] / 2, -mux_box_dims[1] / 2, 0))
 
 # load mux box end plate
-mux_box_plate = tb.u.import_step(
-    tb.u.tld.parent.joinpath("enclosures", "mux_box", "mux_box_plate.step")
-)
+mux_box_plate = tb.u.import_step(Path(__file__).parent.parent.parent / "enclosures" / "mux_box" / "mux_box_plate.step")
 mux_box_plate = mux_box_plate.rotate((0, 0, 0), (1, 0, 0), 90)
 mux_box_plate = mux_box_plate.rotate((0, 0, 0), (0, 0, 1), 90)
 mux_box_plate = mux_box_plate.translate((mux_box_dims[0] / 2, -mux_box_dims[1] / 2, 0))
 
 # get the dowel model
-this_stepfile = tb.u.wd.joinpath("components", "P1212.060-012.step")
+this_stepfile = Path(__file__).parent / "components" / "P1212.060-012.step"
 dowel = tb.u.import_step(this_stepfile)
 dowel = dowel.rotate((0, 0, 0), (0, 1, 0), 90)
 
@@ -363,7 +317,8 @@ cpnd = cq.Compound.makeCompound(assembly)
 save_step = True
 if save_step is True:
     logger.info("Saving the big step file (this could take a while)...")
-    tb.u.export_step(cpnd, tb.u.wd.joinpath("assembly.step"))
+    tb.u.export_step(cpnd, Path(__file__).parent / "output" / "assembly.step")
+cq.Shape.exportBrep(cpnd, str(Path(__file__).parent / 'output' / 'assembly.brep'))
 
 if have_so is True:
     for thing in assembly:
