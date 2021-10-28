@@ -8,3 +8,6 @@
 __pycache__/
 
 *.vscode/
+*.step
+*.dxf
+*.stl
