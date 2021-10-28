@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import cadquery
 from cadquery import CQ, cq
-from geometrics import toolbox as tb
-#import geometrics.toolbox as tb
+import geometrics.toolbox.utilities as tbutil
 import pathlib
+import logging
 
 class LaserLabelHolder(object):
     name="tray"
@@ -11,8 +11,8 @@ class LaserLabelHolder(object):
     x_nom = 30  # nominal substrate x dim
     y_nom = 30  # nominal substrate y dim
     xy_extra = 0.2  # add this to substrate x&y dims to find pocket size
-    x_spacing = 2
-    y_spacing = 2
+    x_spacing = 3
+    y_spacing = 3
     shelf_height = 3  # to raise the lower substrate surface this much off the bed
     wall_height = 0.75  # height of wall between substrates
 
@@ -22,34 +22,49 @@ class LaserLabelHolder(object):
 
 
     def __init__(self):
-        pass
+        # setup logging
+        self.lg = logging.getLogger(__name__)
+        self.lg.setLevel(logging.DEBUG)
+
+        ch = logging.StreamHandler()
+        logFormat = logging.Formatter(("%(asctime)s|%(name)s|%(levelname)s|%(message)s"))
+        ch.setFormatter(logFormat)
+        self.lg.addHandler(ch)
+
     
     def make_thing(self, nx=5, ny=5):
         s = self
         co = "CenterOfBoundBox"
 
-        x_len = nx*(s.x_nom+s.xy_extra+s.x_spacing)
+        x_len = nx*(s.x_nom+s.xy_extra+s.x_spacing)        
         y_len = ny*(s.y_nom+s.xy_extra+s.y_spacing)
         z_len = s.shelf_height + s.wall_height
 
-        h00 = CQ().box(x_len, y_len, z_len, centered=(True, True, False))
-        h01 = h00.workplane(centerOption=co).rarray(x_len/nx, y_len/ny, nx, ny, center=True).rect(3,3,centered=True).cutThruAll()
+        one_void = CQ().box(s.x_nom+s.xy_extra, s.y_nom+s.xy_extra, s.shelf_height, centered=(True, True, False)).edges("|Z").fillet(s.cut_tool_diameter/2)
 
-        return h01
+        CQ.undercutRelief2D = tbutil.undercutRelief2D
+        h00 = CQ().box(x_len, y_len, z_len, centered=(True, True, False))
+        h01 = h00.faces('>Z').workplane().rarray(x_len/nx, y_len/ny, nx, ny, center=True).undercutRelief2D(s.y_nom+s.xy_extra,s.y_nom+s.xy_extra, diameter=s.cut_tool_diameter).cutBlind(-s.wall_height)
+        all_voids = h01.faces('<Z').workplane(invert=True).rarray(x_len/nx, y_len/ny, nx, ny, center=True).eachpoint(lambda l: one_void.val().located(l))
+        h02 = h01.cut(all_voids)
+
+        return h02
 
     def build(self, nx=5, ny =5):
         asy = cadquery.Assembly()
 
         # make the bottom piece
         thing = self.make_thing(nx=nx, ny=ny)
+        bb = thing.findSolid().BoundingBox()
+        self.lg.debug(f"extents = ({bb.xlen},{bb.ylen},{bb.zlen})")
         asy.add(thing, name="tray", color=cadquery.Color("gray"))
 
         return asy
 
 def main():
     t = LaserLabelHolder()
-    number_x = 5
-    number_y = 5
+    number_x = 12
+    number_y = 9
     asy = t.build(nx=number_x, ny=number_y)
 
     print_3d = False  # changes hole tolerances, use False for cnc fab
