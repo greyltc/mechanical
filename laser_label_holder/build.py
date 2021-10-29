@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import cadquery
 from cadquery import CQ, cq
 import geometrics.toolbox.utilities as tbutil
@@ -8,17 +9,18 @@ import logging
 class LaserLabelHolder(object):
     name="tray"
     # units are mm
-    x_nom = 30  # nominal substrate x dim
-    y_nom = 30  # nominal substrate y dim
+    x_nom = 30.0  # nominal substrate x dim
+    y_nom = 30.0  # nominal substrate y dim
     xy_extra = 0.2  # add this to substrate x&y dims to find pocket size
-    x_spacing = 3
-    y_spacing = 3
-    shelf_height = 3  # to raise the lower substrate surface this much off the bed
+    x_spacing = 2.8
+    y_spacing = 2.8
+    shelf_height = 3.0  # to raise the lower substrate surface this much off the bed
     wall_height = 0.75  # height of wall between substrates
 
     cut_tool_diameter = 5  # assume a round cutting tool with this diameter
 
     tweezer_allowance_depth = 0.5  # tweezer wells should go this far below the bottom of the substrate
+    tweezer_allowance_width = 12  # width of tweezer slots
 
 
     def __init__(self):
@@ -35,20 +37,34 @@ class LaserLabelHolder(object):
     def make_thing(self, nx=5, ny=5):
         s = self
         co = "CenterOfBoundBox"
+        fudge = 1
 
-        x_len = nx*(s.x_nom+s.xy_extra+s.x_spacing)        
-        y_len = ny*(s.y_nom+s.xy_extra+s.y_spacing)
+        unit_x = s.x_nom+s.xy_extra+s.x_spacing
+        unit_y = s.y_nom+s.xy_extra+s.y_spacing
+
+        x_len = nx*unit_x
+        y_len = ny*unit_y
         z_len = s.shelf_height + s.wall_height
 
         one_void = CQ().box(s.x_nom+s.xy_extra, s.y_nom+s.xy_extra, s.shelf_height, centered=(True, True, False)).edges("|Z").fillet(s.cut_tool_diameter/2)
+        tweezer_void = CQ().box(unit_x+fudge, s.tweezer_allowance_width, s.wall_height+s.tweezer_allowance_depth, centered=(True, True, False))
 
         CQ.undercutRelief2D = tbutil.undercutRelief2D
-        h00 = CQ().box(x_len, y_len, z_len, centered=(True, True, False))
-        h01 = h00.faces('>Z').workplane().rarray(x_len/nx, y_len/ny, nx, ny, center=True).undercutRelief2D(s.y_nom+s.xy_extra,s.y_nom+s.xy_extra, diameter=s.cut_tool_diameter).cutBlind(-s.wall_height)
-        all_voids = h01.faces('<Z').workplane(invert=True).rarray(x_len/nx, y_len/ny, nx, ny, center=True).eachpoint(lambda l: one_void.val().located(l))
+        h00 = CQ().box(x_len, y_len, z_len, centered=(True, True, False))  # limits box
+        #h01 = h00.faces('>Z').workplane().rarray(x_len/nx, y_len/ny, nx, ny, center=True).rect(unit_x+fudge, s.tweezer_allowance_width).cutBlind(-s.wall_height-s.tweezer_allowance_depth)  # x tweezer cuts
+        #h02 = h01.faces('>Z').workplane().rarray(x_len/nx, y_len/ny, nx, ny, center=True).rect(s.tweezer_allowance_width, unit_y+fudge).cutBlind(-s.wall_height-s.tweezer_allowance_depth)  # y tweezer cuts
+        h01 = h00.faces('>Z').workplane().rarray(x_len/nx, y_len/ny, nx, ny, center=True).undercutRelief2D(s.y_nom+s.xy_extra,s.y_nom+s.xy_extra, diameter=s.cut_tool_diameter).cutBlind(-s.wall_height)  # substrate pockets
+        
+        all_voids = h00.faces('<Z').workplane(invert=True).rarray(x_len/nx, y_len/ny, nx, ny, center=True).eachpoint(lambda l: one_void.val().located(l))  # voids under 
         h02 = h01.cut(all_voids)
 
-        return h02
+        tweezer_voids = h00.faces('>Z').workplane(invert=True).rarray(x_len/nx, y_len/ny, nx, ny, center=True).eachpoint(lambda l: tweezer_void.val().located(l))  # tweezer voids
+        h03 = h02.cut(tweezer_voids)
+
+        tweezer_voids2 = h00.faces('>Z').workplane(invert=True).rarray(x_len/nx, y_len/ny, nx, ny, center=True).eachpoint(lambda l: tweezer_void.rotate((0,0,0),(0,0,1),90).val().located(l))  # tweezer voids
+        h04 = h03.cut(tweezer_voids2)
+
+        return h04
 
     def build(self, nx=5, ny =5):
         asy = cadquery.Assembly()
@@ -72,7 +88,7 @@ def main():
         file_note = 'print'
     else:
         file_note = 'cnc'
-    
+
     if "show_object" in globals():
         #show_object(asy)
         for key, val in asy.traverse():
