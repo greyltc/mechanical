@@ -14,7 +14,7 @@ class LaserLabelHolder(object):
     xy_extra = 0.2  # add this to substrate x&y dims to find pocket size
     x_spacing = 2.8
     y_spacing = 2.8
-    shelf_height = 3.0  # to raise the lower substrate surface this much off the bed
+    shelf_height = 3.25  # to raise the lower substrate surface this much off the bed
     wall_height = 0.75  # height of wall between substrates
 
     cut_tool_diameter = 5  # assume a round cutting tool with this diameter

@@ -92,7 +92,7 @@ class ChamberNG(object):
     tube_splooge = 0.5  # if the tube was unbotherd, its center point would cause this much overlap with the substrate
 
     # spring pin spacer parameters
-    sp_spacer_dxf_holes = False  # true if the DXF output should have holes in it, False and their locations and diameters will be printed
+    sp_spacer_dxf_holes = True  # true if the DXF output should have holes in it, False and their locations and diameters will be printed
     sp_d_vals = []  # place to store hole deets
     sp_x_vals = []  # place to store hole deets
     sp_y_vals = []  # place to store hole deets
@@ -1314,10 +1314,10 @@ class ChamberNG(object):
 
 def main():
     # s = ChamberNG(array=(1, 1), subs =(28, 28), spacing=(10, 10), padding=(5,5,0,0))
-    s = ChamberNG(array=(1, 4), subs=(30, 30), spacing=(10, 10), padding=(5, 5, 0, 0))
-    # s = ChamberNG(array=(4, 4), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
-    # s = ChamberNG(array=(5, 5), subs =(30, 30), spacing=(0, 0), padding=(10,10,5,50))
-    # s = ChamberNG(array=(4, 4), subs =(25.4, 25.4), spacing=(10, 10), padding=(5,5,0,0))
+    # s = ChamberNG(array=(1, 4), subs=(30, 30), spacing=(10, 10), padding=(5, 5, 0, 0))
+    # s = ChamberNG(array=(5, 6), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
+    # s = ChamberNG(array=(5, 5), subs =(30, 30), spacing=(0, 0), padding=(10,10,5,5))
+    s = ChamberNG(array=(4, 4), subs =(25.4, 25.4), spacing=(10, 10), padding=(5,5,0,0))
     # s = ChamberNG(array=(1, 4), subs =(25.4, 25.4), spacing=(10, 10), padding=(5,5,0,0))
     # s = ChamberNG(array=(1, 4), subs =(28, 28), spacing=(10, 10), padding=(5,5,0,0))
     (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, spring_pin_spacer_no_holes, substrate_holder, top_pcb) = s.build()
