@@ -137,7 +137,7 @@ class ScratchTool(object):
         #t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[-s.dowel_xy_spacing/2,-s.dowel_xy_spacing/2],[s.dowel_xy_spacing/2,s.dowel_xy_spacing/2]]).cskHole(s.dowel_ultra_clearance_d, 19, 90).val().Solids()[0]  # ultra clearance holes
         t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[-s.dowel_xy_spacing/2,-s.dowel_xy_spacing/2]]).cskHole(dowel_clearance_hole_d, 15, 90).val().Solids()[0]  # clearance hole marked in drawing as "3C9"
         t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[ s.dowel_xy_spacing/2, s.dowel_xy_spacing/2]]).cskHole(dowel_clearance_hole_d, 15, 90).val().Solids()[0]  # clearance slot-hole
-        t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[ s.dowel_xy_spacing/2, s.dowel_xy_spacing/2]]).slot2D(4,3,-45).cutThruAll().val().Solids()[0]  # clearance slot marked in drawing as "3C9"
+        t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[ s.dowel_xy_spacing/2, s.dowel_xy_spacing/2]]).slot2D(4,3,45).cutThruAll().val().Solids()[0]  # clearance slot marked in drawing as "3C9"
 
         if has_center_slot == True:
             t = cq.CQ().add(t).faces(">Z[-1]").workplane(centerOption=po).transformed(rotate=(0, 0, rot)).rect(s.scratch_tool_width_c, y).cutBlind(-(top_z - thickness_remaining_under_slot)).val().Solids()[0]  # cut the central slot
