@@ -46,7 +46,7 @@ class ScratchTool(object):
     bottom_z = 5
 
     glass_pocket_depth = 0.7
-    glass_pocket_xy_pad = 0.3
+    glass_pocket_xy_pad = 0.3  # that's 0.1 larger than worst case glass size
 
     bottom_safe_step_z = 1
     final_safe_step_z = bottom_safe_step_z + glass_pocket_depth
@@ -65,7 +65,8 @@ class ScratchTool(object):
 
     dowel_clearance_fudge_print_3d = 0.7
 
-    scratch_tool_width_o = 6
+    scratch_tool_width_o = 5.9  # for removing material from pixel pad zones
+    scratch_tool_width_o_tc = 3  # for removing material from TC edge. 2.65 to edge of encap shelf, then a bit more
     scratch_tool_width_c = 2
 
     safe_step_z = 0.5
@@ -88,19 +89,29 @@ class ScratchTool(object):
 
         cq.Workplane.undercutRelief2D = tb.u.undercutRelief2D
         b = cq.CQ().box(x, y, s.bottom_z, centered=(True, True, False)).val().Solids()[0]
-        b = cq.CQ().add(b).faces(">Z[-1]").workplane(centerOption=co).rect(s.pedestal_xy, s.pedestal_xy).extrude(s.pedestal_z).val().Solids()[0]  # extrude substrate pedistal
-        b = cq.CQ().add(b).faces(">Z[-1]").workplane(centerOption=co).undercutRelief2D(s.safe_step_xy, s.safe_step_xy, s.ctr).cutBlind(-s.final_safe_step_z).val().Solids()[0]  # cut tiny step under substrate
-        b = cq.CQ().add(b).faces(">Z[-1]").workplane(centerOption=co).undercutRelief2D(s.glass_dim+s.glass_pocket_xy_pad, s.glass_dim+s.glass_pocket_xy_pad, s.ctr).cutBlind(-s.glass_pocket_depth).val().Solids()[0]  # cut glass pocket
-        b = cq.CQ().add(b).faces("<Z[-1]").workplane(centerOption=co)                               .rarray(s.dowel_xy_spacing, s.dowel_xy_spacing, 2, 2).hole(dowel_press_hole_d).val().Solids()[0]  # cut press fit dowel pin holes
-        b = cq.CQ().add(b).faces("<Z[-1]").workplane(centerOption=co).undercutRelief2D(s.centerpunch_xy, s.centerpunch_xy, s.ctr).cutThruAll().val().Solids()[0]  # cut window
+        b = cq.CQ().add(b).edges("|Z").fillet(2).val().Solids()[0]  # fillet side edges
+        b = cq.CQ().add(b).faces("<Z[-1]").edges().chamfer(0.5).val().Solids()[0]  # chamfer bottom edges
+        b = cq.CQ().add(b).faces(">Z[-1]").workplane().rect(s.pedestal_xy, s.pedestal_xy).extrude(s.pedestal_z).val().Solids()[0]  # extrude substrate pedistal
+        b = cq.CQ().add(b).faces(">Z[-1]").workplane().undercutRelief2D(s.safe_step_xy, s.safe_step_xy, s.ctr).cutBlind(-s.final_safe_step_z).val().Solids()[0]  # cut tiny step under substrate
+        b = cq.CQ().add(b).faces(">Z[-1]").workplane().undercutRelief2D(s.glass_dim+s.glass_pocket_xy_pad, s.glass_dim+s.glass_pocket_xy_pad, s.ctr).cutBlind(-s.glass_pocket_depth).val().Solids()[0]  # cut glass pocket
+        b = cq.CQ().add(b).faces("<Z[-1]").workplane().pushPoints([[-s.dowel_xy_spacing/2,-s.dowel_xy_spacing/2]]).hole(dowel_press_hole_d).val().Solids()[0]  # cut press fit dowel pin holes, marked as K7
+        b = cq.CQ().add(b).faces("<Z[-1]").workplane().pushPoints([[ s.dowel_xy_spacing/2,s.dowel_xy_spacing/2]]).hole(dowel_press_hole_d).val().Solids()[0]  # cut press fit dowel pin holes, marked as K7
+        b = cq.CQ().add(b).faces("<Z[-1]").workplane().undercutRelief2D(s.centerpunch_xy, s.centerpunch_xy, s.ctr).cutThruAll().val().Solids()[0]  # cut window
+        b = cq.CQ().add(b).faces(">Z[-1]").edges("<X").chamfer(0.7).val().Solids()[0]  # make rotation indicator
 
         bwp = cq.CQ().add(b)
         # bwp.faces("<Z[-2]").tag("bottom_mate")
         return bwp
 
-    def make_top(self, x, y, print3d=True):
+    def make_top(self, x, y, print3d=True, has_center_slot=True, outer_slot_widths=1, slots_rotated=False):
         s = self
         co = "CenterOfBoundBox"
+        po = "ProjectedOrigin"
+
+        if slots_rotated == True:
+            rot = 90
+        else:
+            rot = 0
 
         # calcs
         top_z = s.total_z - s.bottom_z
@@ -114,20 +125,25 @@ class ScratchTool(object):
         thickness_remaining_under_slot = s.worst_case_glass_thickness + s.pedestal_z - s.glass_pocket_depth
         guide_array_spacing_o = s.guide_spacing_o + s.scratch_tool_width_o
 
+        glass_edge_offset = (s.glass_dim+s.glass_pocket_xy_pad)/2
+
         cq.Workplane.undercutRelief2D = tb.u.undercutRelief2D
         t = cq.CQ().box(x, y, top_z, centered=(True, True, False)).val().Solids()[0]
+        t = cq.CQ().add(t).edges("|Z").fillet(2).val().Solids()[0]  # fillet side edges
+        t = cq.CQ().add(t).faces(">Z[-1]").edges().chamfer(0.5).val().Solids()[0]  # chamfer top edges
         t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).undercutRelief2D(pedistal_pocket_xy, pedistal_pocket_xy, s.ctr).cutBlind(-s.pedestal_z).val().Solids()[0]  # cut indent for pedistal
         t = cq.CQ().add(t).faces("<Z[-2]").workplane(centerOption=co).undercutRelief2D(glass_pocket_xy, glass_pocket_xy, s.ctr).cutBlind(-(s.worst_case_glass_thickness + s.final_glass_thickness_margin)).val().Solids()[0]  # cut pocket glass lives in
         t = cq.CQ().add(t).faces("<Z[-3]").workplane(centerOption=co).undercutRelief2D(s.safe_step_xy, s.safe_step_xy, s.ctr).cutBlind(-s.safe_step_z).val().Solids()[0]  # cut tiny step to protect device surface
-        t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[-s.dowel_xy_spacing/2,-s.dowel_xy_spacing/2],[s.dowel_xy_spacing/2,s.dowel_xy_spacing/2]]).cskHole(s.dowel_ultra_clearance_d, 19, 90).val().Solids()[0]  # ultra clearance holes
-        t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[s.dowel_xy_spacing/2,-s.dowel_xy_spacing/2]]).cskHole(dowel_clearance_hole_d, 15, 90).val().Solids()[0]  # clearance hole marked in drawing as "3C9"
-        t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[-s.dowel_xy_spacing/2,s.dowel_xy_spacing/2]]).cskHole(dowel_clearance_hole_d, 15, 90).val().Solids()[0]  # clearance slot-hole
-        # TODO make the next line a slot
-        t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[-s.dowel_xy_spacing/2,s.dowel_xy_spacing/2]]).hole(dowel_clearance_hole_d).val().Solids()[0]  # clearance slot marked in drawing as "3C9"
+        #t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[-s.dowel_xy_spacing/2,-s.dowel_xy_spacing/2],[s.dowel_xy_spacing/2,s.dowel_xy_spacing/2]]).cskHole(s.dowel_ultra_clearance_d, 19, 90).val().Solids()[0]  # ultra clearance holes
+        t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[-s.dowel_xy_spacing/2,-s.dowel_xy_spacing/2]]).cskHole(dowel_clearance_hole_d, 15, 90).val().Solids()[0]  # clearance hole marked in drawing as "3C9"
+        t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[ s.dowel_xy_spacing/2, s.dowel_xy_spacing/2]]).cskHole(dowel_clearance_hole_d, 15, 90).val().Solids()[0]  # clearance slot-hole
+        t = cq.CQ().add(t).faces("<Z[-1]").workplane(centerOption=co).pushPoints([[ s.dowel_xy_spacing/2, s.dowel_xy_spacing/2]]).slot2D(4,3,-45).cutThruAll().val().Solids()[0]  # clearance slot marked in drawing as "3C9"
 
-
-        t = cq.CQ().add(t).faces(">Z[-1]").workplane(centerOption=co).rarray(guide_array_spacing_o, 1, 2, 1).rect(s.scratch_tool_width_o, y).cutBlind(-(top_z - thickness_remaining_under_slot)).val().Solids()[0]  # cut the outer slots
-        t = cq.CQ().add(t).faces(">Z[-1]").workplane(centerOption=co).rarray(1, 1, 1, 1).rect(s.scratch_tool_width_c, y).cutBlind(-(top_z - thickness_remaining_under_slot)).val().Solids()[0]  # cut the central slot
+        if has_center_slot == True:
+            t = cq.CQ().add(t).faces(">Z[-1]").workplane(centerOption=po).transformed(rotate=(0, 0, rot)).rect(s.scratch_tool_width_c, y).cutBlind(-(top_z - thickness_remaining_under_slot)).val().Solids()[0]  # cut the central slot
+        t = cq.CQ().add(t).faces(">Z[-1]").workplane(centerOption=po).transformed(rotate=(0, 0, rot)).move( glass_edge_offset-outer_slot_widths/2,0).rect(outer_slot_widths, y).cutBlind(-(top_z - thickness_remaining_under_slot)).val().Solids()[0]  # cut an outer slot
+        t = cq.CQ().add(t).faces(">Z[-1]").workplane(centerOption=po).transformed(rotate=(0, 0, rot)).move(-glass_edge_offset+outer_slot_widths/2,0).rect(outer_slot_widths, y).cutBlind(-(top_z - thickness_remaining_under_slot)).val().Solids()[0]  # cut an outer slot
+        
 
         twp = cq.CQ().add(t)
         # twp.faces("<Z[-1]").tag("top_mate")
@@ -145,9 +161,11 @@ class ScratchTool(object):
         bottom = self.make_bottom(x, y, print3d=print3d)
         asy.add(bottom, name="bottom", color=cadquery.Color("red"))
 
-        # make the top piece
-        top = self.make_top(x, y, print3d=print3d)
-        asy.add(top.translate((0, 0, s.pedestal_z)), name="top", color=cadquery.Color("gray"))
+        # make the top pieces
+        top1 = self.make_top(x, y, print3d=print3d, has_center_slot=True, outer_slot_widths=s.scratch_tool_width_o, slots_rotated=False)
+        top2 = self.make_top(x, y, print3d=print3d, has_center_slot=False, outer_slot_widths=s.scratch_tool_width_o_tc, slots_rotated=True)
+        asy.add(top1.translate((0, 0, s.pedestal_z)), name="top1", color=cadquery.Color("gray"))
+        asy.add(top2.translate((0, 0, s.pedestal_z+20)), name="top2", color=cadquery.Color("gray"))
 
         # constrain assembly
         # asy.constrain("bottom?bottom_mate", "top?top_mate", "Point")
