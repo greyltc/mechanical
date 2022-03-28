@@ -114,7 +114,7 @@
        <shape tshape="+1" index="1"/>
       </news>
      </TNaming_NamedShape>
-     <TDataStd_Name id="46" nameguid="2a96b608-ec8b-11d0-bee7-080009dc3333">2eae336a-a457-11ec-a3bc-48e244f505eb_part</TDataStd_Name>
+     <TDataStd_Name id="46" nameguid="2a96b608-ec8b-11d0-bee7-080009dc3333">01c3f38c-a45a-11ec-9180-48e244f505eb_part</TDataStd_Name>
      <TDataStd_TreeNode id="47" treeid="5b896afe-3adf-11d4-b9b7-0060b0ee281b" children="48 "/>
     </label>
     <label tag="9">
@@ -126,7 +126,7 @@
      </TNaming_NamedShape>
      <TDataStd_UAttribute id="50" guid="5b896b00-3adf-11d4-b9b7-0060b0ee281b"/>
      <TDF_TagSource id="51">4</TDF_TagSource>
-     <TDataStd_Name id="52" nameguid="2a96b608-ec8b-11d0-bee7-080009dc3333">2eae336a-a457-11ec-a3bc-48e244f505eb</TDataStd_Name>
+     <TDataStd_Name id="52" nameguid="2a96b608-ec8b-11d0-bee7-080009dc3333">01c3f38c-a45a-11ec-9180-48e244f505eb</TDataStd_Name>
      <TDataStd_TreeNode id="53" treeid="5b896afe-3adf-11d4-b9b7-0060b0ee281b" children="11 "/>
      <label tag="1">
       <TDataStd_TreeNode id="48" treeid="5b896afe-3adf-11d4-b9b7-0060b0ee281b"/>
