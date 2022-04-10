@@ -1,0 +1,2 @@
+needs verification:
+1) substarte slot size to remain unchanged from previous versions: 25.354 square
