@@ -101,7 +101,7 @@ Standard
   9
 $CLAYER
   8
-glass
+pcb
   9
 $CELTYPE
   6
@@ -501,19 +501,19 @@ $TDUCREATE
   9
 $TDUPDATE
  40
-2458909.378115289
+2458909.412477743
   9
 $TDUUPDATE
  40
-2458909.378115289
+2458909.412477743
   9
 $TDINDWG
  40
-0.0000001389
+0.000000162
   9
 $TDUSRTIMER
  40
-0.0001952894
+0.0677459375
   9
 $USRTIMER
  70
@@ -553,7 +553,7 @@ $SPLINESEGS
   9
 $HANDSEED
   5
-1D47
+1D9D
   9
 $SURFTAB1
  70
@@ -1365,9 +1365,9 @@ AcDbViewportTableRecord
  21
 1.0
  12
-20.6664602441726
+88.87045818384883
  22
-20.74034312070307
+-35.63381626636031
  13
 0.0
  23
@@ -1387,15 +1387,15 @@ AcDbViewportTableRecord
  36
 1.0
  17
--27.66959356598005
+-27.66959356598088
  27
--19.53870295786253
+-19.53870295786328
  37
 0.0
  40
-196.6395073349628
+343.1386568976716
  41
-1.968807339449541
+1.762886597938145
  42
 50.0
  43
@@ -1567,7 +1567,7 @@ LAYER
 100
 AcDbSymbolTable
  70
-    20
+    19
   0
 LAYER
   5
@@ -1705,7 +1705,7 @@ pcb
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -1861,7 +1861,7 @@ spacer_pcb
  70
      0
  62
-    -7
+     7
   6
 Continuous
 370
@@ -1991,7 +1991,7 @@ glass
  70
      0
  62
-     7
+    -7
   6
 Continuous
 290
@@ -2115,38 +2115,6 @@ AcAecLayerStandard
   0
 LAYER
   5
-1B1E
-330
-2
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-conn_mounts
- 70
-     0
- 62
-    -6
-  6
-Continuous
-370
-    -3
-390
-F
-347
-98
-348
-0
-1001
-AcAecLayerStandard
-1000
-
-1000
-
-  0
-LAYER
-  5
 1C0B
 330
 2
@@ -2191,7 +2159,7 @@ dims
  70
      0
  62
-     3
+    -3
   6
 Continuous
 290
@@ -2875,7 +2843,7 @@ AcDbSymbolTableRecord
 100
 AcDbBlockTableRecord
   2
-*D18
+*D14
 340
 0
  70
@@ -7209,7 +7177,7 @@ AcDbEntity
 100
 AcDbBlockBegin
   2
-*D18
+*D14
  70
      1
  10
@@ -7219,7 +7187,7 @@ AcDbBlockBegin
  30
 0.0
   3
-*D18
+*D14
   1
 
   0
@@ -21566,8 +21534,6 @@ LWPOLYLINE
 160F
 102
 {ACAD_REACTORS
-330
-1D36
 102
 }
 330
@@ -25385,7 +25351,7 @@ ACAD_VISUALSTYLE
   3
 ACDB_RECOMPOSE_DATA
 350
-1D46
+1D9C
   3
 AcDbVariableDictionary
 350
@@ -25445,7 +25411,7 @@ ACAD_LAYERSTATES
   3
 ACLYDICTIONARY
 360
-1D33
+1D51
   0
 DICTIONARY
   5
@@ -25963,7 +25929,7 @@ EA
   0
 XRECORD
   5
-1D46
+1D9C
 102
 {ACAD_REACTORS
 330
@@ -26059,7 +26025,7 @@ AcDbDictionary
   0
 DICTIONARY
   5
-1D33
+1D51
 102
 {ACAD_REACTORS
 330
@@ -27603,7 +27569,7 @@ TABLESTYLE
 102
 {ACAD_XDICTIONARY
 360
-1D44
+1D9A
 102
 }
 330
@@ -34733,7 +34699,7 @@ DictionaryVariables
   0
 DICTIONARY
   5
-1D44
+1D9A
 330
 87
 100
@@ -34745,19 +34711,19 @@ AcDbDictionary
   3
 ACAD_ROUNDTRIP_2008_TABLESTYLE_CELLSTYLEMAP
 360
-1D45
+1D9B
   0
 CELLSTYLEMAP
   5
-1D45
+1D9B
 102
 {ACAD_REACTORS
 330
-1D44
+1D9A
 102
 }
 330
-1D44
+1D9A
 100
 AcDbCellStyleMap
  90

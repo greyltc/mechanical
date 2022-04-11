@@ -77,13 +77,15 @@ class Badger(object):
       "0",
       "base_plate",
       "connector",
-      "cu_nubs",
       "cu_base",
       "cu_dowel_pf",
+      "cu_nubs",
       "cu_towers",
       "Defpoints",
+      "dims",
       "dowels",
       "glass",
+      "metal_mask",
       "pcb",
       "pin_holes",
       "plate_mounts",
@@ -123,14 +125,17 @@ class Badger(object):
     ventscrews = CQ().pushPoints(self.screw_spots).eachpoint(lambda loc: ventscrew.val().moved(loc), True)
     return ventscrews
   
-  def make_reservation(self):
-    vss = self.get_ventscrews_a()
+  def make_reservation(self, do_ventscrews:bool=False):
+    if do_ventscrews:
+      vss = self.get_ventscrews_a()
     sr = CQ().box(self.reserve_xy,self.reserve_xy,self.reserve_h,centered=(True,True,False))
     sr = sr.translate((0,0,-self.pcb_thickness-self.pcb_spacer_h-self.cu_base_t))
     wires = CQ().box(self.wire_slot_depth, 2.54*20, 2.54*2, centered=(False, True, False)).translate((-self.reserve_xy/2,0,self.wire_slot_z+self.pcb_thickness/2))
     wiresA = wires.translate((0, self.wire_slot_offset,0))
     wiresB = wires.translate((0,-self.wire_slot_offset,0))
-    sr = sr.cut(wiresA).cut(wiresB).add(vss)
+    sr = sr.cut(wiresA).cut(wiresB)
+    if do_ventscrews:
+      sr = sr.add(vss)
     # these next two lines are very expensive (and optional)!
     sr = sr.add(self.get_pcb())
     #sr = CQ().union(sr)
@@ -171,7 +176,7 @@ class Badger(object):
     slots = slots.translate((0,0,self.pcb_thickness/2))
     return (slots)
 
-  def build(self):
+  def build(self, do_ventscrews:bool=False):
     s = self
     asy = cadquery.Assembly()
 
@@ -203,10 +208,11 @@ class Badger(object):
     pcb = self.get_pcb()
     asy.add(pcb, name="pcb", color=cadquery.Color("brown"))
 
-    # the vent screws
-    vss_a = self.get_ventscrews_a()
-    vss_b = self.get_ventscrews_b()
-    asy.add(vss_a.add(vss_b), name="ventscrew")
+    if do_ventscrews:
+      # the vent screws
+      vss_a = self.get_ventscrews_a()
+      vss_b = self.get_ventscrews_b()
+      asy.add(vss_a.add(vss_b), name="ventscrew")
 
     # the alignment slot plate
     slots = self.make_slot_plate()
@@ -215,7 +221,7 @@ class Badger(object):
     pusher = self.make_pusher_plate()
     asy.add(pusher, name="pusher", color=cadquery.Color("GRAY28"))
 
-    reserve = self.make_reservation()
+    reserve = self.make_reservation(do_ventscrews=do_ventscrews)
     asy.add(reserve, name="space_reservation")
 
 
@@ -224,7 +230,7 @@ class Badger(object):
 
 def main():
   s = Badger()
-  asy = s.build()
+  asy = s.build(do_ventscrews=False)
   
   if "show_object" in globals():  # we're in cq-editor
     #show_object(asy)
