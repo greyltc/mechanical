@@ -50,6 +50,10 @@ class Badger(object):
     (-93,  0),
   ]
 
+  gs = globals()
+  ls = locals()
+  print(gs)
+  print(ls)
   dxf_filepath = Path(__file__).parent / "drawings" / "2d.dxf"
   pcb_step_filepath = Path(__file__).parent / "components" / "pcb.step"
   vent_screw_filepath = Path(__file__).parent / "components" / "vent_screw.step"
