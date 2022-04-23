@@ -1,6 +1,8 @@
 {
-    "python.testing.unittestEnabled": true,
-    "python.envFile": "${workspaceFolder}/.env",
     "python.formatting.provider": "black",
     "editor.formatOnSave": true,
+    "python.envFile": "${workspaceFolder}${pathSeparator}.env",
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "${workspaceFolder}${pathSeparator}src",
+    },
 }

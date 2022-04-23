@@ -32,10 +32,10 @@ class TwoDToThreeD(object):
 
         stacks = {}
         for stack_instructions in self.stacks:
-            # asy = cadquery.Assembly()
-            asy = None
+            asy = cadquery.Assembly()
+            # asy = None
             if stack_instructions["name"] in stacks_to_build:
-                # asy.name = stack_instructions["name"]
+                asy.name = stack_instructions["name"]
                 z_base = 0
                 for stack_layer in stack_instructions["layers"]:
                     t = stack_layer["thickness"]
@@ -54,7 +54,7 @@ class TwoDToThreeD(object):
 
                     wp = wp.finalize().extrude(t)  # the workpiece base is now made
                     if len(stack_layer["drawing_layer_names"]) > 1:
-                        wp = wp.faces(">Z").sketch()
+                        wp = wp.faces(">Z").workplane(centerOption="ProjectedOrigin").sketch()
 
                         for drawing_layer_name in stack_layer["drawing_layer_names"][1:]:
                             layer_comp = cadquery.Compound.makeCompound(layers[drawing_layer_name].faces().vals())
@@ -70,12 +70,12 @@ class TwoDToThreeD(object):
                         # wp = wp.finalize().cutThruAll()  # this is a fail, but should work. if it's not a fail is slower than the below line
                         wp = wp.finalize().extrude(-t, combine="cut")
 
+                    # give option to override calculated z_base
+                    if "z_base" in stack_layer:
+                        z_base = stack_layer["z_base"]
+
                     new = wp.translate([0, 0, z_base])
-                    if asy is None:  # some silly hack needed to work around https://github.com/CadQuery/cadquery/issues/993
-                        asy = cadquery.Assembly(new, name=stack_layer["name"], color=cadquery.Color(stack_layer["color"]))
-                        # asy.name = stack_instructions["name"]
-                    else:
-                        asy.add(new, name=stack_layer["name"], color=cadquery.Color(stack_layer["color"]))
+                    asy.add(new, name=stack_layer["name"], color=cadquery.Color(stack_layer["color"]))
                     z_base = z_base + t
                 stacks[stack_instructions["name"]] = asy
         return stacks
@@ -101,15 +101,15 @@ class TwoDToThreeD(object):
                 if layer_name in layer_set:
                     which_file = dxf_filepaths[i]
                     break
+            else:
+                raise ValueError(f"Could not a layer named '{layer_name}' in any drawing")
             to_exclude = list(layer_set - set((layer_name,)))
             layers[layer_name] = cadquery.importers.importDXF(which_file, exclude=to_exclude)
-            # faces[layer_name] = wp.faces().vals()
-            # wires[layer_name] = faces[layer_name].wires().vals()
 
         return layers
 
     @classmethod
-    def outputter(cls, asys):
+    def outputter(cls, asys, wrk_dir, save_dxfs=False, save_stls=False, save_steps=False, save_breps=False):
         """do output tasks on a dictionary of assemblies"""
         for stack_name, asy in asys.items():
             if "show_object" in globals():  # we're in cq-editor
@@ -128,32 +128,32 @@ class TwoDToThreeD(object):
                                 odict["color"] = rgb
                             show_object(c.locate(val.loc), name=val.name, options=odict)
             else:
-                # save assembly
-                asy.save(str(Path(__file__).parent / "output" / f"{stack_name}.step"))
-                asy.save(str(Path(__file__).parent / "output" / f"{stack_name}.glb"), "GLTF")
-                # cadquery.exporters.assembly.exportCAF(asy, str(Path(__file__).parent / "output" / f"{stack_name}.std"))
-                # cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(Path(__file__).parent / "output" / f"{stack_name}.brep"))
+                Path.mkdir(wrk_dir / "output", exist_ok=True)
 
-                save_individual_stls = False
-                save_individual_steps = False
-                save_individual_breps = False
-                save_individual_dxfs = True
+                # save assembly
+                asy.save(str(wrk_dir / "output" / f"{stack_name}.step"))
+                # asy.save(str(wrk_dir / "output" / f"{stack_name}.brep"))
+                asy.save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
+                asy.save(str(wrk_dir / "output" / f"{stack_name}.xml"), "XML")
+
+                # cadquery.exporters.assembly.exportCAF(asy, str(wrk_dir / "output" / f"{stack_name}.std"))
+                # cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(wrk_dir / "output" / f"{stack_name}.brep"))
 
                 # save each shape individually
                 for key, val in asy.traverse():
                     shapes = val.shapes
                     if shapes != []:
                         c = cq.Compound.makeCompound(shapes)
-                        if save_individual_stls == True:
-                            cadquery.exporters.export(c.locate(val.loc), str(Path(__file__).parent / "output" / f"{stack_name}-{val.name}.stl"))
-                        if save_individual_steps == True:
-                            cadquery.exporters.export(c.locate(val.loc), str(Path(__file__).parent / "output" / f"{stack_name}-{val.name}.step"))
-                        if save_individual_breps == True:
-                            cq.Shape.exportBrep(c.locate(val.loc), str(Path(__file__).parent / "output" / f"{stack_name}-{val.name}.brep"))
-                        if save_individual_dxfs == True:
+                        if save_stls == True:
+                            cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.stl"))
+                        if save_steps == True:
+                            cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.step"))
+                        if save_breps == True:
+                            cq.Shape.exportBrep(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.brep"))
+                        if save_dxfs == True:
                             cl = c.locate(val.loc)
                             bb = cl.BoundingBox()
                             zmid = (bb.zmin + bb.zmax) / 2
                             nwp = CQ("XY", origin=(0, 0, zmid)).add(cl)
                             dxface = nwp.section()
-                            cadquery.exporters.export(dxface, str(Path(__file__).parent / "output" / f"{stack_name}-{val.name}.dxf"), cadquery.exporters.ExportTypes.DXF)
+                            cadquery.exporters.export(dxface, str(wrk_dir / "output" / f"{stack_name}-{val.name}.dxf"), cadquery.exporters.ExportTypes.DXF)

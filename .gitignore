@@ -2,6 +2,7 @@
 */output/*.step
 */output/*.dxf
 */output/*.stl
+*/output
 *.bak
 *.csg
 *.pyc
