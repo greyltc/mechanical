@@ -1,0 +1,6 @@
+{
+    "python.testing.unittestEnabled": true,
+    "python.envFile": "${workspaceFolder}/.env",
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true,
+}

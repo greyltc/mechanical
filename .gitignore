@@ -7,7 +7,6 @@
 *.pyc
 __pycache__/
 
-*.vscode/
 *.step
 *.dxf
 *.stl
