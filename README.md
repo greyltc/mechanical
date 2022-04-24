@@ -1,34 +1,49 @@
 # src/geometrics
 A python module with some helpful tools for 3d design
 
-## Install
-Instructions for Linux (similar should apply on other platforms):
+## Build
+From the root of this repo, requires https://github.com/pypa/build
 ```
-python -m venv ~/venvs/geometrics --system-site-packages
-source ~/venvs/geometrics/bin/activate
-python -m pip install -e "git+https://github.com/greyltc/mechanical.git@master#egg=geometrics&subdirectory=geometrics"
+python -m build --outdir .buildwork
+#python -m build --no-isolation --outdir buildout
 ```
 
-# chamber_ng/
+## Install & Use Locally
+After building, from the root of this repo, requires https://github.com/pypa/installer
+### With venv
+```
+python -m venv ~/venvs/geometrics --clear --system-site-packages --without-pip
+source ~/venvs/geometrics/bin/activate  # or however venvs are activated on your platform, see https://docs.python.org/3/library/venv.html#creating-virtual-environments
+python -m installer .buildwork/*.whl
+deactivate  # when you're done with the venv
+```
+### With .local
+```
+python -m installer --destdir /tmp/dummy .buildwork/*.whl
+cp -a /tmp/dummy/usr/* ~/.local/.
+```
+
+## Some folders
+### chamber_ng/
 next generation substrate holder
 
-# scratch_tool/
+### scratch_tool/
 unit to guide scratching utensils
 
-# lim_chamber/
+### lim_chamber/
 chamber for Jong
 
-# lightsource/
+### lightsource/
 lightsource mockup
 
-# sandwich/
+### sandwich/
 older device holder sandwich stackup
 
-# groovy/
+### groovy/
 o-ring grooves
 
-# badger/
+### badger/
 badger project
 
-# otter/
+### otter/
 otter project

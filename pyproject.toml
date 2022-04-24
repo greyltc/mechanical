@@ -1,9 +1,42 @@
 [build-system]
 requires = [
-  "setuptools >= 40.9.0",
+  "setuptools @ git+https://github.com/pypa/setuptools#tag=v62.1.0",
   "wheel",
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "geometrics"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+keywords = ["3d", "mechanical"]
+authors = [
+  {name = "Greyson Christoforo", email = "grey@christoforo.net"}
+]
+maintainers = [
+  {name = "Greyson Christoforo", email = "grey@christoforo.net"}
+]
+classifiers = [
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
+
+dynamic = ['version']
+
+dependencies = [
+  "cadquery"
+]
+
+[project.urls]
+homepage = "https://github.com/greyltc/mechanical"
+documentation = "https://github.com/greyltc/mechanical/blob/master/README.md"
+repository = "https://github.com/greyltc/mechanical.git"
+changelog = "https://github.com/greyltc/mechanical/blob/master/CHANGELOG.md"
+
+[tool.setuptools.dynamic]
+version = {attr = "geometrics.__version__"}
 
 [tool.black]
 line-length = 999999
