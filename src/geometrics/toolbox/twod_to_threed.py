@@ -134,7 +134,7 @@ class TwoDToThreeD(object):
                 asy.save(str(wrk_dir / "output" / f"{stack_name}.step"))
                 # asy.save(str(wrk_dir / "output" / f"{stack_name}.brep"))
                 asy.save(str(wrk_dir / "output" / f"{stack_name}.xml"), "XML")
-                asy.save(str(wrk_dir / "output" / f"{stack_name}.vtkjs"), "VTKJS")
+                # asy.save(str(wrk_dir / "output" / f"{stack_name}.vtkjs"), "VTKJS")
 
                 # stupid workaround for gltf export bug: https://github.com/CadQuery/cadquery/issues/993
                 asy2 = None
