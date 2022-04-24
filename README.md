@@ -15,12 +15,17 @@ After building, from the root of this repo, requires https://github.com/pypa/ins
 python -m venv ~/venvs/geometrics --clear --system-site-packages --without-pip
 source ~/venvs/geometrics/bin/activate  # or however venvs are activated on your platform, see https://docs.python.org/3/library/venv.html#creating-virtual-environments
 python -m installer .buildwork/*.whl
+rm -rf /tmp/dummy
+rm -rf .buildwork
+
 deactivate  # when you're done with the venv
 ```
 ### With .local
 ```
 python -m installer --destdir /tmp/dummy .buildwork/*.whl
 cp -a /tmp/dummy/usr/* ~/.local/.
+rm -rf /tmp/dummy
+rm -rf .buildwork
 ```
 
 ## Some folders

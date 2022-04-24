@@ -133,8 +133,17 @@ class TwoDToThreeD(object):
                 # save assembly
                 asy.save(str(wrk_dir / "output" / f"{stack_name}.step"))
                 # asy.save(str(wrk_dir / "output" / f"{stack_name}.brep"))
-                asy.save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
                 asy.save(str(wrk_dir / "output" / f"{stack_name}.xml"), "XML")
+                # asy.save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
+
+                # stupid workaround for gltf export bug: https://github.com/CadQuery/cadquery/issues/993
+                asy2 = None
+                for name, child in asy.traverse():
+                    if asy2 is None:
+                        asy2 = cadquery.Assembly(child.obj, name=child.name, color=child.color)
+                    else:
+                        asy2.add(child, name=name)
+                asy2.save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
 
                 # cadquery.exporters.assembly.exportCAF(asy, str(wrk_dir / "output" / f"{stack_name}.std"))
                 # cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(wrk_dir / "output" / f"{stack_name}.brep"))

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import cadquery
 from geometrics.toolbox.twod_to_threed import TwoDToThreeD
 from pathlib import Path
 import os
