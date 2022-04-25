@@ -138,13 +138,13 @@ class TwoDToThreeD(object):
 
                 # stupid workaround for gltf export bug: https://github.com/CadQuery/cadquery/issues/993
                 asy2 = None
-                for path, child in asy._flatten().items():
-                    if "/" in path:
-                        name = path.split("/")[1]
-                        if asy2 is None:
-                            asy2 = cadquery.Assembly(child.obj, name=child.name, color=child.color)
-                        else:
-                            asy2.add(child, name=name)
+                # for path, child in asy._flatten().items():
+                for child in asy.children:
+                    # if "/" in path:
+                    if asy2 is None:
+                        asy2 = cadquery.Assembly(child.obj, name=child.name, color=child.color)
+                    else:
+                        asy2.add(child.obj, name=child.name, color=child.color)
                 asy2.save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
 
                 # cadquery.exporters.assembly.exportCAF(asy, str(wrk_dir / "output" / f"{stack_name}.std"))

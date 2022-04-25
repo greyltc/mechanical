@@ -10,22 +10,22 @@ python -m build --outdir .buildwork
 
 ## Install & Use Locally
 After building, from the root of this repo, requires https://github.com/pypa/installer
-### With venv
+### With venv (recommended)
+These instructions are for Linux, but working with virtual environments should be very similar on all platforms. See https://docs.python.org/3/library/venv.html#creating-virtual-environments
 ```
 python -m venv ~/venvs/geometrics --clear --system-site-packages --without-pip
-source ~/venvs/geometrics/bin/activate  # or however venvs are activated on your platform, see https://docs.python.org/3/library/venv.html#creating-virtual-environments
+source ~/venvs/geometrics/bin/activate
 python -m installer .buildwork/*.whl
-rm -rf /tmp/dummy
 rm -rf .buildwork
 
 deactivate  # when you're done with the venv
 ```
-### With .local
+### With USER_SITE (not recommended)
 ```
 python -m installer --destdir /tmp/dummy .buildwork/*.whl
-cp -a /tmp/dummy/usr/* ~/.local/.
-rm -rf /tmp/dummy
 rm -rf .buildwork
+cp -a /tmp/dummy/usr/* "$(python -m site --user-base)"
+rm -rf /tmp/dummy
 ```
 
 ## Some folders
