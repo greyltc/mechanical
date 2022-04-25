@@ -26,12 +26,16 @@ def main():
     pcb_thickness = 1.6
     pusher_thickness = 4
     dowel_length = copper_thickness + slot_plate_thickness + pcb_thickness + pusher_thickness + 2
-    wall_height = 24
+    wall_height = 28
     clamper_threads_length = 25
     clamper_thread_depth = 5
 
     # copper base starts at this height
     copper_base_zero = -copper_thickness - slot_plate_thickness
+
+    hole_spacing = 38.35
+    cb_diameter = 15.25
+    cb_hole_diameter = 11.5
 
     instructions.append(
         {
