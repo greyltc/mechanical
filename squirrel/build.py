@@ -136,8 +136,6 @@ def main():
     to_build = [""]
     asys = ttt.build(to_build)
 
-    # real_pcb = geometrics.toolbox.u.import_step(wrk_dir.joinpath("components", "pcb.step"))
-
     TwoDToThreeD.outputter(asys, wrk_dir)
 
 
