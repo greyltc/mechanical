@@ -26,20 +26,17 @@ def main():
     instructions = []
     substrate_thickness = 0.3
     copper_thickness = 10
+    thermal_pedestal_height = 10
     slot_plate_thickness = 2.3
     pcb_thickness = 1.6
     pusher_thickness = 4
-    dowel_length = copper_thickness + slot_plate_thickness + pcb_thickness + pusher_thickness + 2
+    dowel_length = copper_thickness + slot_plate_thickness + pcb_thickness + pusher_thickness + thermal_pedestal_height + 2
     wall_height = 28
     clamper_threads_length = 25
     clamper_thread_depth = 5
 
     # copper base starts at this height
     copper_base_zero = -copper_thickness - slot_plate_thickness
-
-    hole_spacing = 38.35
-    cb_diameter = 15.25
-    cb_hole_diameter = 11.5
 
     as_name = "squirrel"
     instructions.append(
@@ -50,7 +47,7 @@ def main():
                     "name": "dowels",
                     "color": "WHITE",
                     "thickness": dowel_length,
-                    "z_base": copper_base_zero,
+                    "z_base": copper_base_zero - thermal_pedestal_height,
                     "drawing_layer_names": [
                         "dowel",
                     ],
@@ -141,7 +138,7 @@ def main():
     to_build = [""]
     asys = ttt.build(to_build)
 
-    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
     center_shift = (-4.5, 0)
     wall_outer = (229, 180)
     corner_holes_offset = 7.5
@@ -158,6 +155,7 @@ def main():
         extents,
         hps,
         screw: SocketHeadCapScrew,
+        pedistal_height,
         zbase: float,
     ):
         """the thermal base"""
@@ -165,12 +163,15 @@ def main():
         color = cadquery.Color("GOLD")
         fillet = 2
 
+        pedistal_xy = (161, 152)
+        pedistal_fillet = 10
+
         dowelpts = [(-73, -66), (73, 66)]
         dowel_nominal_d = 3  # marked on drawing for pressfit with ⌀3K7
 
         # clamping stuff
-        setscrew_len = 20
-        setscrew_recess = 7
+        setscrew_len = 25
+        setscrew_recess = 12
         setscrew = SetScrew(size="M6-1", fastener_type="iso4026", length=setscrew_len, simple=no_threads)
         setscrewpts = [(-73, -43.5), (73, 43.5)]
 
@@ -187,6 +188,11 @@ def main():
         wp = wp.finalize().extrude(thickness)
         wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
 
+        # pedistal
+        wp = wp.faces(">Z").workplane().sketch().rect(*pedistal_xy).reset().vertices().fillet(pedistal_fillet)
+        wp = wp.finalize().extrude(pedistal_height)
+        wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
+
         hardware = cq.Assembly(None)  # a place to keep the harware
 
         # corner screws
@@ -200,12 +206,12 @@ def main():
         wp = wp.faces(">Z").workplane(offset=setscrew_len - setscrew_recess).pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_recess, baseAssembly=hardware)
 
         # waterblock mounting
-        wp = wp.faces(">Z").workplane().pushPoints(wb_mount_screw_points).clearanceHole(fastener=waterblock_mount_screw, baseAssembly=hardware)
+        wp = wp.faces(">Z[-2]").workplane().pushPoints(wb_mount_screw_points).clearanceHole(fastener=waterblock_mount_screw, baseAssembly=hardware)
 
         aso.add(wp, name=name, color=color)
         aso.add(hardware.toCompound(), name="hardware")
 
-    mkbase(asys[as_name], copper_thickness, center_shift, base_outer, corner_hole_points, corner_screw, copper_base_zero)
+    mkbase(asys[as_name], copper_thickness, center_shift, base_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero - thermal_pedestal_height)
 
     def mkwalls(
         aso: cadquery.Assembly,
@@ -225,16 +231,28 @@ def main():
         outer_fillet = 2
         inner_fillet = 10
 
+        cb_diameter = 15.25
+        cb_hole_diameter = 11.5
+        cbd = 2
+
+        back_holes_shift = 40
+        back_holes_spacing = 38.35
+        front_holes_spacing = 60
+
         wp = CQ().workplane(offset=zbase).sketch()
         wp = wp.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
         wp = wp.push([inner_shift]).rect(inner[0], inner[1], mode="s").reset().vertices().fillet(inner_fillet)
         wp = wp.finalize().extrude(height)
         wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
 
+        # gas holes
+        wp = wp.faces("<X").workplane(centerOption="CenterOfBoundBox").center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
+        wp = wp.faces(">X").workplane(centerOption="CenterOfBoundBox").rarray(front_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
+
         wp = wp.faces("<Z").workplane().pushPoints(hps).hole(screw.clearance_hole_diameters["Normal"])
         aso.add(wp, name=name, color=color)
 
-    mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, corner_screw, copper_base_zero + copper_thickness)
+    mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, corner_screw, copper_base_zero + copper_thickness - thermal_pedestal_height)
 
     TwoDToThreeD.outputter(asys, wrk_dir)
 
