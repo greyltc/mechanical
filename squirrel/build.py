@@ -139,7 +139,7 @@ def main():
     to_build = [""]
     asys = ttt.build(to_build)
 
-    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
     center_shift = (-4.5, 0)
     wall_outer = (229, 180)
     corner_holes_offset = 7.5
@@ -232,15 +232,17 @@ def main():
         inner = (extents[0] - 2 * thickness, extents[1] - 2 * thickness)
         inner_shift = cshift
         outer_fillet = 2
-        inner_fillet = 10
+        inner_fillet = 15
+
+        nut = HexNut(size="M6-1", fastener_type="iso4033")
+        flat_to_flat = math.sin(60 * math.pi / 180) * nut.nut_diameter
 
         cb_hole_diameter = 20.6375
-        # cb_diameter = cb_hole_diameter + 3.75
         cb_diameter = 22.22
-        cbd = 1.05  # change this to compress o-ring properly
+        cbd = 1.05  # TODO:change this to compress o-ring properly
 
-        back_holes_shift = 40
-        back_holes_spacing = 40
+        back_holes_shift = 32
+        back_holes_spacing = 35
         front_holes_spacing = 60
 
         wp = CQ().workplane(offset=zbase).sketch()
@@ -249,8 +251,11 @@ def main():
         wp = wp.finalize().extrude(height)
         wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
 
-        # corner holes
-        wp = wp.faces("<Z").workplane().pushPoints(hps).hole(screw.clearance_hole_diameters["Normal"])
+        wall_hardware = cq.Assembly(None, name="wall_hardware")
+
+        # corner holes (with nuts and nut pockets)
+        wp = wp.faces(">Z").workplane(offset=-nut.nut_thickness).pushPoints(hps).clearanceHole(fastener=nut, counterSunk=False, baseAssembly=wall_hardware)
+        wp = wp.faces(">Z").workplane().sketch().push(hps[0:4:3]).rect(flat_to_flat, nut.nut_diameter, angle=45).reset().push(hps[1:3]).rect(flat_to_flat, nut.nut_diameter, angle=-45).reset().vertices().fillet(nut.nut_diameter / 4).finalize().cutBlind(-nut.nut_thickness)
 
         # gas holes
         wp = wp.faces("<X").workplane(centerOption="CenterOfBoundBox").center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
@@ -258,21 +263,21 @@ def main():
 
         aso.add(wp, name=name, color=color)
 
-        pipe_fitting = import_step(wrk_dir.joinpath("components", "5483T93_Miniature Nickel-Plated Brass Pipe Fitting.STEP")).translate((0, 0, -6.35))
+        pipe_fitting = import_step(wrk_dir.joinpath("components", "5483T93_Miniature Nickel-Plated Brass Pipe Fitting.step")).translate((0, 0, -6.35))
 
-        fitting_list = []
+        hardware_list = []
         wppf = wp.faces(">X").workplane(centerOption="CenterOfBoundBox").center(front_holes_spacing / 2, 0)
-        fitting_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
+        hardware_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
         wppf = wp.faces(">X").workplane(centerOption="CenterOfBoundBox").center(-front_holes_spacing / 2, 0)
-        fitting_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
+        hardware_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
         wppf = wp.faces("<X").workplane(centerOption="CenterOfBoundBox").center(back_holes_shift - back_holes_spacing / 2, 0)
-        fitting_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
+        hardware_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
         wppf = wp.faces("<X").workplane(centerOption="CenterOfBoundBox").center(back_holes_shift + back_holes_spacing / 2, 0)
-        fitting_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
+        hardware_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
 
-        pipe_fittings = cadquery.Compound.makeCompound(fitting_list)
+        wall_hardware.add(cadquery.Compound.makeCompound(hardware_list))
 
-        aso.add(pipe_fittings, name="pipe_fittings")
+        aso.add(wall_hardware.toCompound(), name="wall_hardware")
 
     mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, corner_screw, copper_base_zero + copper_thickness - thermal_pedestal_height)
 
