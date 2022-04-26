@@ -87,10 +87,12 @@ std_washers = {
     "m5": {"r_i": 5.3 / 2, "r_o": 10 / 2, "h": 1.0},
 }
 
-# Standard countersink screw with cross-head (including pozidrive) parameters (DIN 965)
-# http://www.fasteners.eu/standards/DIN/965/
+# Standard countersink socket screw parameters (ISO 10642)
+# https://www.engineersedge.com/hardware/bs_en_iso_10642_14583.htm
+# https://engineersbible.com/countersunk-iso/
 std_countersinks = {
-    "m5": {"cap_r": 9.2 / 2, "cap_h": 2.5, "csk_r": 9.2 / 2, "csk_h": 2.5, "angle": 90}
+    "m4": {"cap_r": 8.96 / 2, "cap_h": 2.48, "csk_r": 9.18 / 2, "angle": 90},
+    "m5": {"cap_r": 11.2 / 2, "cap_h": 3.1, "csk_r": 11.47 / 2, "angle": 90},
 }
 
 # Standard hex socket drivers with 1/4" square drive e.g. Bahco 6700SM-8
@@ -143,6 +145,46 @@ std_orings = {
         "id": 190.17,
         "cs": 2.62,
         "id_tol": 1.140,
+        "cs_tol": 0.080,
+        "gland_depth": 0.077 * 25.4,
+        "groove_w": 0.1225 * 25.4,
+    },
+    170: {
+        "id": 196.52,
+        "cs": 2.62,
+        "id_tol": 1.140,
+        "cs_tol": 0.080,
+        "gland_depth": 0.077 * 25.4,
+        "groove_w": 0.1225 * 25.4,
+    },
+    171: {
+        "id": 202.87,
+        "cs": 2.62,
+        "id_tol": 1.140,
+        "cs_tol": 0.080,
+        "gland_depth": 0.077 * 25.4,
+        "groove_w": 0.1225 * 25.4,
+    },
+    172: {
+        "id": 209.22,
+        "cs": 2.62,
+        "id_tol": 1.270,
+        "cs_tol": 0.080,
+        "gland_depth": 0.077 * 25.4,
+        "groove_w": 0.1225 * 25.4,
+    },
+    173: {
+        "id": 215.57,
+        "cs": 2.62,
+        "id_tol": 1.270,
+        "cs_tol": 0.080,
+        "gland_depth": 0.077 * 25.4,
+        "groove_w": 0.1225 * 25.4,
+    },
+    174: {
+        "id": 221.92,
+        "cs": 2.62,
+        "id_tol": 1.270,
         "cs_tol": 0.080,
         "gland_depth": 0.077 * 25.4,
         "groove_w": 0.1225 * 25.4,
