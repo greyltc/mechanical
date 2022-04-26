@@ -175,7 +175,9 @@ def main():
         setscrew = SetScrew(size="M6-1", fastener_type="iso4026", length=setscrew_len, simple=no_threads)
         setscrewpts = [(-73, -43.5), (73, 43.5)]
 
-        waterblock_mount_screw = SocketHeadCapScrew(size="M6-1", fastener_type="iso4762", length=15, simple=no_threads)
+        # waterblock screws
+        wb_screw_len = 25
+        waterblock_mount_screw = SocketHeadCapScrew(size="M6-1", fastener_type="iso4762", length=wb_screw_len, simple=no_threads)
         wb_mount_screw_points = [
             (120, 80),
             (120, -80),
@@ -245,11 +247,13 @@ def main():
         wp = wp.finalize().extrude(height)
         wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
 
+        # corner holes
+        wp = wp.faces("<Z").workplane().pushPoints(hps).hole(screw.clearance_hole_diameters["Normal"])
+
         # gas holes
         wp = wp.faces("<X").workplane(centerOption="CenterOfBoundBox").center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
         wp = wp.faces(">X").workplane(centerOption="CenterOfBoundBox").rarray(front_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
 
-        wp = wp.faces("<Z").workplane().pushPoints(hps).hole(screw.clearance_hole_diameters["Normal"])
         aso.add(wp, name=name, color=color)
 
     mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, corner_screw, copper_base_zero + copper_thickness - thermal_pedestal_height)
