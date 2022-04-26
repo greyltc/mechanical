@@ -4,6 +4,7 @@ import cadquery
 import cadquery as cq
 from cadquery import CQ
 from geometrics.toolbox.twod_to_threed import TwoDToThreeD
+from geometrics.toolbox.utilities import import_step
 from pathlib import Path
 from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, ButtonHeadScrew, SetScrew
 import cq_warehouse.extensions
@@ -138,7 +139,7 @@ def main():
     to_build = [""]
     asys = ttt.build(to_build)
 
-    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
     center_shift = (-4.5, 0)
     wall_outer = (229, 180)
     corner_holes_offset = 7.5
@@ -233,12 +234,13 @@ def main():
         outer_fillet = 2
         inner_fillet = 10
 
-        cb_diameter = 15.25
-        cb_hole_diameter = 11.5
-        cbd = 2
+        cb_hole_diameter = 20.6375
+        # cb_diameter = cb_hole_diameter + 3.75
+        cb_diameter = 22.22
+        cbd = 1.05  # change this to compress o-ring properly
 
         back_holes_shift = 40
-        back_holes_spacing = 38.35
+        back_holes_spacing = 40
         front_holes_spacing = 60
 
         wp = CQ().workplane(offset=zbase).sketch()
@@ -255,6 +257,22 @@ def main():
         wp = wp.faces(">X").workplane(centerOption="CenterOfBoundBox").rarray(front_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
 
         aso.add(wp, name=name, color=color)
+
+        pipe_fitting = import_step(wrk_dir.joinpath("components", "5483T93_Miniature Nickel-Plated Brass Pipe Fitting.STEP")).translate((0, 0, -6.35))
+
+        fitting_list = []
+        wppf = wp.faces(">X").workplane(centerOption="CenterOfBoundBox").center(front_holes_spacing / 2, 0)
+        fitting_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
+        wppf = wp.faces(">X").workplane(centerOption="CenterOfBoundBox").center(-front_holes_spacing / 2, 0)
+        fitting_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
+        wppf = wp.faces("<X").workplane(centerOption="CenterOfBoundBox").center(back_holes_shift - back_holes_spacing / 2, 0)
+        fitting_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
+        wppf = wp.faces("<X").workplane(centerOption="CenterOfBoundBox").center(back_holes_shift + back_holes_spacing / 2, 0)
+        fitting_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
+
+        pipe_fittings = cadquery.Compound.makeCompound(fitting_list)
+
+        aso.add(pipe_fittings, name="pipe_fittings")
 
     mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, corner_screw, copper_base_zero + copper_thickness - thermal_pedestal_height)
 
