@@ -141,7 +141,7 @@ def main():
     to_build = [""]
     asys = ttt.build(to_build)
 
-    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
     center_shift = (-4.5, 0)
     wall_outer = (229, 180)
     corner_holes_offset = 7.5
@@ -161,7 +161,7 @@ def main():
         zbase: float,
     ):
         """the thermal base"""
-        name = "thermal_plate2"
+        name = "thermal_plate"
         color = cadquery.Color("GOLD")
         fillet = 2
 
@@ -170,16 +170,16 @@ def main():
 
         # clamping stuff
         setscrew_len = 20
-        setscrew_recess = 5
+        setscrew_recess = 7
         setscrew = SetScrew(size="M6-1", fastener_type="iso4026", length=setscrew_len, simple=no_threads)
         setscrewpts = [(-73, -43.5), (73, 43.5)]
 
         waterblock_mount_screw = SocketHeadCapScrew(size="M6-1", fastener_type="iso4762", length=15, simple=no_threads)
         wb_mount_screw_points = [
-            (120, 60),
-            (120, -60),
-            (-129, 60),
-            (-129, -60),
+            (120, 80),
+            (120, -80),
+            (-129, 80),
+            (-129, -80),
         ]
 
         wp = CQ().workplane(offset=zbase).sketch()
