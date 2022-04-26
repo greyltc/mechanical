@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 
 import cadquery
-import geometrics
+import cadquery as cq
+from cadquery import CQ
 from geometrics.toolbox.twod_to_threed import TwoDToThreeD
 from pathlib import Path
-import os
+from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, ButtonHeadScrew, SetScrew
+import cq_warehouse.extensions
+import math
+import itertools
 
 
 def main():
@@ -37,9 +41,10 @@ def main():
     cb_diameter = 15.25
     cb_hole_diameter = 11.5
 
+    as_name = "squirrel"
     instructions.append(
         {
-            "name": "squirrel",
+            "name": as_name,
             "layers": [
                 {
                     "name": "dowels",
@@ -50,27 +55,27 @@ def main():
                         "dowel",
                     ],
                 },
-                {
-                    "name": "thermal_plate",
-                    "color": "GOLD",
-                    "thickness": copper_thickness,
-                    "z_base": copper_base_zero,
-                    "drawing_layer_names": [
-                        "cu_base",
-                        "corner_holes",
-                        "clamper_threads",  # TODO: close up these thread holes from the bottom
-                        "3K7_press",
-                    ],
-                },
-                {
-                    "name": "walls",
-                    "color": "GRAY55",
-                    "thickness": wall_height,
-                    "drawing_layer_names": [
-                        "walls",
-                        "corner_holes",
-                    ],
-                },
+                # {
+                #     "name": "thermal_plate2",
+                #     "color": "GOLD",
+                #     "thickness": copper_thickness,
+                #     "z_base": copper_base_zero,
+                #     "drawing_layer_names": [
+                #         "cu_base",
+                #         "corner_holes",
+                #         "clamper_threads",  # TODO: close up these thread holes from the bottom
+                #         "3K7_press",
+                #     ],
+                # },
+                # {
+                #     "name": "walls2",
+                #     "color": "GRAY55",
+                #     "thickness": wall_height,
+                #     "drawing_layer_names": [
+                #         "walls",
+                #         "corner_holes",
+                #     ],
+                # },
                 {
                     "name": "substrates",
                     "color": "SKYBLUE",
@@ -110,15 +115,15 @@ def main():
                         "3C9_slide",
                     ],
                 },
-                {
-                    "name": "clamper_screws",
-                    "color": "WHITE",
-                    "thickness": clamper_threads_length,
-                    "z_base": copper_base_zero + copper_thickness - clamper_thread_depth,
-                    "drawing_layer_names": [
-                        "clamper_threads",
-                    ],
-                },
+                # {
+                #     "name": "clamper_screws",
+                #     "color": "WHITE",
+                #     "thickness": clamper_threads_length,
+                #     "z_base": copper_base_zero + copper_thickness - clamper_thread_depth,
+                #     "drawing_layer_names": [
+                #         "clamper_threads",
+                #     ],
+                # },
                 {
                     "name": "passthrough",
                     "color": "DARKGREEN",
@@ -135,6 +140,101 @@ def main():
     ttt = TwoDToThreeD(instructions=instructions, sources=sources)
     to_build = [""]
     asys = ttt.build(to_build)
+
+    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
+    center_shift = (-4.5, 0)
+    wall_outer = (229, 180)
+    corner_holes_offset = 7.5
+    corner_hole_points = [(x * (wall_outer[0] - 2 * corner_holes_offset) - (wall_outer[0] - 2 * corner_holes_offset) / 2 + center_shift[0], y * (wall_outer[1] - 2 * corner_holes_offset) - (wall_outer[1] - 2 * corner_holes_offset) / 2 + center_shift[1]) for x, y in itertools.product(range(0, 2), range(0, 2))]
+    assembly_screw_length = 45
+    corner_screw = SocketHeadCapScrew(size="M6-1", fastener_type="iso4762", length=assembly_screw_length, simple=no_threads)
+
+    base_outer = (wall_outer[0] + 40, wall_outer[1])
+
+    def mkbase(
+        aso: cadquery.Assembly,
+        thickness: float,
+        cshift,
+        extents,
+        hps,
+        screw: SocketHeadCapScrew,
+        zbase: float,
+    ):
+        """the thermal base"""
+        name = "thermal_plate2"
+        color = cadquery.Color("GOLD")
+        fillet = 2
+
+        dowelpts = [(-73, -66), (73, 66)]
+        dowel_nominal_d = 3  # marked on drawing for pressfit with ⌀3K7
+
+        # clamping stuff
+        setscrew_len = 20
+        setscrew_recess = 5
+        setscrew = SetScrew(size="M6-1", fastener_type="iso4026", length=setscrew_len, simple=no_threads)
+        setscrewpts = [(-73, -43.5), (73, 43.5)]
+
+        waterblock_mount_screw = SocketHeadCapScrew(size="M6-1", fastener_type="iso4762", length=15, simple=no_threads)
+        wb_mount_screw_points = [
+            (120, 60),
+            (120, -60),
+            (-129, 60),
+            (-129, -60),
+        ]
+
+        wp = CQ().workplane(offset=zbase).sketch()
+        wp = wp.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(fillet)
+        wp = wp.finalize().extrude(thickness)
+        wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
+
+        hardware = cq.Assembly(None)  # a place to keep the harware
+
+        # corner screws
+        wp = wp.faces("<Z").workplane().pushPoints(hps).clearanceHole(fastener=screw, baseAssembly=hardware)
+
+        # dowel holes
+        wp = wp.faces(">Z").workplane().pushPoints(dowelpts).hole(dowel_nominal_d)
+
+        # clamping setscrew threaded holes
+        # wp = wp.faces(">Z").workplane().pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_recess, baseAssembly=hardware)  # bug prevents this from working correctly, workaround below
+        wp = wp.faces(">Z").workplane(offset=setscrew_len - setscrew_recess).pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_recess, baseAssembly=hardware)
+
+        # waterblock mounting
+        wp = wp.faces(">Z").workplane().pushPoints(wb_mount_screw_points).clearanceHole(fastener=waterblock_mount_screw, baseAssembly=hardware)
+
+        aso.add(wp, name=name, color=color)
+        aso.add(hardware.toCompound(), name="hardware")
+
+    mkbase(asys[as_name], copper_thickness, center_shift, base_outer, corner_hole_points, corner_screw, copper_base_zero)
+
+    def mkwalls(
+        aso: cadquery.Assembly,
+        height: float,
+        cshift,
+        extents,
+        hps,
+        screw: SocketHeadCapScrew,
+        zbase: float,
+    ):
+        """the chamber walls"""
+        name = "walls"
+        color = cadquery.Color("GRAY55")
+        thickness = 12
+        inner = (extents[0] - 2 * thickness, extents[1] - 2 * thickness)
+        inner_shift = cshift
+        outer_fillet = 2
+        inner_fillet = 10
+
+        wp = CQ().workplane(offset=zbase).sketch()
+        wp = wp.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
+        wp = wp.push([inner_shift]).rect(inner[0], inner[1], mode="s").reset().vertices().fillet(inner_fillet)
+        wp = wp.finalize().extrude(height)
+        wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
+
+        wp = wp.faces("<Z").workplane().pushPoints(hps).hole(screw.clearance_hole_diameters["Normal"])
+        aso.add(wp, name=name, color=color)
+
+    mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, corner_screw, copper_base_zero + copper_thickness)
 
     TwoDToThreeD.outputter(asys, wrk_dir)
 
