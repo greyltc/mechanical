@@ -206,7 +206,7 @@ def main():
 
         # clamping setscrew threaded holes
         # wp = wp.faces(">Z").workplane().pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_recess, baseAssembly=hardware)  # bug prevents this from working correctly, workaround below
-        wp = wp.faces(">Z").workplane(offset=setscrew_len - setscrew_recess).pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_recess, baseAssembly=hardware)
+        wp = wp.faces(">Z").workplane(offset=setscrew_len - setscrew_recess).pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_len, baseAssembly=hardware)
 
         # waterblock mounting
         wp = wp.faces(">Z[-2]").workplane().pushPoints(wb_mount_screw_points).clearanceHole(fastener=waterblock_mount_screw, baseAssembly=hardware)
