@@ -80,7 +80,7 @@ chamber_nut_socket_clearance_r = (chamber_nut_w_across_points + chamber_nut.sock
 
 
 # --- chamber detail ---
-chamber_fillet = 1
+chamber_fillet = 2
 chamber_chamfer = 1
 blind_hole_chamfer = 0.25
 blind_hole_chamfer_angle = 90
@@ -108,6 +108,7 @@ lid_oring_groove_r = lid_oring_r - (lid_oring_groove_w - lid_oring_cs)
 window_ap_l = substrate_array_l + 2 * substrate_array_window_buffer
 window_ap_w = substrate_array_w + 2 * substrate_array_window_buffer
 window_ap_r = substrate_array_window_buffer
+window_ap_x_offset = 4.5
 
 logger.info(f"minimum o-ring id = {((2 * window_ap_l + 2 * window_ap_w + - 8 * window_ap_r + np.pi * 2 * window_ap_r) / np.pi) + 2 * min_oring_edge_gap} mm")
 logger.info(f"selected o-ring id = {lid_oring_id} mm")
@@ -179,8 +180,8 @@ num_support_bolts = 4
 support_bolt_spacing = (chamber_w / num_support_bolts)
 support_bolt_recess_offset = 10
 support_bolt_xs = [
-    -window_recess_l / 2 - support_bolt_recess_offset,
-    window_recess_l / 2 + support_bolt_recess_offset,
+    -window_recess_l / 2 - support_bolt_recess_offset + window_ap_x_offset,
+    window_recess_l / 2 + support_bolt_recess_offset + window_ap_x_offset,
 ]
 support_bolt_ys = np.linspace(
     -chamber_w / 2 + support_bolt_spacing / 2,
@@ -325,22 +326,27 @@ def lid(assembly, include_hardware=False):
         lid_oring_groove_r,
     )
     groove = groove.translate(
-        (0, 0, (lid_h / 2 - lid_oring_groove_h / 2 - window_h))
+        (window_ap_x_offset, 0, (lid_h / 2 - lid_oring_groove_h / 2 - window_h))
     )
     lid = lid.cut(groove)
 
     # # cut aperture for light transmission
-    window_ap = cq.Workplane("XY").box(
-        window_ap_l, window_ap_w, lid_h
+    window_ap = (
+        cq.Workplane("XY")
+        .box(window_ap_l, window_ap_w, lid_h)
+        .edges("|Z")
+        .fillet(window_ap_r)
+        .translate((window_ap_x_offset, 0, 0))
     )
-    window_ap = window_ap.edges("|Z").fillet(window_ap_r)
     lid = lid.cut(window_ap)
 
     # cut window recess
     window_recess = drilled_corner_cube(
         window_recess_l, window_recess_w, window_h, window_recess_r
     )
-    window_recess = window_recess.translate((0, 0, lid_h / 2 - window_h / 2))
+    window_recess = window_recess.translate(
+        (window_ap_x_offset, 0, lid_h / 2 - window_h / 2)
+    )
     lid = lid.cut(window_recess)
 
     assembly.add(lid, name="lid")
@@ -395,6 +401,7 @@ def window_support(assembly, include_hardware=False):
         .box(window_ap_l, window_ap_w, support_h)
         .edges("|Z")
         .fillet(window_ap_r)
+        .translate((window_ap_x_offset, 0, 0))
     )
     window_support = window_support.cut(window_ap)
 
