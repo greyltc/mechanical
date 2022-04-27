@@ -265,6 +265,7 @@ def main():
 
         pipe_fitting_asy = cadquery.Assembly(import_step(wrk_dir.joinpath("components", "5483T93_Miniature Nickel-Plated Brass Pipe Fitting.step")).translate((0, 0, -6.35)), name="one_pipe_fitting")
 
+        # move the pipe fittings to their wall holes
         wppf = wp.faces(">X").workplane(centerOption="CenterOfBoundBox").center(front_holes_spacing / 2, 0)
         pipe_fitting_asy.loc = wppf.plane.location
         wall_hardware.add(pipe_fitting_asy, name="front_right_gas_fitting")
@@ -277,17 +278,6 @@ def main():
         wppf = wppf.center(-back_holes_spacing, 0)
         pipe_fitting_asy.loc = wppf.plane.location
         wall_hardware.add(pipe_fitting_asy, name="rear_right_gas_fitting")
-        # hardware_list = []
-        # wppf = wp.faces(">X").workplane(centerOption="CenterOfBoundBox").center(front_holes_spacing / 2, 0)
-        # hardware_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
-        # wppf = wp.faces(">X").workplane(centerOption="CenterOfBoundBox").center(-front_holes_spacing / 2, 0)
-        # hardware_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
-        # wppf = wp.faces("<X").workplane(centerOption="CenterOfBoundBox").center(back_holes_shift - back_holes_spacing / 2, 0)
-        # hardware_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
-        # wppf = wp.faces("<X").workplane(centerOption="CenterOfBoundBox").center(back_holes_shift + back_holes_spacing / 2, 0)
-        # hardware_list += [v.located(wppf.plane.location) for v in pipe_fitting.solids().objects]
-
-        # wall_hardware.add(cadquery.Compound.makeCompound(hardware_list))
 
         aso.add(wall_hardware.toCompound(), name="wall_hardware")
 
