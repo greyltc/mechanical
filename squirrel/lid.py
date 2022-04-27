@@ -345,6 +345,9 @@ def build(include_hardware=True, save_step=False):
     lid(assembly, include_hardware)
     window_support(assembly, include_hardware)
 
+    # shift output geometry to match that of the base
+    assembly.loc = cq.Location(cq.Vector(-4.5, 0, 19.2))
+
     # output
     TwoDToThreeD.outputter({"lid": assembly}, wrk_dir)
     # assembly.save(str(pathlib.Path(build_dir).joinpath("lid.step")))
