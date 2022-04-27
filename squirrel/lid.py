@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Lid with an o-ring sealed window for an environment chamber."""
 
+from email.mime import base
 import logging
 import os
 import pathlib
@@ -74,10 +75,7 @@ chamber_nut = cqf.HexNut(
     fastener_type="iso4032",
     simple=no_threads,
 )
-chamber_nut_h = chamber_nut.nut_data["m"]
-chamber_nut_w_across_points = 2 * (chamber_nut.nut_data["s"] / 2) / np.cos(30 * np.pi / 180)
-chamber_nut_socket_clearance_r = (chamber_nut_w_across_points + chamber_nut.socket_clearance) / 2
-
+m6_socket_clearance = 26  # from https://roymech.org/Useful_Tables/Screws/Head_Clearances.html
 
 # --- chamber detail ---
 chamber_fillet = 2
@@ -240,17 +238,18 @@ def lid(assembly, include_hardware=False):
     """Create lid of sample chamber."""
     hardware = cq.Assembly(None)
 
+    bolts_sink_depth = chamber_nut.nut_thickness - support_h
+
     # create lid plate
     lid = cq.Workplane("XY").box(chamber_l, chamber_w, lid_h)
 
-    # cut corners for lid nut clearance
-    edges = ["|Z and <X and <Y", "|Z and >X and <Y", "|Z and <X and >Y", "|Z and >X and >Y"]
-    for (x, y), e in zip(chamber_bolt_xys, edges):
-        corner = cq.Workplane("XY").box(2 * chamber_nut_socket_clearance_r, 2 * chamber_nut_socket_clearance_r, chamber_nut_h - support_h).edges(e).fillet(chamber_nut_socket_clearance_r).translate((x, y, lid_h / 2 - (chamber_nut_h - support_h) / 2))
-        lid = lid.cut(corner)
+    # make the socket clearance ears on the corners
+    lid = lid.faces(">Z").rect(chamber_l, chamber_w, forConstruction=True).vertices().rect(m6_socket_clearance + chamber_bolt_offset * 2, chamber_bolt_offset * 2, centered=True).cutBlind(-bolts_sink_depth)
+    lid = lid.faces(">Z").rect(chamber_l, chamber_w, forConstruction=True).vertices().rect(chamber_bolt_offset * 2, m6_socket_clearance + chamber_bolt_offset * 2, centered=True).cutBlind(-bolts_sink_depth)
+    lid = lid.faces(">Z").workplane().pushPoints(chamber_bolt_xys).circle(m6_socket_clearance / 2).cutBlind(-bolts_sink_depth)
 
-    # cut corner holes for mating lid to walls
-    lid = lid.faces(">Z").workplane(centerOption="CenterOfBoundBox").pushPoints(chamber_bolt_xys).hole(chamber_bolt.clearance_hole_diameters["Normal"])
+    # make the bolt holes and put on the nuts
+    lid = lid.faces(">Z").workplane(offset=-bolts_sink_depth).pushPoints(chamber_bolt_xys).clearanceHole(chamber_nut, counterSunk=False, baseAssembly=hardware)
 
     # cut m4 blind threaded holes for window support
     lid = (
@@ -277,7 +276,7 @@ def lid(assembly, include_hardware=False):
     groove = groove.translate((window_ap_x_offset, 0, (lid_h / 2 - lid_oring_groove_h / 2 - window_h)))
     lid = lid.cut(groove)
 
-    # # cut aperture for light transmission
+    # cut aperture for light transmission
     window_ap = cq.Workplane("XY").box(window_ap_l, window_ap_w, lid_h).edges("|Z").fillet(window_ap_r).translate((window_ap_x_offset, 0, 0))
     lid = lid.cut(window_ap)
 
@@ -310,7 +309,7 @@ def window_support(assembly, include_hardware=False):
         "|Z and >X and >Y",
     ]
     for (x, y), e in zip(chamber_bolt_xys, edges):
-        corner = cq.Workplane("XY").box(2 * chamber_nut_socket_clearance_r, 2 * chamber_nut_socket_clearance_r, support_h).edges(e).fillet(chamber_nut_socket_clearance_r).translate((x, y, 0))
+        corner = cq.Workplane("XY").box(m6_socket_clearance, m6_socket_clearance, support_h).edges(e).fillet(m6_socket_clearance / 2).translate((x, y, 0))
         window_support = window_support.cut(corner)
 
     # fillet side edges
