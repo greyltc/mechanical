@@ -177,9 +177,10 @@ def main():
         setscrewpts = [(-73, -43.5), (73, 43.5)]
 
         # waterblock screws
-        wb_screw_len = 25
-        waterblock_mount_screw = SocketHeadCapScrew(size="M6-1", fastener_type="iso4762", length=wb_screw_len, simple=no_threads)
-        wb_mount_screw_points = [
+        # wb_screw_len = 25
+        # waterblock_mount_screw = SocketHeadCapScrew(size="M6-1", fastener_type="iso4762", length=wb_screw_len, simple=no_threads)
+        waterblock_mount_nut = HexNut(size="M6-1", fastener_type="iso4033", simple=no_threads)
+        wb_mount_points = [
             (120, 80),
             (120, -80),
             (-129, 80),
@@ -209,7 +210,7 @@ def main():
         wp = wp.faces(">Z").workplane(offset=setscrew_len - setscrew_recess).pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_len, baseAssembly=hardware)
 
         # waterblock mounting
-        wp = wp.faces(">Z[-2]").workplane().pushPoints(wb_mount_screw_points).clearanceHole(fastener=waterblock_mount_screw, baseAssembly=hardware)
+        wp = wp.faces(">Z[-2]").workplane().pushPoints(wb_mount_points).clearanceHole(fastener=waterblock_mount_nut, counterSunk=False, baseAssembly=hardware)
 
         aso.add(wp, name=name, color=color)
         aso.add(hardware.toCompound(), name="hardware")
@@ -222,7 +223,6 @@ def main():
         cshift,
         extents,
         hps,
-        screw: SocketHeadCapScrew,
         zbase: float,
     ):
         """the chamber walls"""
@@ -281,7 +281,7 @@ def main():
 
         aso.add(wall_hardware.toCompound(), name="wall_hardware")
 
-    mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, corner_screw, copper_base_zero + copper_thickness - thermal_pedestal_height)
+    mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, copper_base_zero + copper_thickness - thermal_pedestal_height)
 
     TwoDToThreeD.outputter(asys, wrk_dir)
 

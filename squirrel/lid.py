@@ -87,7 +87,7 @@ blind_hole_chamfer_angle = 90
 # substrate array
 substrate_array_l = 130.35
 substrate_array_w = 141.35
-substrate_array_window_buffer = 5
+substrate_array_window_buffer = 6
 
 
 # --- lid o-ring ---
