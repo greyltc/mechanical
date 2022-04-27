@@ -9,6 +9,7 @@ import cadquery as cq
 import cq_warehouse.fastener as cqf
 import cq_warehouse.extensions
 import numpy as np
+from geometrics.toolbox.twod_to_threed import TwoDToThreeD
 
 import geometrics.toolbox as tb
 
@@ -19,14 +20,12 @@ logger.info(f'toolbox module imported from "{tb.__file__}"')
 # let logger capture warnings
 logging.captureWarnings(True)
 
-# figure out working and top level dirs
-tb.u.set_directories()
-
-# create build dir if required
-build_dir = os.path.join(tb.u.wd, "output")
-if not os.path.exists(build_dir):
-    os.mkdir(build_dir)
-logger.info(f'Build directory is "{build_dir}"')
+# set working directory
+try:
+    wrk_dir = pathlib.Path(__file__).parent
+except Exception as e:
+    wrk_dir = pathlib.Path.cwd()
+print(f"Working directory is {wrk_dir}")
 
 
 # check to see if we can/should use the "show_object" function
@@ -70,7 +69,11 @@ chamber_bolt_xys = [
     (-chamber_l / 2 + chamber_bolt_offset, -chamber_w / 2 + chamber_bolt_offset),
 ]
 
-chamber_nut = cqf.HexNut(size=chamber_bolt_size, fastener_type="iso4032", simple=no_threads)
+chamber_nut = cqf.HexNut(
+    size=chamber_bolt_size,
+    fastener_type="iso4032",
+    simple=no_threads,
+)
 chamber_nut_h = chamber_nut.nut_data["m"]
 chamber_nut_w_across_points = 2 * (chamber_nut.nut_data["s"] / 2) / np.cos(30 * np.pi / 180)
 chamber_nut_socket_clearance_r = (chamber_nut_w_across_points + chamber_nut.socket_clearance) / 2
@@ -153,7 +156,7 @@ support_bolt = cqf.CounterSunkScrew(
     simple=no_threads,
 )
 
-# # number of support bolts along each side
+# number of support bolts along each side
 num_support_bolts = 4
 support_bolt_spacing = chamber_w / num_support_bolts
 support_bolt_recess_offset = 10
@@ -286,7 +289,7 @@ def lid(assembly, include_hardware=False):
     assembly.add(lid, name="lid")
 
     if include_hardware is True:
-        assembly.add(hardware.toCompound(), name="chamber_nuts")
+        assembly.add(hardware.toCompound(), name="chamber_nuts")  # missing nuts?
 
 
 def window_support(assembly, include_hardware=False):
@@ -342,8 +345,9 @@ def build(include_hardware=True, save_step=False):
     lid(assembly, include_hardware)
     window_support(assembly, include_hardware)
 
-    # save step
-    assembly.save(str(pathlib.Path(build_dir).joinpath("lid.step")))
+    # output
+    TwoDToThreeD.outputter({"lid": assembly}, wrk_dir)
+    # assembly.save(str(pathlib.Path(build_dir).joinpath("lid.step")))
 
 
 if (__name__ == "__main__") or (have_so is True):

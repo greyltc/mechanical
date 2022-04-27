@@ -13,7 +13,7 @@ import itertools
 
 
 def main():
-    # define where we'll read shapes from
+    # set working directory
     try:
         wrk_dir = Path(__file__).parent
     except Exception as e:
