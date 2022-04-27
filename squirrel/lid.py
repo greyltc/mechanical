@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Lid with an o-ring sealed window for an environment chamber."""
 
 import logging
