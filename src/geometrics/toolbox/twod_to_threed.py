@@ -29,6 +29,7 @@ class TwoDToThreeD(object):
 
         # all the faces we'll need here
         layers = self.get_layers(self.sources, drawing_layers_needed_unique)
+        self._layers = layers
 
         stacks = {}
         for stack_instructions in self.stacks:
@@ -108,8 +109,15 @@ class TwoDToThreeD(object):
 
         return layers
 
+    def faceputter(cls, wrk_dir):
+        """ouputs faces that were read from dxfs during build"""
+        for layer_name, layer_wp in cls._layers:
+            faces = layer_wp.faces().vals()
+            for i, face in enumerate(faces):
+                cadquery.exporters.export(face, str(wrk_dir / "output" / f"{layer_name}-{i}.stl"))
+
     @classmethod
-    def outputter(cls, asys, wrk_dir, save_dxfs=False, save_stls=False, save_steps=False, save_breps=False):
+    def outputter(cls, asys, wrk_dir, save_dxfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False):
         """do output tasks on a dictionary of assemblies"""
         for stack_name, asy in asys.items():
             if "show_object" in globals():  # we're in cq-editor
@@ -161,6 +169,8 @@ class TwoDToThreeD(object):
                             cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.step"))
                         if save_breps == True:
                             cq.Shape.exportBrep(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.brep"))
+                        if save_vrmls == True:
+                            cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.vrml"), cadquery.exporters.ExportTypes.VRML)
                         if save_dxfs == True:
                             cl = c.locate(val.loc)
                             bb = cl.BoundingBox()
