@@ -9,31 +9,41 @@ import numpy as np
 
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+# set working directory
+try:
+    wrk_dir = Path(__file__).parent
+except Exception as e:
+    # this runs for cq-editor so the working drictory
+    # you lauch that from must be the one that contains this script
+    wrk_dir = Path.cwd()
+print(f"Working directory is {wrk_dir}")
+
+sys.path.append(str(wrk_dir))
 import aligner
 
 # import the chamber drawer
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'environment_chamber'))
+sys.path.append(str(wrk_dir.parent.parent / "environment_chamber"))
 import chamber
 
 # import the stage mounting plate
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'otter_mounting_plate'))
+sys.path.append(str(wrk_dir.parent.parent / "otter_mounting_plate"))
 import plate
 
 import geometrics.toolbox as tb
+
 logger = logging.getLogger("cadbuilder")
 logger.info(f'toolbox module imported from "{tb.__file__}"')
+
 
 def to_holder(this_thing, y_offset):
     """
     this puts environmental chamber design output into the
     otter holder's step file coordinate system
     """
-    ret_obj = this_thing.rotate((0, 0, 0), (1, 0, 0), -90).rotate(
-        (0, 0, 0), (0, 1, 0), 90
-    )
+    ret_obj = this_thing.rotate((0, 0, 0), (1, 0, 0), -90).rotate((0, 0, 0), (0, 1, 0), 90)
     ret_obj = ret_obj.translate((0, y_offset, 0))
     return ret_obj
+
 
 # check to see if we can/should use the "show_object" function
 if "show_object" in locals():
@@ -54,12 +64,7 @@ assembly = []  # type: ignore[var-annotated] # noqa: F821
 otter_support_surface = 32.624  # read manually from the otter holder step file
 
 # here is where our chamber's support surface is before translation to match otter
-chamber_support_surface = (
-    -chamber.base_o_h
-    + chamber.base_h
-    + chamber.base_pcb_lip_h
-    + chamber.meas_assembly_h
-)
+chamber_support_surface = -chamber.base_o_h + chamber.base_h + chamber.base_pcb_lip_h + chamber.meas_assembly_h
 
 # so then this is the translation we need to make for our chamber to match otter's step
 chamber_y_offset = otter_support_surface - chamber_support_surface
@@ -74,9 +79,7 @@ chamber_y_offset = otter_support_surface - chamber_support_surface
 # (when the pin sleeves crash into the substrates)
 
 # which puts the chamber floor at
-chamber_floor = (
-    chamber_y_offset - chamber.base_o_h + chamber.base_h + chamber.base_pcb_lip_h
-)
+chamber_floor = chamber_y_offset - chamber.base_o_h + chamber.base_h + chamber.base_pcb_lip_h
 # (and the bottom surface chamber.base_h (12.0 mm) below that)
 
 # import holder
@@ -109,9 +112,7 @@ adapter = chamber.adapter
 adapter_width = chamber.adapter_width
 
 # build an alignment endblock
-ablock = tb.endblock.build(
-    adapter_width=adapter_width, horzm3s=True, align_bumps=True, special_chamfer=1.6
-)
+ablock = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True, special_chamfer=1.6)
 ablock = to_holder(ablock, chamber_floor)
 ablock = ablock.translate((0, tb.endblock.height / 2, 0))
 
@@ -124,9 +125,7 @@ al = al.rotate((0, 0, 0), (0, 1, 0), -90)
 ablock.add(al)  # put them on the same workplane
 
 # build an endblock
-block = tb.endblock.build(
-    adapter_width=adapter_width, horzm3s=True, align_bumps=True, special_chamfer=1.6
-)
+block = tb.endblock.build(adapter_width=adapter_width, horzm3s=True, align_bumps=True, special_chamfer=1.6)
 block = to_holder(block, chamber_floor)
 block = block.translate((0, tb.endblock.height / 2, 0))
 
@@ -136,10 +135,7 @@ blockA = block.translate(
     (
         0,
         0,
-        holder_along_z / 2
-        - gas_plate_thickness
-        - block_scrunch
-        - tb.endblock.length / 2,
+        holder_along_z / 2 - gas_plate_thickness - block_scrunch - tb.endblock.length / 2,
     )
 )
 blockB = blockA.mirror("XY", (0, 0, 0))
@@ -147,10 +143,7 @@ ablockA = ablock.translate(
     (
         0,
         0,
-        holder_along_z / 2
-        - gas_plate_thickness
-        - block_scrunch
-        - tb.endblock.length / 2,
+        holder_along_z / 2 - gas_plate_thickness - block_scrunch - tb.endblock.length / 2,
     )
 )
 ablockB = ablockA.rotate((0, 0, 0), (0, 1, 0), 180)
@@ -198,16 +191,8 @@ mount_y_offset = -0.7
 mount_x_spacing = 19
 mount_d = tb.c.std_screw_threads["m3"]["close_r"] * 2
 wp = cq.Workplane("XY")
-wb = wp.box(
-    wb_plate_dims[0], wb_plate_dims[1], wb_plate_dims[2], centered=[True, True, True]
-)
-wb = (
-    wb.faces(">Z")
-    .workplane(centerOption="CenterOfBoundBox")
-    .center(0, mount_y_offset)
-    .rarray(mount_x_spacing, 1, 2, 1)
-    .hole(mount_d)
-)
+wb = wp.box(wb_plate_dims[0], wb_plate_dims[1], wb_plate_dims[2], centered=[True, True, True])
+wb = wb.faces(">Z").workplane(centerOption="CenterOfBoundBox").center(0, mount_y_offset).rarray(mount_x_spacing, 1, 2, 1).hole(mount_d)
 wb = wb.rotate((0, 0, 0), (1, 0, 0), 90)
 position_magic_a = 87.5  # offset from center of chamber
 position_magic_b = 0.5  # height off the chamber floor
@@ -227,9 +212,7 @@ relay_pcb = wp.box(pcb_dims[0], pcb_dims[1], pcb_dims[2], centered=[True, True, 
 
 # load lock chamber volume
 chamber_dims = [chamber.antechamber_l, chamber.antechamber_w, chamber.antechamber_h]
-chamber_volume = wp.box(
-    chamber_dims[0], chamber_dims[1], chamber_dims[2], centered=[True, True, False]
-)
+chamber_volume = wp.box(chamber_dims[0], chamber_dims[1], chamber_dims[2], centered=[True, True, False])
 
 # spacing between relay boards in the mux
 inter_standoff = 13
@@ -293,20 +276,12 @@ mba.extend(baseboardD.vals())
 
 mb = cq.Compound.makeCompound(mba)
 
-mb = to_holder(
-    mb, chamber_floor - mux_box_dims[2] - chamber.base_h - chamber.base_pcb_lip_h
-)
+mb = to_holder(mb, chamber_floor - mux_box_dims[2] - chamber.base_h - chamber.base_pcb_lip_h)
 assembly.extend(mb.Solids())
 
 # build stage plate
 plate_build = plate.build(include_hardware=True, save_step=False)
-plate_y_offset = (
-    chamber_floor
-    - mux_box_dims[2]
-    - chamber.base_h
-    - chamber.base_pcb_lip_h
-    - plate.mux_plate_h
-)
+plate_y_offset = chamber_floor - mux_box_dims[2] - chamber.base_h - chamber.base_pcb_lip_h - plate.mux_plate_h
 chamber_build = to_holder(plate_build, plate_y_offset)
 assembly.extend(chamber_build.Solids())
 
@@ -318,7 +293,7 @@ save_step = True
 if save_step is True:
     logger.info("Saving the big step file (this could take a while)...")
     tb.u.export_step(cpnd, Path(__file__).parent / "output" / "assembly.step")
-cq.Shape.exportBrep(cpnd, str(Path(__file__).parent / 'output' / 'assembly.brep'))
+cq.Shape.exportBrep(cpnd, str(Path(__file__).parent / "output" / "assembly.brep"))
 
 if have_so is True:
     for thing in assembly:
