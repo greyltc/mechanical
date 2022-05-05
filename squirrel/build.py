@@ -177,14 +177,15 @@ def main():
         setscrewpts = [(-73, -43.5), (73, 43.5)]
 
         # waterblock screws
-        # wb_screw_len = 25
-        # waterblock_mount_screw = SocketHeadCapScrew(size="M6-1", fastener_type="iso4762", length=wb_screw_len, simple=no_threads)
+        wb_w = 177.8
+        wb_mount_offset_from_edge = 7.25
+        wb_mount_offset = wb_w / 2 - wb_mount_offset_from_edge
         waterblock_mount_nut = HexNut(size="M6-1", fastener_type="iso4033", simple=no_threads)
         wb_mount_points = [
-            (120, 80),
-            (120, -80),
-            (-129, 80),
-            (-129, -80),
+            (120, wb_mount_offset),
+            (120, -wb_mount_offset),
+            (-129, wb_mount_offset),
+            (-129, -wb_mount_offset),
         ]
 
         wp = CQ().workplane(offset=zbase).sketch()
