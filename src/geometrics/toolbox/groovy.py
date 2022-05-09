@@ -1,19 +1,9 @@
 #!/usr/bin/env python3
+import cadquery
 from cadquery import cq, CQ
 import math
 import pathlib
 import copy
-
-# this boilerplate allows this module to be run directly as a script
-if __name__ == "__main__" and (__package__ is None or __package__ == ""):
-    __package__ = "toolbox"
-    from pathlib import Path
-    import sys
-
-    # get the dir that holds __package__ on the front of the search path
-    print(__file__)
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from . import utilities as u
 
 
@@ -28,6 +18,10 @@ def mk_vgroove(cutter_path, entry_point, depth):
     to_sweep = cutter_crosssection_shift.wires().toPending()
     sweep_result = to_sweep.sweep(cutter_path, combine=True, transition="round", sweepAlongWires=False, isFrenet=True)
     return sweep_result
+
+
+def mk_ogroove(cutter_path):
+    print(2)
 
 
 def mk_dovetail_ogroove(cutter_path, entry_point):
@@ -74,31 +68,3 @@ def mk_dovetail_ogroove(cutter_path, entry_point):
     to_sweep = cutter_crosssection_shift.wires().toPending()
     sweep_result = to_sweep.sweep(cutter_path, combine=False)
     return sweep_result, cutter_entry_shape
-
-
-if ("show_object" in locals()) or (__name__ == "__main__"):
-    # path should be a wire in XY plane at Z=0
-    # the path the cutting tool will follow
-    cutter_path = cq.Workplane("XY").rect(150, 150, centered=True).extrude(1).edges("|Z").fillet(10).faces("-Z").wires()
-
-    demo_block = cq.Workplane("XY").rect(200, 200, centered=True).extrude(-5).edges("|Z").fillet(3)
-    entry_point = [75, 0, 0]  # point along the path where the tool enters/exits
-
-    # vslot demo
-    depth = 4
-    sweep_result = mk_vgroove(cutter_path, entry_point, depth)
-    vslot_demo_block = demo_block.cut(sweep_result)
-    vsalad = vslot_demo_block.solids()
-
-    # oring demo
-    sweep_result, cutter_entry_shape = mk_ogroove(cutter_path, entry_point)
-    oring_demo_block = demo_block.cut(sweep_result)
-    oring_demo_block = oring_demo_block.cut(cutter_entry_shape.translate(entry_point))
-    osalad = oring_demo_block.solids()
-
-    if "show_object" in locals():  # only for running standalone in cq-editor
-        show_object(osalad)
-        show_object(vsalad)
-    elif __name__ == "__main__":
-        u.export_step(osalad, pathlib.Path("osalad.step"))
-        u.export_step(vsalad, pathlib.Path("vsalad.step"))
