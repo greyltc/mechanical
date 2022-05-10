@@ -15,10 +15,11 @@ def mk_vgroove(cutter_path, depth):
     half_profile = CQ(build_plane).polyline([(0, 0), (-depth, 0), (0, depth)]).close()
     cutter = half_profile.revolve(axisEnd=(1, 0, 0))
     cutter_split = cutter.split(keepTop=True)
-    cutter_crosssection = cutter_split.faces("|X").wires().val()
-
-    # start_point = cutter_path.wires().val().startPoint()
-    # cutter_crosssection_shift = CQ(cutter_crosssection).translate(cp_start)
+    for face in cutter_split.faces().vals():  # find the right face
+        facenorm = face.normalAt()
+        if abs(facenorm.dot(cp_tangent)) == 1:
+            cutter_crosssection = face
+            break
 
     to_sweep = CQ(cutter_crosssection).wires().toPending()
     sweep_result = to_sweep.sweep(cutter_path, combine=True, transition="round", isFrenet=True)

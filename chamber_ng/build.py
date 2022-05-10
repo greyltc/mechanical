@@ -1238,7 +1238,8 @@ class ChamberNG(object):
         # fmt: on
 
         # cut the v potting groove for the potting between the pieces
-        pg = tb.groovy.mk_vgroove(pot_slot_path, (srbb.xmin + s.wall[0] - s.pg_offset, 0, 0), s.pg_depth)
+        pot_slot_path_wire = pot_slot_path.wires().val()
+        pg = tb.groovy.mk_vgroove(pot_slot_path_wire, s.pg_depth)
         middle = middle.cut(pg.findSolid())
 
         # gas feedthroughs
