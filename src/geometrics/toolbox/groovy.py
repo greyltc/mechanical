@@ -7,16 +7,21 @@ import copy
 from . import utilities as u
 
 
-def mk_vgroove(cutter_path, entry_point, depth):
+def mk_vgroove(cutter_path, depth):
     """for cutting grooves with a 90 degree countersink cutter"""
-    half_profile = CQ("XZ").polyline([(0, 0), (depth, 0), (0, -depth)]).close()
-    cutter = half_profile.revolve()
+    cp_tangent = cutter_path.tangentAt()  # tangent to cutter_path
+    cp_start = cutter_path.startPoint()
+    build_plane = cq.Plane(origin=cp_start, normal=cp_tangent)
+    half_profile = CQ(build_plane).polyline([(0, 0), (-depth, 0), (0, depth)]).close()
+    cutter = half_profile.revolve(axisEnd=(1, 0, 0))
     cutter_split = cutter.split(keepTop=True)
-    cutter_crosssection = cutter_split.faces("+Y")  # TODO do this more generally
-    cutter_crosssection_shift = cutter_crosssection.translate(entry_point)
+    cutter_crosssection = cutter_split.faces("|X").wires().val()
 
-    to_sweep = cutter_crosssection_shift.wires().toPending()
-    sweep_result = to_sweep.sweep(cutter_path, combine=True, transition="round", sweepAlongWires=False, isFrenet=True)
+    # start_point = cutter_path.wires().val().startPoint()
+    # cutter_crosssection_shift = CQ(cutter_crosssection).translate(cp_start)
+
+    to_sweep = CQ(cutter_crosssection).wires().toPending()
+    sweep_result = to_sweep.sweep(cutter_path, combine=True, transition="round", isFrenet=True)
     return sweep_result
 
 

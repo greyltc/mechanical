@@ -4,12 +4,11 @@ import pathlib  # noqa: F401
 import cadquery as cq  # type: ignore[import]
 
 # setup logging
-logger = logging.getLogger('cadbuilder')
+logger = logging.getLogger("cadbuilder")
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter(('%(asctime)s|%(name)s|%(levelname)s|'
-                               '%(message)s'))
+formatter = logging.Formatter(("%(asctime)s|%(name)s|%(levelname)s|" "%(message)s"))
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
@@ -17,7 +16,7 @@ wd: pathlib.Path = None  # type: ignore[assignment] # noqa: F821
 tld: pathlib.Path = None  # type: ignore[assignment] # noqa: F821
 
 
-def undercutRelief2D(self, length, width, diameter, angle=0, kind='C', corner_tol=0):
+def undercutRelief2D(self, length, width, diameter, angle=0, kind="C", corner_tol=0):
     """
     Creates a relief undercut shape for each point on the stack.
 
@@ -42,36 +41,35 @@ def undercutRelief2D(self, length, width, diameter, angle=0, kind='C', corner_to
         :param pnt: The center point for the slot
         :return: A CQ object representing a relief undercut shape
         """
-        error_string = ("undercutRelief2D could not be drawn "
-                        "because the relief arcs collide with eachother")
+        error_string = "undercutRelief2D could not be drawn " "because the relief arcs collide with eachother"
 
-        r = diameter/2
-        sqrt2 = (2**(1/2))
+        r = diameter / 2
+        sqrt2 = 2 ** (1 / 2)
 
         if kind == "A":
             along_edge = diameter
             if width <= along_edge:
-                raise(ValueError(error_string))
+                raise (ValueError(error_string))
             corner_shift = cq.Vector((-corner_tol, r, 0))
             if corner_tol > 0:
-                b1 = cq.Solid.makeBox(corner_tol, diameter, 1, pnt=(corner_shift+cq.Vector((0, -r ,0))))
+                b1 = cq.Solid.makeBox(corner_tol, diameter, 1, pnt=(corner_shift + cq.Vector((0, -r, 0))))
         elif kind == "B":
             along_edge = diameter
             if length <= along_edge:
-                raise(ValueError(error_string))
+                raise (ValueError(error_string))
             corner_shift = cq.Vector((r, -corner_tol, 0))
             if corner_tol > 0:
-                b1 = cq.Solid.makeBox(diameter, corner_tol, 1, pnt=(corner_shift+cq.Vector((-r, 0, 0))))
+                b1 = cq.Solid.makeBox(diameter, corner_tol, 1, pnt=(corner_shift + cq.Vector((-r, 0, 0))))
         elif kind == "C":
-            along_edge = diameter/sqrt2
+            along_edge = diameter / sqrt2
             if width <= along_edge or length <= along_edge:
-                raise(ValueError(error_string))
-            corner_shift = cq.Vector((along_edge/2-corner_tol/sqrt2, along_edge/2-corner_tol/sqrt2, 0))
+                raise (ValueError(error_string))
+            corner_shift = cq.Vector((along_edge / 2 - corner_tol / sqrt2, along_edge / 2 - corner_tol / sqrt2, 0))
         else:
-            raise(ValueError('kind must be either "A" "B" or "C"'))
+            raise (ValueError('kind must be either "A" "B" or "C"'))
 
-        m1_point = cq.Vector((0, width/2, 0))
-        m2_point = cq.Vector((length/2, 0, 0))
+        m1_point = cq.Vector((0, width / 2, 0))
+        m2_point = cq.Vector((length / 2, 0, 0))
 
         c1 = cq.Solid.makeCylinder(r, 1, pnt=corner_shift)
         # handle extra length needed for tolerance
@@ -85,7 +83,7 @@ def undercutRelief2D(self, length, width, diameter, angle=0, kind='C', corner_to
         wp = cq.Workplane("XY")
 
         shape = wp.union(b).union(c1).union(c2).union(c3).union(c4)
-        shape = shape.translate((-length/2, -width/2))
+        shape = shape.translate((-length / 2, -width / 2))
         shape = shape.rotate((0, 0, 0), (0, 0, 1), angle)
 
         face = shape.faces("<Z").faces().val()
@@ -125,10 +123,10 @@ def set_directories(wd_filename="assemble_system.py"):
     logger.info(f'The working directory is "{wd}"')
 
 
-def export_step(to_export, file):
+def export_step(to_export, file: pathlib.Path):
     with open(file, "w") as fh:
         cq.exporters.exportShape(to_export, cq.exporters.ExportTypes.STEP, fh)
-        logger.info(f"Exported {file.name} to {file.parent}")
+        logger.info(f"Exported {file}")
 
 
 def import_step(file):
@@ -151,14 +149,11 @@ def find_length(thisthing, along="X", bb_method=False):
     length = None
     if bb_method == False:
         if along == "X":
-            length = thisthing.vertices(">X").val().Center().x - \
-                    thisthing.vertices("<X").val().Center().x
+            length = thisthing.vertices(">X").val().Center().x - thisthing.vertices("<X").val().Center().x
         elif along == "Y":
-            length = thisthing.vertices(">Y").val().Center().y - \
-                    thisthing.vertices("<Y").val().Center().y
+            length = thisthing.vertices(">Y").val().Center().y - thisthing.vertices("<Y").val().Center().y
         elif along == "Z":
-            length = thisthing.vertices(">Z").val().Center().z - \
-                    thisthing.vertices("<Z").val().Center().z
+            length = thisthing.vertices(">Z").val().Center().z - thisthing.vertices("<Z").val().Center().z
     else:
         s = thisthing.findSolid()
         tbb = s.BoundingBox()
