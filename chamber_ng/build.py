@@ -1239,8 +1239,9 @@ class ChamberNG(object):
 
         # cut the v potting groove for the potting between the pieces
         pot_slot_path_wire = pot_slot_path.wires().val()
-        pg = tb.groovy.mk_vgroove(pot_slot_path_wire, s.pg_depth)
-        middle = middle.cut(pg.findSolid())
+        cq.Workplane.mk_vgroove = tb.groovy.mk_vgroove  # add our vgroove function to the Workplane class
+        co = {"centerOption": "CenterOfBoundBox"}
+        middle = middle.faces(">Z").workplane(**co).add(pot_slot_path_wire).wires().toPending().mk_vgroove(s.pg_depth)  # cut the vgroove
 
         # gas feedthroughs
         if s.do_gas_feedthroughs == True:
@@ -1314,8 +1315,8 @@ def main():
     # s = ChamberNG(array=(1, 4), subs=(30, 30), spacing=(10, 10), padding=(5, 5, 0, 0))
     # s = ChamberNG(array=(5, 6), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
     # s = ChamberNG(array=(5, 5), subs =(30, 30), spacing=(0, 0), padding=(10,10,5,5))
-    s = ChamberNG(array=(4, 4), subs=(25.4, 25.4), spacing=(10, 10), padding=(5, 5, 0, 0))
-    # s = ChamberNG(array=(1, 4), subs =(25.4, 25.4), spacing=(10, 10), padding=(5,5,0,0))
+    # s = ChamberNG(array=(4, 4), subs=(25.4, 25.4), spacing=(10, 10), padding=(5, 5, 0, 0))
+    s = ChamberNG(array=(1, 4), subs=(25.4, 25.4), spacing=(10, 10), padding=(5, 5, 0, 0))
     # s = ChamberNG(array=(1, 4), subs =(28, 28), spacing=(10, 10), padding=(5,5,0,0))
     (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, spring_pin_spacer_no_holes, substrate_holder, top_pcb) = s.build()
 
@@ -1333,6 +1334,7 @@ def main():
                 show_object(c.locate(val.loc), name=val.name, options=odict)
     else:  # we're not in cq-editor, generate output files
         asy.save(str(Path(__file__).parent / "output" / "chamber_ng.step"))  # save step
+        # asy.save(str(Path(__file__).parent / "output" / "chamber_ng.xml"))  # save xml, same as std below
         # Open CASCADE Technology Application Framework (OCAF) (MDTV-Standard) format
         # https://dev.opencascade.org/doc/overview/html/occt_user_guides__test_harness.html#occt_draw_5
         # TODO: investigate nondeterministic output
@@ -1340,7 +1342,7 @@ def main():
 
         save_indivitual_stls = False
         save_indivitual_steps = True
-        save_indivitual_breps = True
+        save_indivitual_breps = False
 
         if (save_indivitual_stls == True) or (save_indivitual_steps == True) or (save_indivitual_breps == True):
             # loop through individual pieces

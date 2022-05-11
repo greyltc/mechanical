@@ -33,15 +33,17 @@ class GroovyTestCase(unittest.TestCase):
     def test_vgroove(self):
         # path should be a wire in XY plane at Z=0
         # the path the cutting tool will follow
+        cq.Workplane.mk_vgroove = groovy.mk_vgroove  # add our vgroove function to the Workplane class
         cutter_path = cq.Workplane("XY").rect(150, 150, centered=True).extrude(1).edges("|Z").fillet(10).faces("-Z").wires().val()
-        demo_block = cq.Workplane("XY").rect(200, 200, centered=True).extrude(-5).edges("|Z").fillet(3)
-        entry_point = [75, 0, 0]  # point along the path where the tool enters/exits
+        demo_block = cq.Workplane("XY").rect(200, 200, centered=True).extrude(-200).edges("|Z").fillet(3)
 
         # vslot
         depth = 4
-        sweep_result = groovy.mk_vgroove(cutter_path, depth)
-        vsalad = demo_block.cut(sweep_result).findSolid()
+        co = {"centerOption": "CenterOfBoundBox"}
+        demo_block = demo_block.faces(">Z").workplane(**co).add(cutter_path).wires().toPending().mk_vgroove(depth)
+        demo_block = demo_block.faces("<Z").workplane(**co).sketch().rect(50, 50).vertices().fillet(10).finalize().mk_vgroove(depth)
+        demo_block = demo_block.faces("<X").workplane(**co).sketch().rarray(75, 75, 2, 2).circle(25).finalize().mk_vgroove(depth)
 
         tmpdirname = tempfile.mkdtemp()
         outfile = pathlib.Path(tmpdirname) / "vgroove.step"
-        u.export_step(vsalad, outfile)
+        u.export_step(demo_block, outfile)

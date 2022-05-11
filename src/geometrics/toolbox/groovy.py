@@ -7,23 +7,39 @@ import copy
 from . import utilities as u
 
 
-def mk_vgroove(cutter_path, depth):
+def mk_vgroove(self: cadquery.Workplane, depth: float, follow_pending_wires: bool = True, clean: bool = True):
     """for cutting grooves with a 90 degree countersink cutter"""
-    cp_tangent = cutter_path.tangentAt()  # tangent to cutter_path
-    cp_start = cutter_path.startPoint()
-    build_plane = cq.Plane(origin=cp_start, normal=cp_tangent)
-    half_profile = CQ(build_plane).polyline([(0, 0), (-depth, 0), (0, depth)]).close()
-    cutter = half_profile.revolve(axisEnd=(1, 0, 0))
-    cutter_split = cutter.split(keepTop=True)
-    for face in cutter_split.faces().vals():  # find the right face
-        facenorm = face.normalAt()
-        if abs(facenorm.dot(cp_tangent)) == 1:
-            cutter_crosssection = face
-            break
+    s = self.findSolid()
+    if follow_pending_wires:
+        faces = self._getFaces()
+        for face in faces:
+            wire = face.outerWire()
+            cp_tangent = wire.tangentAt()  # tangent to cutter_path
+            cp_start = wire.startPoint()
+            # build_plane = cq.Plane(origin=cp_start, normal=cp_tangent)
+            build_plane = cq.Plane(origin=cp_start, normal=cp_tangent, xDir=self.plane.zDir)
+            depth_dir = 1
+            half_profile = CQ(build_plane).polyline([(0, 0), (-depth * depth_dir, 0), (0, depth * depth_dir)]).close()
+            cutter = half_profile.revolve(axisEnd=(1, 0, 0))
+            cutter_split = cutter.split(keepTop=True)
+            for face in cutter_split.faces().vals():  # find the right face
+                facenorm = face.normalAt()
+                if abs(facenorm.dot(cp_tangent)) == 1:
+                    cutter_crosssection = face
+                    break
 
-    to_sweep = CQ(cutter_crosssection).wires().toPending()
-    sweep_result = to_sweep.sweep(cutter_path, combine=True, transition="round", isFrenet=True)
-    return sweep_result
+            to_sweep = CQ(cutter_crosssection).wires().toPending()
+            sweep_result = to_sweep.sweep(wire, combine=True, transition="round", isFrenet=True).findSolid()
+            s = s.cut(sweep_result)
+
+            if clean:
+                s = s.clean()
+
+            # self.add(sweep_result)
+            # self.add(s)
+
+    return self.newObject([s])
+    # return self
 
 
 def mk_ogroove(cutter_path):
