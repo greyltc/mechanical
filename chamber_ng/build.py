@@ -1085,7 +1085,7 @@ class ChamberNG(object):
         srbb = shelved_ring.findSolid().BoundingBox()
 
         # use an offset to find the path for the potting slot
-        pot_slot_path = CQ(shelved_ring.faces(">Z[-1]").wires().vals()[0].offset2D(s.pg_offset)[0])
+        pot_slot_path_wire = shelved_ring.faces(">Z[-1]").wires().val().offset2D(s.pg_offset)[0]
 
         # cut the corner holes
         chp = [  # corner hole points
@@ -1238,10 +1238,9 @@ class ChamberNG(object):
         # fmt: on
 
         # cut the v potting groove for the potting between the pieces
-        pot_slot_path_wire = pot_slot_path.wires().val()
-        cq.Workplane.mk_vgroove = tb.groovy.mk_vgroove  # add our vgroove function to the Workplane class
+        cq.Workplane.mk_groove = tb.groovy.mk_groove  # add our vgroove function to the Workplane class
         co = {"centerOption": "CenterOfBoundBox"}
-        middle = middle.faces(">Z").workplane(**co).add(pot_slot_path_wire).wires().toPending().mk_vgroove(s.pg_depth)  # cut the vgroove
+        middle = middle.faces(">Z").workplane(**co).add(pot_slot_path_wire.translate((0, 0, -s.top_mid_height))).wires().toPending().mk_groove(vdepth=s.pg_depth)  # cut the vgroove
 
         # gas feedthroughs
         if s.do_gas_feedthroughs == True:

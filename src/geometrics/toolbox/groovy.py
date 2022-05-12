@@ -7,36 +7,83 @@ import copy
 from . import utilities as u
 
 
-def mk_vgroove(self: cadquery.Workplane, depth: float, follow_pending_wires: bool = True, clean: bool = True):
-    """for cutting grooves with a 90 degree countersink cutter"""
+def mk_groove(self: cadquery.Workplane, vdepth: float = 0, ring_cs: float = 0, follow_pending_wires: bool = True, ring_id: float = None, gland_x: float = None, gland_y: float = None, compression_ratio: float = 0.25, gland_fill_ratio: float = 0.7, clean: bool = True, hardware: cadquery.Assembly = None):
+    """
+    for cutting grooves
+    set vdepth > 0 to cut a vgroove of that depth
+    set ring_cs > 0 to cut an o-ring groove (the diameter of the cross section of the o-ring)
+    follow_pending_wires = True, will mean the grooves will be cut according to pending wires/faces
+    if that's false, we'll make a groove for a specific o-ring and you must set all off the following:
+        ring_id, the innter diameter of the ring to be used (bore diameter)
+        gland_x = the spacing in x between the centers of the gland (rounded) rectangle
+        gland_y = the spacing in y between the centers of the gland (rounded) rectangle
+        the fillets at the gland corners will be determined to ensure the ring fits, they will be equal
+    if a hardware assembly is provided, o-oring hardware will be added to it
+    """
+
+    def _make_one_groove(wp, _wire, _vdepth, _ring_cs, _compression_ratio, _gland_fill_ratio):
+        cp_tangent = _wire.tangentAt()  # tangent to cutter_path
+        cp_start = _wire.startPoint()
+        build_plane = cq.Plane(origin=cp_start, normal=cp_tangent, xDir=wp.plane.zDir)
+        if _vdepth > 0:  # we'll cut a vgroove this deep
+            half_profile = CQ(build_plane).polyline([(0, 0), (-_vdepth, 0), (0, _vdepth)]).close()
+        elif ring_cs > 0:  # we'll cut an o-ring groove, ring_cs is the diameter of the cross section of the o-ring
+            # according to https://web.archive.org/web/20220512010502/https://www.globaloring.com/o-ring-groove-design/
+            gland_height = _ring_cs * (1 - _compression_ratio)
+            ring_cs_area = math.pi * (_ring_cs / 2) ** 2
+            gland_area = ring_cs_area / _gland_fill_ratio
+            gland_width = gland_area / gland_height
+            half_profile = CQ(build_plane).polyline([(0, 0), (-gland_height, 0), (-gland_height, gland_width / 2), (0, gland_width / 2)]).close()
+        else:
+            raise ValueError("One of vdepth or ring_cs must be larger than 0")
+        cutter = half_profile.revolve(axisEnd=(1, 0, 0))
+        cutter_split = cutter.split(keepTop=True)
+        for face in cutter_split.faces().vals():  # find the right face to sweep with
+            facenorm = face.normalAt()
+            if abs(facenorm.dot(cp_tangent)) == 1:
+                cutter_crosssection = face
+                break
+
+        # make the squished o-ring hardware
+        if ring_cs > 0 and hardware is not None:
+            ring_sweep_wire = CQ(build_plane).center(-gland_height / 2, 0).ellipse(gland_height / 2, ring_cs / 2 * (1 + _compression_ratio)).wires().toPending()
+            hardware.add(ring_sweep_wire.sweep(_wire, combine=True, transition="round", isFrenet=True).findSolid())
+
+        to_sweep = CQ(cutter_crosssection).wires().toPending()
+        return to_sweep.sweep(_wire, combine=True, transition="round", isFrenet=True).findSolid()
+
     s = self.findSolid()
+
     if follow_pending_wires:
         faces = self._getFaces()
         for face in faces:
             wire = face.outerWire()
-            cp_tangent = wire.tangentAt()  # tangent to cutter_path
-            cp_start = wire.startPoint()
-            # build_plane = cq.Plane(origin=cp_start, normal=cp_tangent)
-            build_plane = cq.Plane(origin=cp_start, normal=cp_tangent, xDir=self.plane.zDir)
-            depth_dir = 1
-            half_profile = CQ(build_plane).polyline([(0, 0), (-depth * depth_dir, 0), (0, depth * depth_dir)]).close()
-            cutter = half_profile.revolve(axisEnd=(1, 0, 0))
-            cutter_split = cutter.split(keepTop=True)
-            for face in cutter_split.faces().vals():  # find the right face
-                facenorm = face.normalAt()
-                if abs(facenorm.dot(cp_tangent)) == 1:
-                    cutter_crosssection = face
-                    break
-
-            to_sweep = CQ(cutter_crosssection).wires().toPending()
-            sweep_result = to_sweep.sweep(wire, combine=True, transition="round", isFrenet=True).findSolid()
+            sweep_result = _make_one_groove(wp=self, _wire=wire, _vdepth=vdepth, _ring_cs=ring_cs, _compression_ratio=compression_ratio, _gland_fill_ratio=gland_fill_ratio)
             s = s.cut(sweep_result)
 
             if clean:
                 s = s.clean()
+    else:  # we'll need to make our own wire
+        # ensure the user passed in the right stuff
+        assert vdepth == 0
+        assert ring_cs > 0
+        assert ring_id is not None
+        assert gland_x is not None
+        assert gland_y is not None
+        wire_length = 2 * math.pi * (ring_id / 2 + ring_cs / 2)
+        square_length = 2 * gland_x + 2 * gland_y
+        if wire_length > square_length:
+            raise ValueError("The o-ring circumference is too big for the given x and y gland dims")
+        r = (wire_length - 2 * gland_x - 2 * gland_y) / (2 * math.pi - 8)
+        if (2 * r > gland_x) or (2 * r > gland_y):
+            raise ValueError("The o-ring circumference is too small for the given x and y gland dims")
+        wire = CQ(self.plane).rect(gland_x, gland_y).wires().val()
+        wire = wire.fillet2D(r, wire.Vertices())
+        sweep_result = _make_one_groove(wp=self, _wire=wire, _vdepth=vdepth, _ring_cs=ring_cs, _compression_ratio=compression_ratio, _gland_fill_ratio=gland_fill_ratio)
+        s = s.cut(sweep_result)
 
-            # self.add(sweep_result)
-            # self.add(s)
+        if clean:
+            s = s.clean()
 
     return self.newObject([s])
     # return self
