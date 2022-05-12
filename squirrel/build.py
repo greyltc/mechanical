@@ -5,6 +5,7 @@ import cadquery as cq
 from cadquery import CQ
 from geometrics.toolbox.twod_to_threed import TwoDToThreeD
 from geometrics.toolbox.utilities import import_step
+from geometrics.toolbox import groovy
 from pathlib import Path
 from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, ButtonHeadScrew, SetScrew
 import cq_warehouse.extensions
@@ -22,6 +23,8 @@ def main():
     sources = [
         wrk_dir / "drawings" / "2d.dxf",
     ]
+
+    cq.Workplane.mk_groove = groovy.mk_groove
 
     # instructions for 2d->3d
     instructions = []
@@ -139,7 +142,7 @@ def main():
     to_build = [""]
     asys = ttt.build(to_build)
 
-    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
     center_shift = (-4.5, 0)
     wall_outer = (229, 180)
     corner_holes_offset = 7.5
@@ -164,6 +167,8 @@ def main():
         vac_name = "vacuum_chuck"
         color = cadquery.Color("GOLD")
         fillet = 2
+
+        cop = {"centerOption": "ProjectedOrigin"}
 
         pedistal_xy = (161, 152)
         pedistal_fillet = 10
@@ -211,6 +216,7 @@ def main():
         wp = wp.faces(">Z[-2]").workplane().pushPoints(wb_mount_points).clearanceHole(fastener=waterblock_mount_nut, counterSunk=False, baseAssembly=hardware)
 
         # vac chuck stuff
+        # split
         wp = wp.faces(">Z[-2]").workplane().split(keepTop=True, keepBottom=True).clean()
         btm_piece = wp.solids("<Z").first()
         top_piece = wp.solids(">Z").first()
@@ -224,21 +230,43 @@ def main():
 
         n_sub_array_x = 8
         n_sub_array_y = 2
-        n_sub_spacing_x = 3
-        n_sub_spacing_y = 10
+        x_spacing_sub = 3
+        y_spacing_sub = 10
+        x_start_sub = (n_sub_array_x - 1) / 2
+        y_start_sub = (n_sub_array_y - 1) / 2
 
         hole_d = 1
         hole_cskd = 1.1
         csk_ang = 45
 
+        # compute all the vac chuck vent hole points
+        vac_hole_pts = []
         for i in range(n_array_x):
             for j in range(n_array_y):
-                center = ((i - x_start) * x_spacing, (j - y_start) * y_spacing)
-                top_piece = top_piece.faces(">Z").workplane(centerOption="ProjectedOrigin", origin=center).rarray(n_sub_spacing_x, n_sub_spacing_y, n_sub_array_x, n_sub_array_y).cskHole(diameter=hole_d, cskDiameter=hole_cskd, cskAngle=csk_ang)
+                for k in range(n_sub_array_x):
+                    for l in range(n_sub_array_y):
+                        ctrx = (i - x_start) * x_spacing
+                        ctry = (j - y_start) * y_spacing
+                        offx = (k - x_start_sub) * x_spacing_sub
+                        offy = (l - y_start_sub) * y_spacing_sub
+                        vac_hole_pts.append((ctrx + offx, ctry + offy))
+
+        # drill all the vac holes
+        top_piece = CQ(top_piece.findSolid()).faces(">Z").workplane(**cop).pushPoints(vac_hole_pts).cskHole(diameter=hole_d, cskDiameter=hole_cskd, cskAngle=csk_ang)
 
         # clamping setscrew threaded holes
         # wp = wp.faces(">Z").workplane().pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_recess, baseAssembly=hardware)  # bug prevents this from working correctly, workaround below
-        top_piece = CQ(top_piece.findSolid()).faces(">Z").workplane(offset=setscrew_len - setscrew_recess).pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_len, baseAssembly=hardware)
+        top_piece = top_piece.faces(">Z").workplane(offset=setscrew_len - setscrew_recess).pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_len, baseAssembly=hardware)
+
+        # compute the hole array extents for o-ring path finding
+        sub_x_length = n_sub_array_x * x_spacing_sub + hole_cskd
+        array_x_length = n_array_x * x_spacing + sub_x_length
+
+        sub_y_length = n_sub_array_y * y_spacing_sub + hole_cskd
+        array_y_length = n_array_y * x_spacing + sub_y_length
+
+        # cut the o-ring groove
+        # top_piece = top_piece.faces("<Z").workplane()
 
         aso.add(btm_piece, name=plate_name, color=color)
         aso.add(top_piece, name=vac_name, color=color)

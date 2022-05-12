@@ -63,7 +63,7 @@ def mk_groove(self: cadquery.Workplane, vdepth: float = 0, ring_cs: float = 0, f
 
             if clean:
                 s = s.clean()
-    else:  # we'll need to make our own wire
+    else:  # we'll need to make our own path wire then, given the user specs
         # ensure the user passed in the right stuff
         assert vdepth == 0
         assert ring_cs > 0
@@ -87,10 +87,6 @@ def mk_groove(self: cadquery.Workplane, vdepth: float = 0, ring_cs: float = 0, f
 
     return self.newObject([s])
     # return self
-
-
-def mk_ogroove(cutter_path):
-    print(2)
 
 
 def mk_dovetail_ogroove(cutter_path, entry_point):
