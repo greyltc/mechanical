@@ -7,7 +7,7 @@ from geometrics.toolbox.twod_to_threed import TwoDToThreeD
 from geometrics.toolbox.utilities import import_step
 from geometrics.toolbox import groovy
 from pathlib import Path
-from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, ButtonHeadScrew, SetScrew
+from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, ButtonHeadScrew, SetScrew, CounterSunkScrew
 import cq_warehouse.extensions
 import math
 import itertools
@@ -29,7 +29,7 @@ def main():
     # instructions for 2d->3d
     instructions = []
     substrate_thickness = 0.3
-    copper_thickness = 10
+    copper_thickness = 15
     thermal_pedestal_height = 10
     slot_plate_thickness = 2.3
     pcb_thickness = 1.6
@@ -169,6 +169,7 @@ def main():
         fillet = 2
 
         cop = {"centerOption": "ProjectedOrigin"}
+        cob = {"centerOption": "CenterOfBoundBox"}
 
         pedistal_xy = (161, 152)
         pedistal_fillet = 10
@@ -176,13 +177,21 @@ def main():
         dowelpts = [(-73, -66), (73, 66)]
         dowel_nominal_d = 3  # marked on drawing for pressfit with ⌀3K7
 
-        # clamping stuff
+        # vac chuck clamp screws
+        vacscrew_length = 20
+        vacscrew = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=vacscrew_length, simple=no_threads)
+        vacclamppts = [(-73, -54.75), (-73, 54.75), (73, -54.75), (73, 54.75)]
+
+        # dummy screw for vac fitting
+        vac_fitting_screw = SetScrew("M5-0.8", fastener_type="iso4026", length=30, simple=no_threads)
+
+        # setscrew clamping stuff
         setscrew_len = 25
         setscrew_recess = pedistal_height
         setscrew = SetScrew(size="M6-1", fastener_type="iso4026", length=setscrew_len, simple=no_threads)
         setscrewpts = [(-73, -43.5), (73, 43.5)]
 
-        # waterblock screws
+        # waterblock nuts and holes
         wb_w = 177.8
         wb_mount_offset_from_edge = 7.25
         wb_mount_offset = wb_w / 2 - wb_mount_offset_from_edge
@@ -258,15 +267,36 @@ def main():
         # wp = wp.faces(">Z").workplane().pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_recess, baseAssembly=hardware)  # bug prevents this from working correctly, workaround below
         top_piece = top_piece.faces(">Z").workplane(offset=setscrew_len - setscrew_recess).pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_len, baseAssembly=hardware)
 
-        # compute the hole array extents for o-ring path finding
-        sub_x_length = n_sub_array_x * x_spacing_sub + hole_cskd
-        array_x_length = n_array_x * x_spacing + sub_x_length
+        # vac chuck clamping screws
+        top_piece = top_piece.faces(">Z").workplane().pushPoints(vacclamppts).clearanceHole(vacscrew, baseAssembly=hardware)
+        btm_piece = CQ(btm_piece.findSolid()).faces(">Z").workplane().pushPoints(vacclamppts).tapHole(vacscrew, depth=vacscrew_length - pedistal_height + 1)
 
-        sub_y_length = n_sub_array_y * y_spacing_sub + hole_cskd
-        array_y_length = n_array_y * x_spacing + sub_y_length
+        # compute the hole array extents for o-ring path finding
+        sub_x_length = (n_sub_array_x - 1) * x_spacing_sub + hole_d
+        array_x_length = (n_array_x - 1) * x_spacing + sub_x_length
+
+        sub_y_length = (n_sub_array_y - 1) * y_spacing_sub + hole_d
+        array_y_length = (n_array_y - 1) * y_spacing + sub_y_length
+
+        # padding to keep the oring groove from bothering the vac holes
+        groove_x_pad = 8
+        groove_y_pad = 16
+
+        # that's part number 196-4941
+        o_ring_thickness = 2
+        o_ring_inner_diameter = 170
 
         # cut the o-ring groove
-        # top_piece = top_piece.faces("<Z").workplane()
+        top_piece = top_piece.faces("<Z").workplane().mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=array_x_length + groove_x_pad, gland_y=array_y_length + groove_y_pad, hardware=hardware)
+
+        # vac connection stuff
+        vac_fitting_loc_offset = -2 * y_spacing - 10
+
+        # takes 4mm OD tubes, needs M5x0.8 threads, part number 326-8956
+        a_vac_fitting = cadquery.Assembly(cq.Compound.makeCompound(import_step(wrk_dir.joinpath("components", "3118_04_19.step")).solids().vals()).rotate(startVector=(0, 0, 0), endVector=(1, 0, 0), angleDegrees=90).translate((0, 0, 1.5)), name="one_vac_fitting")
+        top_piece = top_piece.faces(">X").workplane(**cob).center(vac_fitting_loc_offset, 0).tapHole(vac_fitting_screw, depth=20)
+        a_vac_fitting.loc = top_piece.plane.location
+        hardware.add(a_vac_fitting, name="chuck vac fitting")
 
         aso.add(btm_piece, name=plate_name, color=color)
         aso.add(top_piece, name=vac_name, color=color)
