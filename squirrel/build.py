@@ -268,8 +268,8 @@ def main():
         top_piece = top_piece.faces(">Z").workplane(offset=setscrew_len - setscrew_recess).pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_len, baseAssembly=hardware)
 
         # vac chuck clamping screws
-        top_piece = top_piece.faces(">Z").workplane().pushPoints(vacclamppts).clearanceHole(vacscrew, baseAssembly=hardware)
-        btm_piece = CQ(btm_piece.findSolid()).faces(">Z").workplane().pushPoints(vacclamppts).tapHole(vacscrew, depth=vacscrew_length - pedistal_height + 1)
+        top_piece = top_piece.faces(">Z").workplane(**cop).pushPoints(vacclamppts).clearanceHole(vacscrew, baseAssembly=hardware)
+        btm_piece = CQ(btm_piece.findSolid()).faces(">Z").workplane(**cop).pushPoints(vacclamppts).tapHole(vacscrew, depth=vacscrew_length - pedistal_height + 1)
 
         # compute the hole array extents for o-ring path finding
         sub_x_length = (n_sub_array_x - 1) * x_spacing_sub + hole_d
@@ -277,6 +277,31 @@ def main():
 
         sub_y_length = (n_sub_array_y - 1) * y_spacing_sub + hole_d
         array_y_length = (n_array_y - 1) * y_spacing + sub_y_length
+
+        # vac connection stuff
+        vac_fitting_loc_offset = -0.5 * y_spacing
+
+        # takes 4mm OD tubes, needs M5x0.8 threads, part number 326-8956
+        fitting_tap_depth = 20
+        a_vac_fitting = import_step(wrk_dir.joinpath("components", "3118_04_19.step"))
+        a_vac_fitting = a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(1, 0, 0), angleDegrees=90).translate((0, 0, 1.5))
+        vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-3), name="one_vac_fitting")
+        top_piece = top_piece.faces(">X").workplane(**cob).center(vac_fitting_loc_offset, 0).tapHole(vac_fitting_screw, depth=fitting_tap_depth)
+        vac_chuck_fitting.loc = top_piece.plane.location
+        hardware.add(vac_chuck_fitting, name="vac chuck fitting")
+
+        # vac distribution network
+        zdrill_loc = (pedistal_xy[0] / 2 - fitting_tap_depth, 0.5 * y_spacing)
+        zdrill_r = 3
+        zdrill_depth = -pedistal_height / 2 - 2.5
+        top_piece = top_piece.faces("<Z").workplane(**cob).pushPoints([zdrill_loc]).circle(zdrill_r).cutBlind(zdrill_depth)
+
+        highway_depth = 2
+        highway_width = 6
+        street_depth = 1
+        street_width = 1.5
+        top_piece = top_piece.faces("<Z").workplane(**cob).sketch().push([(zdrill_loc[0] / 2, zdrill_loc[1])]).slot(w=zdrill_loc[0], h=highway_width).finalize().cutBlind(-highway_depth)
+        top_piece = top_piece.faces("<Z").workplane(**cob).sketch().slot(w=pedistal_xy[0] - 2 * fitting_tap_depth, h=highway_width, angle=90, mode="a").finalize().cutBlind(-highway_depth)
 
         # padding to keep the oring groove from bothering the vac holes
         groove_x_pad = 8
@@ -287,16 +312,7 @@ def main():
         o_ring_inner_diameter = 170
 
         # cut the o-ring groove
-        top_piece = top_piece.faces("<Z").workplane().mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=array_x_length + groove_x_pad, gland_y=array_y_length + groove_y_pad, hardware=hardware)
-
-        # vac connection stuff
-        vac_fitting_loc_offset = -2 * y_spacing - 10
-
-        # takes 4mm OD tubes, needs M5x0.8 threads, part number 326-8956
-        a_vac_fitting = cadquery.Assembly(cq.Compound.makeCompound(import_step(wrk_dir.joinpath("components", "3118_04_19.step")).solids().vals()).rotate(startVector=(0, 0, 0), endVector=(1, 0, 0), angleDegrees=90).translate((0, 0, 1.5)), name="one_vac_fitting")
-        top_piece = top_piece.faces(">X").workplane(**cob).center(vac_fitting_loc_offset, 0).tapHole(vac_fitting_screw, depth=20)
-        a_vac_fitting.loc = top_piece.plane.location
-        hardware.add(a_vac_fitting, name="chuck vac fitting")
+        top_piece = top_piece.faces("<Z").workplane(**cob).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=array_x_length + groove_x_pad, gland_y=array_y_length + groove_y_pad, hardware=hardware)
 
         aso.add(btm_piece, name=plate_name, color=color)
         aso.add(top_piece, name=vac_name, color=color)
