@@ -163,7 +163,7 @@ def main():
         extents,
         hps,
         screw: SocketHeadCapScrew,
-        pedistal_height,
+        pedistal_height: float,
         zbase: float,
     ):
         """the thermal base"""
@@ -213,7 +213,6 @@ def main():
         # pedistal
         wp = wp.faces(">Z").workplane().sketch().rect(*pedistal_xy).reset().vertices().fillet(pedistal_fillet)
         wp = wp.finalize().extrude(pedistal_height)
-        wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
 
         hardware = cq.Assembly(None)  # a place to keep the harware
 
@@ -232,6 +231,7 @@ def main():
         btm_piece = wp.solids("<Z").first().edges("not %CIRCLE").chamfer(chamfer)
         top_piece = wp.solids(">Z").first().edges("not %CIRCLE").chamfer(chamfer)
 
+        # hole array
         n_array_x = 4
         n_array_y = 5
         x_spacing = 35
@@ -273,7 +273,7 @@ def main():
         top_piece = top_piece.faces(">Z").workplane(offset=setscrew_len - setscrew_recess).pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_len, baseAssembly=hardware)
 
         # vac chuck clamping screws
-        top_piece = top_piece.faces(">Z").workplane(**cop).pushPoints(vacclamppts).clearanceHole(vacscrew, baseAssembly=hardware)
+        top_piece = top_piece.faces(">Z").workplane(**cop).pushPoints(vacclamppts).clearanceHole(vacscrew, fit="Close", baseAssembly=hardware)
         btm_piece = CQ(btm_piece.findSolid()).faces(">Z").workplane(**cop).pushPoints(vacclamppts).tapHole(vacscrew, depth=vacscrew_length - pedistal_height + 1)
 
         # compute the hole array extents for o-ring path finding
