@@ -30,11 +30,11 @@ def main():
     instructions = []
     substrate_thickness = 0.3
     copper_thickness = 15
-    thermal_pedestal_height = 10
+    thermal_pedestal_height = 14.1
     slot_plate_thickness = 2.3
     pcb_thickness = 1.6
     pusher_thickness = 4
-    dowel_length = slot_plate_thickness + pcb_thickness + pusher_thickness + thermal_pedestal_height + 2
+    dowel_length = slot_plate_thickness + pcb_thickness + pusher_thickness + thermal_pedestal_height + 3  # nominally 25
     wall_height = 28
     clamper_threads_length = 25
     clamper_thread_depth = 5
@@ -188,8 +188,9 @@ def main():
         vac_fitting_screw = SetScrew("M5-0.8", fastener_type="iso4026", length=30, simple=no_threads)
 
         # setscrew clamping stuff
-        setscrew_len = 25
-        setscrew_recess = pedistal_height
+        setscrew_len = 30
+        screw_well_depth = 3
+        setscrew_recess = pedistal_height + screw_well_depth
         setscrew = SetScrew(size="M6-1", fastener_type="iso4026", length=setscrew_len, simple=no_threads)
         setscrewpts = [(-73, -43.5), (73, 43.5)]
 
@@ -271,10 +272,11 @@ def main():
         # clamping setscrew threaded holes
         # wp = wp.faces(">Z").workplane().pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_recess, baseAssembly=hardware)  # bug prevents this from working correctly, workaround below
         top_piece = top_piece.faces(">Z").workplane(offset=setscrew_len - setscrew_recess).pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_len, baseAssembly=hardware)
+        btm_piece = CQ(btm_piece.findSolid()).faces(">Z").workplane(**cop).pushPoints(setscrewpts).circle(vacscrew.clearance_hole_diameters["Close"] / 2).cutBlind(-screw_well_depth)
 
         # vac chuck clamping screws
         top_piece = top_piece.faces(">Z").workplane(**cop).pushPoints(vacclamppts).clearanceHole(vacscrew, fit="Close", baseAssembly=hardware)
-        btm_piece = CQ(btm_piece.findSolid()).faces(">Z").workplane(**cop).pushPoints(vacclamppts).tapHole(vacscrew, depth=vacscrew_length - pedistal_height + 1)
+        btm_piece = btm_piece.faces(">Z").workplane(**cop).pushPoints(vacclamppts).tapHole(vacscrew, depth=vacscrew_length - pedistal_height + 1)
 
         # compute the hole array extents for o-ring path finding
         sub_x_length = (n_sub_array_x - 1) * x_spacing_sub + hole_d
