@@ -172,6 +172,7 @@ def main():
         color = cadquery.Color("GOLD")
         fillet = 2
         chamfer = 1
+        corner_screw_depth = 2
 
         pedistal_xy = (161, 152)
         pedistal_fillet = 10
@@ -206,29 +207,30 @@ def main():
             (-129, -wb_mount_offset),
         ]
 
-        wp = CQ().workplane(offset=zbase).sketch()
+        wp = CQ().workplane(**cop, offset=zbase).sketch()
         wp = wp.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(fillet)
         wp = wp.finalize().extrude(thickness)
         wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
 
         # pedistal
-        wp = wp.faces(">Z").workplane().sketch().rect(*pedistal_xy).reset().vertices().fillet(pedistal_fillet)
+        wp = wp.faces(">Z").workplane(**cop).sketch().rect(*pedistal_xy).reset().vertices().fillet(pedistal_fillet)
         wp = wp.finalize().extrude(pedistal_height)
 
         hardware = cq.Assembly(None)  # a place to keep the harware
 
         # corner screws
-        wp = wp.faces("<Z").workplane().pushPoints(hps).clearanceHole(fastener=screw, baseAssembly=hardware)
+        wp = wp.faces("<Z").workplane(**cop, offset=-corner_screw_depth).pushPoints(hps).clearanceHole(fastener=screw, baseAssembly=hardware)
+        wp = wp.faces("<Z[-2]").wires().toPending().extrude(corner_screw_depth, combine="cut")  # make sure the recessed screw is not buried
 
         # dowel holes
-        wp = wp.faces(">Z").workplane().pushPoints(dowelpts).hole(dowel_nominal_d, depth=pedistal_height)
+        wp = wp.faces(">Z").workplane(**cop).pushPoints(dowelpts).hole(dowel_nominal_d, depth=pedistal_height)
 
         # waterblock mounting
-        wp = wp.faces(">Z[-2]").workplane().pushPoints(wb_mount_points).clearanceHole(fastener=waterblock_mount_nut, counterSunk=False, baseAssembly=hardware)
+        wp = wp.faces(">Z[-2]").workplane(**cop).pushPoints(wb_mount_points).clearanceHole(fastener=waterblock_mount_nut, counterSunk=False, baseAssembly=hardware)
 
         # vac chuck stuff
         # split
-        wp = wp.faces(">Z[-2]").workplane().split(keepTop=True, keepBottom=True).clean()
+        wp = wp.faces(">Z[-2]").workplane(**cop).split(keepTop=True, keepBottom=True).clean()
         btm_piece = wp.solids("<Z").first().edges("not %CIRCLE").chamfer(chamfer)
         top_piece = wp.solids(">Z").first().edges("not %CIRCLE").chamfer(chamfer)
 

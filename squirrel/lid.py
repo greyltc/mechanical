@@ -345,7 +345,7 @@ def build(include_hardware=True, save_step=False):
     window_support(assembly, include_hardware)
 
     # shift output geometry to match that of the base
-    assembly.loc = cq.Location(cq.Vector(-4.5, 0, 19.2))
+    assembly.loc = cq.Location(cq.Vector(-4.5, 0, 15.1))
 
     # output
     TwoDToThreeD.outputter({"lid": assembly}, wrk_dir)
