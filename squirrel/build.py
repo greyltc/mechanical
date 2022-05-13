@@ -38,6 +38,7 @@ def main():
     wall_height = 28
     clamper_threads_length = 25
     clamper_thread_depth = 5
+    hardware_color = "GRAY75"
 
     # base posision of the pedistal now
     copper_base_zero = -copper_thickness - thermal_pedestal_height - slot_plate_thickness
@@ -49,7 +50,7 @@ def main():
             "layers": [
                 {
                     "name": "dowels",
-                    "color": "WHITE",
+                    "color": hardware_color,
                     "thickness": dowel_length,
                     "z_base": copper_base_zero + copper_thickness,
                     "drawing_layer_names": [
@@ -77,45 +78,45 @@ def main():
                 #         "corner_holes",
                 #     ],
                 # },
-                {
-                    "name": "substrates",
-                    "color": "BLUE",
-                    "thickness": substrate_thickness,
-                    "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height,
-                    "drawing_layer_names": [
-                        "substrates",
-                    ],
-                },
-                {
-                    "name": "slot_plate",
-                    "color": "RED",
-                    "thickness": slot_plate_thickness,
-                    "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height,
-                    "drawing_layer_names": [
-                        "slot_plate",
-                        "clamper_clearance",
-                        "3C9_slide",
-                    ],
-                },
-                {
-                    "name": "pcb",
-                    "color": "DARKGREEN",
-                    "thickness": pcb_thickness,
-                    "drawing_layer_names": [
-                        "pcb",
-                        "clamper_clearance",
-                    ],
-                },
-                {
-                    "name": "pusher",
-                    "color": "GREEN",
-                    "thickness": pusher_thickness,
-                    "drawing_layer_names": [
-                        "pusher",
-                        "clamper_clearance",
-                        "3C9_slide",
-                    ],
-                },
+                # {
+                #     "name": "substrates",
+                #     "color": "BLUE",
+                #     "thickness": substrate_thickness,
+                #     "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height,
+                #     "drawing_layer_names": [
+                #         "substrates",
+                #     ],
+                # },
+                # {
+                #     "name": "slot_plate",
+                #     "color": "RED",
+                #     "thickness": slot_plate_thickness,
+                #     "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height,
+                #     "drawing_layer_names": [
+                #         "slot_plate",
+                #         "clamper_clearance",
+                #         "3C9_slide",
+                #     ],
+                # },
+                # {
+                #     "name": "pcb",
+                #     "color": "DARKGREEN",
+                #     "thickness": pcb_thickness,
+                #     "drawing_layer_names": [
+                #         "pcb",
+                #         "clamper_clearance",
+                #     ],
+                # },
+                # {
+                #     "name": "pusher",
+                #     "color": "GREEN",
+                #     "thickness": pusher_thickness,
+                #     "drawing_layer_names": [
+                #         "pusher",
+                #         "clamper_clearance",
+                #         "3C9_slide",
+                #     ],
+                # },
                 # {
                 #     "name": "clamper_screws",
                 #     "color": "WHITE",
@@ -125,15 +126,15 @@ def main():
                 #         "clamper_threads",
                 #     ],
                 # },
-                {
-                    "name": "passthrough",
-                    "color": "DARKGREEN",
-                    "thickness": pcb_thickness,
-                    "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height + slot_plate_thickness,
-                    "drawing_layer_names": [
-                        "pcb2",
-                    ],
-                },
+                # {
+                #     "name": "passthrough",
+                #     "color": "DARKGREEN",
+                #     "thickness": pcb_thickness,
+                #     "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height + slot_plate_thickness,
+                #     "drawing_layer_names": [
+                #         "pcb2",
+                #     ],
+                # },
             ],
         }
     )
@@ -141,8 +142,9 @@ def main():
     ttt = TwoDToThreeD(instructions=instructions, sources=sources)
     to_build = [""]
     asys = ttt.build(to_build)
+    # asys = {as_name: cadquery.Assembly()}
 
-    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
     center_shift = (-4.5, 0)
     wall_outer = (229, 180)
     corner_holes_offset = 7.5
@@ -167,6 +169,7 @@ def main():
         vac_name = "vacuum_chuck"
         color = cadquery.Color("GOLD")
         fillet = 2
+        chamfer = 1
 
         cop = {"centerOption": "ProjectedOrigin"}
         cob = {"centerOption": "CenterOfBoundBox"}
@@ -216,19 +219,19 @@ def main():
         hardware = cq.Assembly(None)  # a place to keep the harware
 
         # corner screws
-        wp = wp.faces("<Z").workplane().pushPoints(hps).clearanceHole(fastener=screw, baseAssembly=hardware)
+        # wp = wp.faces("<Z").workplane().pushPoints(hps).clearanceHole(fastener=screw, baseAssembly=hardware)
 
         # dowel holes
         wp = wp.faces(">Z").workplane().pushPoints(dowelpts).hole(dowel_nominal_d, depth=pedistal_height)
 
         # waterblock mounting
-        wp = wp.faces(">Z[-2]").workplane().pushPoints(wb_mount_points).clearanceHole(fastener=waterblock_mount_nut, counterSunk=False, baseAssembly=hardware)
+        # wp = wp.faces(">Z[-2]").workplane().pushPoints(wb_mount_points).clearanceHole(fastener=waterblock_mount_nut, counterSunk=False, baseAssembly=hardware)
 
         # vac chuck stuff
         # split
         wp = wp.faces(">Z[-2]").workplane().split(keepTop=True, keepBottom=True).clean()
-        btm_piece = wp.solids("<Z").first()
-        top_piece = wp.solids(">Z").first()
+        btm_piece = wp.solids("<Z").first().edges("not %CIRCLE").chamfer(chamfer)
+        top_piece = wp.solids(">Z").first().edges("not %CIRCLE").chamfer(chamfer)
 
         n_array_x = 4
         n_array_y = 5
@@ -318,9 +321,9 @@ def main():
         # cut the o-ring groove
         top_piece = top_piece.faces("<Z").workplane(**cob).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=array_x_length + groove_x_pad, gland_y=array_y_length + groove_y_pad, hardware=hardware)
 
-        aso.add(btm_piece, name=plate_name, color=color)
+        # aso.add(btm_piece, name=plate_name, color=color)
         aso.add(top_piece, name=vac_name, color=color)
-        aso.add(hardware.toCompound(), name="hardware")
+        aso.add(hardware.toCompound(), name="hardware", color=cadquery.Color(hardware_color))
 
     mkbase(asys[as_name], copper_thickness, center_shift, base_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero)
 
@@ -386,9 +389,9 @@ def main():
         pipe_fitting_asy.loc = wppf.plane.location
         wall_hardware.add(pipe_fitting_asy, name="rear_right_gas_fitting")
 
-        aso.add(wall_hardware.toCompound(), name="wall_hardware")
+        aso.add(wall_hardware.toCompound(), name="wall_hardware", color=cadquery.Color(hardware_color))
 
-    mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, copper_base_zero + copper_thickness)
+    # mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, copper_base_zero + copper_thickness)
 
     TwoDToThreeD.outputter(asys, wrk_dir)
 
