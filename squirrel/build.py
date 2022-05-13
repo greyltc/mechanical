@@ -79,7 +79,7 @@ def main():
                 # },
                 {
                     "name": "substrates",
-                    "color": "SKYBLUE",
+                    "color": "BLUE",
                     "thickness": substrate_thickness,
                     "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height,
                     "drawing_layer_names": [
@@ -249,7 +249,8 @@ def main():
         csk_ang = 45
 
         # compute all the vac chuck vent hole points
-        vac_hole_pts = []
+        vac_hole_pts = []  # where the vac holes are drilled
+        street_centers = []  # the distribution street y values
         for i in range(n_array_x):
             for j in range(n_array_y):
                 for k in range(n_sub_array_x):
@@ -259,6 +260,8 @@ def main():
                         offx = (k - x_start_sub) * x_spacing_sub
                         offy = (l - y_start_sub) * y_spacing_sub
                         vac_hole_pts.append((ctrx + offx, ctry + offy))
+                        street_centers.append((0, ctry + offy))
+        street_centers = list(set(street_centers))  # prune duplicates
 
         # drill all the vac holes
         top_piece = CQ(top_piece.findSolid()).faces(">Z").workplane(**cop).pushPoints(vac_hole_pts).cskHole(diameter=hole_d, cskDiameter=hole_cskd, cskAngle=csk_ang)
@@ -296,12 +299,13 @@ def main():
         zdrill_depth = -pedistal_height / 2 - 2.5
         top_piece = top_piece.faces("<Z").workplane(**cob).pushPoints([zdrill_loc]).circle(zdrill_r).cutBlind(zdrill_depth)
 
-        highway_depth = 2
+        highway_depth = 3
         highway_width = 6
-        street_depth = 1
-        street_width = 1.5
+        street_depth = 2
+        street_width = 1
         top_piece = top_piece.faces("<Z").workplane(**cob).sketch().push([(zdrill_loc[0] / 2, zdrill_loc[1])]).slot(w=zdrill_loc[0], h=highway_width).finalize().cutBlind(-highway_depth)
-        top_piece = top_piece.faces("<Z").workplane(**cob).sketch().slot(w=pedistal_xy[0] - 2 * fitting_tap_depth, h=highway_width, angle=90, mode="a").finalize().cutBlind(-highway_depth)
+        top_piece = top_piece.faces("<Z").workplane(**cob).sketch().slot(w=pedistal_xy[0] - 2 * fitting_tap_depth, h=highway_width, angle=90).finalize().cutBlind(-highway_depth)  # cut center highway
+        top_piece = top_piece.faces("<Z").workplane(**cob).sketch().push(street_centers).slot(w=array_x_length - hole_d, h=street_width).finalize().cutBlind(-street_depth)  # cut streets
 
         # padding to keep the oring groove from bothering the vac holes
         groove_x_pad = 8
