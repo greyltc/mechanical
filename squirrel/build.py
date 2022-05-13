@@ -153,6 +153,9 @@ def main():
 
     base_outer = (wall_outer[0] + 40, wall_outer[1])
 
+    cop = {"centerOption": "ProjectedOrigin"}
+    cob = {"centerOption": "CenterOfBoundBox"}
+
     def mkbase(
         aso: cadquery.Assembly,
         thickness: float,
@@ -169,9 +172,6 @@ def main():
         color = cadquery.Color("GOLD")
         fillet = 2
         chamfer = 1
-
-        cop = {"centerOption": "ProjectedOrigin"}
-        cob = {"centerOption": "CenterOfBoundBox"}
 
         pedistal_xy = (161, 152)
         pedistal_fillet = 10
@@ -342,6 +342,7 @@ def main():
         inner_shift = cshift
         outer_fillet = 2
         inner_fillet = 15
+        chamfer = 1
 
         nut = HexNut(size="M6-1", fastener_type="iso4033")
         flat_to_flat = math.sin(60 * math.pi / 180) * nut.nut_diameter
@@ -363,25 +364,28 @@ def main():
         wall_hardware = cq.Assembly(None, name="wall_hardware")
 
         # corner holes (with nuts and nut pockets)
-        wp = wp.faces(">Z").workplane(offset=-nut.nut_thickness).pushPoints(hps).clearanceHole(fastener=nut, counterSunk=False, baseAssembly=wall_hardware)
-        wp = wp.faces(">Z").workplane().sketch().push(hps[0:4:3]).rect(flat_to_flat, nut.nut_diameter, angle=45).reset().push(hps[1:3]).rect(flat_to_flat, nut.nut_diameter, angle=-45).reset().vertices().fillet(nut.nut_diameter / 4).finalize().cutBlind(-nut.nut_thickness)
+        wp = wp.faces(">Z").workplane(**cop, offset=-nut.nut_thickness).pushPoints(hps).clearanceHole(fastener=nut, counterSunk=False, baseAssembly=wall_hardware)
+        wp = wp.faces(">Z").workplane(**cop).sketch().push(hps[0:4:3]).rect(flat_to_flat, nut.nut_diameter, angle=45).reset().push(hps[1:3]).rect(flat_to_flat, nut.nut_diameter, angle=-45).reset().vertices().fillet(nut.nut_diameter / 4).finalize().cutBlind(-nut.nut_thickness)
+
+        # chamfers
+        wp = wp.faces(">Z").edges(">>X").chamfer(chamfer)
 
         # gas holes
-        wp = wp.faces("<X").workplane(centerOption="CenterOfBoundBox").center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
-        wp = wp.faces(">X").workplane(centerOption="CenterOfBoundBox").rarray(front_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
+        wp = wp.faces("<X").workplane(**cob).center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
+        wp = wp.faces(">X").workplane(**cob).rarray(front_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
 
         aso.add(wp, name=name, color=color)
 
         pipe_fitting_asy = cadquery.Assembly(import_step(wrk_dir.joinpath("components", "5483T93_Miniature Nickel-Plated Brass Pipe Fitting.step")).translate((0, 0, -6.35)), name="one_pipe_fitting")
 
         # move the pipe fittings to their wall holes
-        wppf = wp.faces(">X").workplane(centerOption="CenterOfBoundBox").center(front_holes_spacing / 2, 0)
+        wppf = wp.faces(">X").workplane(**cob).center(front_holes_spacing / 2, 0)
         pipe_fitting_asy.loc = wppf.plane.location
         wall_hardware.add(pipe_fitting_asy, name="front_right_gas_fitting")
         wppf = wppf.center(-front_holes_spacing, 0)
         pipe_fitting_asy.loc = wppf.plane.location
         wall_hardware.add(pipe_fitting_asy, name="front_left_gas_fitting")
-        wppf = wp.faces("<X").workplane(centerOption="CenterOfBoundBox").center(back_holes_shift + back_holes_spacing / 2, 0)
+        wppf = wp.faces("<X").workplane(**cob).center(back_holes_shift + back_holes_spacing / 2, 0)
         pipe_fitting_asy.loc = wppf.plane.location
         wall_hardware.add(pipe_fitting_asy, name="rear_left_gas_fitting")
         wppf = wppf.center(-back_holes_spacing, 0)
