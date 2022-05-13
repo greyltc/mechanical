@@ -374,6 +374,17 @@ def main():
         wp = wp.faces("<X").workplane(**cob).center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
         wp = wp.faces(">X").workplane(**cob).rarray(front_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
 
+        # that's part number polymax 230X2N70
+        o_ring_thickness = 2
+        o_ring_inner_diameter = 230
+        ooffset = 8
+
+        # cut the lid o-ring groove
+        wp = wp.faces(">Z").workplane(**cob).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=extents[0] - ooffset, gland_y=extents[1] - ooffset, hardware=wall_hardware)
+
+        # cut the base o-ring groove
+        wp = wp.faces("<Z").workplane(**cob).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=extents[0] - ooffset, gland_y=extents[1] - ooffset, hardware=wall_hardware)
+
         aso.add(wp, name=name, color=color)
 
         pipe_fitting_asy = cadquery.Assembly(import_step(wrk_dir.joinpath("components", "5483T93_Miniature Nickel-Plated Brass Pipe Fitting.step")).translate((0, 0, -6.35)), name="one_pipe_fitting")
