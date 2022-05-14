@@ -7,8 +7,8 @@ from geometrics.toolbox.twod_to_threed import TwoDToThreeD
 from geometrics.toolbox.utilities import import_step
 from geometrics.toolbox import groovy
 from pathlib import Path
-from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, ButtonHeadScrew, SetScrew, CounterSunkScrew
-import cq_warehouse.extensions
+from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, SetScrew, CounterSunkScrew
+import cq_warehouse.extensions  # this does something even though it's not directly used
 import math
 import itertools
 
@@ -36,8 +36,7 @@ def main():
     pusher_thickness = 4
     dowel_length = slot_plate_thickness + pcb_thickness + pusher_thickness + thermal_pedestal_height + 3  # nominally 25
     wall_height = 28
-    clamper_threads_length = 25
-    clamper_thread_depth = 5
+    passthrough_standoff_height = 15
     hardware_color = "GRAY75"
 
     # base posision of the pedistal now
@@ -117,20 +116,11 @@ def main():
                         "3C9_slide",
                     ],
                 },
-                # {
-                #     "name": "clamper_screws",
-                #     "color": "WHITE",
-                #     "thickness": clamper_threads_length,
-                #     "z_base": copper_base_zero + copper_thickness - clamper_thread_depth,
-                #     "drawing_layer_names": [
-                #         "clamper_threads",
-                #     ],
-                # },
                 {
                     "name": "passthrough",
                     "color": "DARKGREEN",
                     "thickness": pcb_thickness,
-                    "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height + slot_plate_thickness,
+                    "z_base": copper_base_zero + copper_thickness + passthrough_standoff_height,
                     "drawing_layer_names": [
                         "pcb2",
                     ],
