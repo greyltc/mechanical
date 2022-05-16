@@ -209,7 +209,7 @@ def main():
         hardware = cq.Assembly(None)  # a place to keep the harware
 
         # corner screws
-        wp = wp.faces("<Z").workplane(**cop, offset=-corner_screw_depth).pushPoints(hps).clearanceHole(fastener=screw, baseAssembly=hardware)
+        wp = wp.faces("<Z").workplane(**cop, offset=-corner_screw_depth).pushPoints(hps).clearanceHole(fastener=screw, fit="Close", baseAssembly=hardware)
         wp = wp.faces("<Z[-2]").wires().toPending().extrude(corner_screw_depth, combine="cut")  # make sure the recessed screw is not buried
 
         # dowel holes
@@ -335,18 +335,21 @@ def main():
         inner = (extents[0] - 2 * thickness, extents[1] - 2 * thickness)
         inner_shift = cshift
         outer_fillet = 2
-        inner_fillet = 15
-        chamfer = 1
+        inner_fillet = 7
+        chamfer = 0.75
 
         nut = HexNut(size="M6-1", fastener_type="iso4033")
-        flat_to_flat = math.sin(60 * math.pi / 180) * nut.nut_diameter
+        flat_to_flat = math.sin(60 * math.pi / 180) * nut.nut_diameter + 0.25
 
-        cb_hole_diameter = 20.6375
-        cb_diameter = 22.22
-        cbd = 1.05  # TODO:change this to compress o-ring properly
+        gas_fitting_hole_diameter = 20.6375  # 13/16"
+        gas_fitting_recess = 6.35
+        gas_fitting_flat_to_flat = 22.22 + 0.28
+        gas_fitting_diameter = 25.66 + 0.34
+        # cb_diameter = 22.22
+        # cbd = 1.05  # TODO:change this to compress o-ring properly
 
-        back_holes_shift = 32
-        back_holes_spacing = 35
+        back_holes_shift = 45
+        back_holes_spacing = 26
         front_holes_spacing = 60
 
         wp = CQ().workplane(offset=zbase).sketch()
@@ -358,20 +361,22 @@ def main():
         wall_hardware = cq.Assembly(None, name="wall_hardware")
 
         # corner holes (with nuts and nut pockets)
-        wp = wp.faces(">Z").workplane(**cop, offset=-nut.nut_thickness).pushPoints(hps).clearanceHole(fastener=nut, counterSunk=False, baseAssembly=wall_hardware)
+        wp = wp.faces(">Z").workplane(**cop, offset=-nut.nut_thickness).pushPoints(hps).clearanceHole(fastener=nut, fit="Close", counterSunk=False, baseAssembly=wall_hardware)
         wp = wp.faces(">Z").workplane(**cop).sketch().push(hps[0:4:3]).rect(flat_to_flat, nut.nut_diameter, angle=45).reset().push(hps[1:3]).rect(flat_to_flat, nut.nut_diameter, angle=-45).reset().vertices().fillet(nut.nut_diameter / 4).finalize().cutBlind(-nut.nut_thickness)
 
         # chamfers
         wp = wp.faces(">Z").edges(">>X").chamfer(chamfer)
 
-        # gas holes
-        wp = wp.faces("<X").workplane(**cob).center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
-        wp = wp.faces(">X").workplane(**cob).rarray(front_holes_spacing, 1, 2, 1).cboreHole(diameter=cb_hole_diameter, cboreDiameter=cb_diameter, cboreDepth=cbd, depth=thickness)
+        # gas holes with recesses
+        wp = wp.faces("<X").workplane(**cob).center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).hole(diameter=gas_fitting_hole_diameter, depth=thickness)
+        wp = wp.faces("<X").workplane(**cob).center(back_holes_shift, 0).sketch().rarray(back_holes_spacing, 1, 2, 1).rect(gas_fitting_diameter, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)
+        wp = wp.faces(">X").workplane(**cob).rarray(front_holes_spacing, 1, 2, 1).hole(diameter=gas_fitting_hole_diameter, depth=thickness)
+        wp = wp.faces(">X").workplane(**cob).sketch().rarray(front_holes_spacing, 1, 2, 1).rect(gas_fitting_diameter, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)
 
         # that's part number polymax 230X2N70
         o_ring_thickness = 2
         o_ring_inner_diameter = 230
-        ooffset = 8
+        ooffset = 15
 
         # cut the lid o-ring groove
         wp = wp.faces(">Z").workplane(**cob).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=extents[0] - ooffset, gland_y=extents[1] - ooffset, hardware=wall_hardware)
@@ -381,9 +386,13 @@ def main():
 
         aso.add(wp, name=name, color=color)
 
-        pipe_fitting_asy = cadquery.Assembly(import_step(wrk_dir.joinpath("components", "5483T93_Miniature Nickel-Plated Brass Pipe Fitting.step")).translate((0, 0, -6.35)), name="one_pipe_fitting")
+        # get a the pipe fitting geometry
+        a_pipe_fitting = import_step(wrk_dir.joinpath("components", "5483T93_Miniature Nickel-Plated Brass Pipe Fitting.step"))
+        a_pipe_fitting = a_pipe_fitting.translate((0, 0, -6.35 - gas_fitting_recess))
+        pipe_fitting_asy = cadquery.Assembly(a_pipe_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=30), name="one_pipe_fitting")
 
         # move the pipe fittings to their wall holes
+        # bonded washer for sealing these from the inside face is part 229-6277
         wppf = wp.faces(">X").workplane(**cob).center(front_holes_spacing / 2, 0)
         pipe_fitting_asy.loc = wppf.plane.location
         wall_hardware.add(pipe_fitting_asy, name="front_right_gas_fitting")
