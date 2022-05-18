@@ -280,8 +280,9 @@ def main():
         # vac connection stuff
         vac_fitting_loc_offset = -0.5 * y_spacing
 
-        # takes 4mm OD tubes, needs M5x0.8 threads, part number 326-8956
         fitting_tap_depth = 20
+        # get vac fitting geometry
+        # takes 4mm OD tubes, needs M5x0.8 threads, part number 326-8956
         a_vac_fitting = import_step(wrk_dir.joinpath("components", "3118_04_19.step"))
         a_vac_fitting = a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(1, 0, 0), angleDegrees=90).translate((0, 0, 1.5))
         vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-3), name="one_vac_fitting")
@@ -349,7 +350,7 @@ def main():
         # cbd = 1.05  # TODO:change this to compress o-ring properly
 
         back_holes_shift = 45
-        back_holes_spacing = 26
+        back_holes_spacing = 27
         front_holes_spacing = 60
 
         wp = CQ().workplane(offset=zbase).sketch()
@@ -369,7 +370,8 @@ def main():
 
         # gas holes with recesses
         wp = wp.faces("<X").workplane(**cob).center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).hole(diameter=gas_fitting_hole_diameter, depth=thickness)
-        wp = wp.faces("<X").workplane(**cob).center(back_holes_shift, 0).sketch().rarray(back_holes_spacing, 1, 2, 1).rect(gas_fitting_diameter, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)
+        # wp = wp.faces("<X").workplane(**cob).center(back_holes_shift, 0).sketch().rarray(back_holes_spacing, 1, 2, 1).rect(gas_fitting_diameter, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)
+        wp = wp.faces("<X").workplane(**cob).center(back_holes_shift, 0).sketch().rect(gas_fitting_diameter * 2, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)  # unify the back holes
         wp = wp.faces(">X").workplane(**cob).rarray(front_holes_spacing, 1, 2, 1).hole(diameter=gas_fitting_hole_diameter, depth=thickness)
         wp = wp.faces(">X").workplane(**cob).sketch().rarray(front_holes_spacing, 1, 2, 1).rect(gas_fitting_diameter, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)
 
@@ -386,13 +388,12 @@ def main():
 
         aso.add(wp, name=name, color=color)
 
-        # get a the pipe fitting geometry
+        # get pipe fitting geometry
         a_pipe_fitting = import_step(wrk_dir.joinpath("components", "5483T93_Miniature Nickel-Plated Brass Pipe Fitting.step"))
         a_pipe_fitting = a_pipe_fitting.translate((0, 0, -6.35 - gas_fitting_recess))
         pipe_fitting_asy = cadquery.Assembly(a_pipe_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=30), name="one_pipe_fitting")
 
         # move the pipe fittings to their wall holes
-        # bonded washer for sealing these from the inside face is part 229-6277
         wppf = wp.faces(">X").workplane(**cob).center(front_holes_spacing / 2, 0)
         pipe_fitting_asy.loc = wppf.plane.location
         wall_hardware.add(pipe_fitting_asy, name="front_right_gas_fitting")
@@ -405,6 +406,25 @@ def main():
         wppf = wppf.center(-back_holes_spacing, 0)
         pipe_fitting_asy.loc = wppf.plane.location
         wall_hardware.add(pipe_fitting_asy, name="rear_right_gas_fitting")
+
+        # get bonded washer geometry, part 229-6277
+        bonded_washer = import_step(wrk_dir.joinpath("components", "hutchinson_ljf_207242.stp"))
+        bonded_washer = bonded_washer.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90).translate((0, 0, 1.25))
+        bonded_washer_asy = cadquery.Assembly(bonded_washer, name="one_bonded_washer")
+
+        # move bonded washers to their wall holes
+        wpbw = wp.faces(">X[-5]").workplane(**cob).center(-front_holes_spacing / 2, 0)
+        bonded_washer_asy.loc = wpbw.plane.location
+        wall_hardware.add(bonded_washer_asy, name="front_right_bonded_washer")
+        wpbw = wpbw.center(front_holes_spacing, 0)
+        bonded_washer_asy.loc = wpbw.plane.location
+        wall_hardware.add(bonded_washer_asy, name="front_left_bonded_washer")
+        wpbw = wp.faces("<X[-5]").workplane(**cob).center(-back_holes_shift - back_holes_spacing / 2, 0)
+        bonded_washer_asy.loc = wpbw.plane.location
+        wall_hardware.add(bonded_washer_asy, name="rear_right_bonded_washer")
+        wpbw = wpbw.center(back_holes_spacing, 0)
+        bonded_washer_asy.loc = wpbw.plane.location
+        wall_hardware.add(bonded_washer_asy, name="rear_left_bonded_washer")
 
         aso.add(wall_hardware.toCompound(), name="wall_hardware", color=cadquery.Color(hardware_color))
 
