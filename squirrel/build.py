@@ -386,6 +386,16 @@ def main():
         # cut the base o-ring groove
         wp = wp.faces("<Z").workplane(**cob).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=extents[0] - ooffset, gland_y=extents[1] - ooffset, hardware=wall_hardware)
 
+        # passthrough
+        pt_center_offset = 28.65
+        pt_pcb_width = 82.7
+        pt_pcb_depth = 30.54
+        pt_pcb_corner_r = 2
+        pt_pcb_thickness = 1.6
+        pt_bcp__top_bottom_padding = 0.2
+
+        wp = wp.faces("<X").workplane(**cob).center(-pt_center_offset, 0).sketch().slot(w=pt_pcb_width, h=pt_pcb_thickness + 2 * pt_bcp__top_bottom_padding).finalize().cutBlind(-thickness)
+
         aso.add(wp, name=name, color=color)
 
         # get pipe fitting geometry
