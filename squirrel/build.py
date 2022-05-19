@@ -7,7 +7,7 @@ from geometrics.toolbox.twod_to_threed import TwoDToThreeD
 from geometrics.toolbox.utilities import import_step
 from geometrics.toolbox import groovy
 from pathlib import Path
-from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, SetScrew, CounterSunkScrew
+from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, SetScrew, CounterSunkScrew, ButtonHeadScrew
 import cq_warehouse.extensions  # this does something even though it's not directly used
 import math
 import itertools
@@ -319,7 +319,7 @@ def main():
         aso.add(top_piece, name=vac_name, color=color)
         aso.add(hardware.toCompound(), name="hardware", color=cadquery.Color(hardware_color))
 
-    mkbase(asys[as_name], copper_thickness, center_shift, base_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero)
+    # mkbase(asys[as_name], copper_thickness, center_shift, base_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero)
 
     def mkwalls(
         aso: cadquery.Assembly,
@@ -392,9 +392,19 @@ def main():
         pt_pcb_depth = 30.54
         pt_pcb_corner_r = 2
         pt_pcb_thickness = 1.6
-        pt_bcp__top_bottom_padding = 0.2
+        pt_bcp_top_bottom_padding = 0.2
+        pt_pcb_mount_hole_offset = (4.445, 3)  # from corners
+        pt_mnt_hl_dia = 3.2  #
 
-        wp = wp.faces("<X").workplane(**cob).center(-pt_center_offset, 0).sketch().slot(w=pt_pcb_width, h=pt_pcb_thickness + 2 * pt_bcp__top_bottom_padding).finalize().cutBlind(-thickness)
+        pt_screws = ButtonHeadScrew(size="M3-0.5", fastener_type="iso7380_1", length=5, simple=no_threads)
+
+        pt_pcb = wp.faces("<X").workplane(**cob, offset=-thickness / 2 - pt_pcb_depth / 2).center(-pt_center_offset, 0).sketch().rect(pt_pcb_width, pt_pcb_thickness).finalize().extrude(until=pt_pcb_depth, combine=False)
+        pt_pcb = CQ(pt_pcb.findSolid()).faces(">Z").workplane(**cob).rarray(pt_pcb_depth - 2 * pt_pcb_mount_hole_offset[0], pt_pcb_width - 2 * pt_pcb_mount_hole_offset[1], 2, 2).clearanceHole(fastener=pt_screws, fit="Close", counterSunk=False, baseAssembly=wall_hardware)
+        pt_pcb = pt_pcb.edges("|Z").fillet(pt_pcb_corner_r)
+
+        aso.add(pt_pcb, name="passthrough_pcb", color=cadquery.Color("DARKGREEN"))
+
+        wp = wp.faces("<X").workplane(**cob).center(-pt_center_offset, 0).sketch().slot(w=pt_pcb_width - 2 * pt_bcp_top_bottom_padding, h=pt_pcb_thickness + 2 * pt_bcp_top_bottom_padding).finalize().cutBlind(-thickness)
 
         aso.add(wp, name=name, color=color)
 
