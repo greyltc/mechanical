@@ -39,9 +39,8 @@ class GroovyTestCase(unittest.TestCase):
         demo_block = cq.Workplane("XY").rect(200, 200, centered=True).extrude(-200).edges("|Z").fillet(3)
         asy = cadquery.Assembly()
 
-        # vslot
-        depth = 4
-        ring_cs = 2  # o-ring cross-section diameter
+        depth = 4  # vslot
+        ring_cs = 1  # o-ring cross-section diameter
         co = {"centerOption": "CenterOfBoundBox"}
         demo_block = demo_block.faces(">Z").workplane(**co).add(cutter_path).wires().toPending().mk_groove(vdepth=depth)
         demo_block = demo_block.faces("<Z").workplane(**co).sketch().rect(50, 50).vertices().fillet(10).finalize().mk_groove(vdepth=depth)
@@ -49,7 +48,7 @@ class GroovyTestCase(unittest.TestCase):
         demo_block = demo_block.faces("<X").workplane(**co).sketch().rarray(75, 75, 2, 2).circle(25).finalize().mk_groove(vdepth=depth)
         demo_block = demo_block.faces(">X").workplane(**co).sketch().rarray(75, 75, 2, 2).circle(25).finalize().mk_groove(ring_cs=ring_cs, hardware=asy)
 
-        demo_block = demo_block.faces("<Y").workplane(**co).mk_groove(ring_cs=ring_cs, follow_pending_wires=False, ring_id=90.8, gland_x=80, gland_y=100, hardware=asy)
+        demo_block = demo_block.faces("<Y").workplane(**co).mk_groove(ring_cs=ring_cs, follow_pending_wires=False, ring_id=90, gland_x=70, gland_y=100, hardware=asy)
         demo_block = demo_block.faces(">Y").workplane(**co).mk_groove(ring_cs=ring_cs, follow_pending_wires=False, ring_id=111, gland_x=80, gland_y=100, hardware=asy)
 
         tmpdirname = tempfile.mkdtemp()
