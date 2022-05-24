@@ -28,10 +28,11 @@ def main():
 
     # instructions for 2d->3d
     instructions = []
+    substrate_raise = 0.25
     substrate_thickness = 0.3
     copper_thickness = 15
     thermal_pedestal_height = 14.1
-    slot_plate_thickness = 2.3
+    slot_plate_thickness = 2.3 + substrate_raise
     pcb_thickness = 1.6
     pusher_thickness = 4
     dowel_length = slot_plate_thickness + pcb_thickness + pusher_thickness + thermal_pedestal_height + 3  # nominally 25
@@ -81,7 +82,7 @@ def main():
                     "name": "substrates",
                     "color": "BLUE",
                     "thickness": substrate_thickness,
-                    "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height,
+                    "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height + substrate_raise,
                     "drawing_layer_names": [
                         "substrates",
                     ],
@@ -155,6 +156,7 @@ def main():
         screw: SocketHeadCapScrew,
         pedistal_height: float,
         zbase: float,
+        subs_boost: float,
     ):
         """the thermal base"""
         plate_name = "thermal_plate"
@@ -258,8 +260,13 @@ def main():
                         street_centers.append((0, ctry + offy))
         street_centers = list(set(street_centers))  # prune duplicates
 
+        # boost substrates up so they can't slip under
+        raise_square = (25, 25)
+        raise_fillet = 1
+        top_piece = CQ(top_piece.findSolid()).faces(">Z").workplane(**cop).sketch().rarray(x_spacing, y_spacing, n_array_x, n_array_y).rect(*raise_square).reset().vertices().fillet(raise_fillet).finalize().extrude(subs_boost)
+
         # drill all the vac holes
-        top_piece = CQ(top_piece.findSolid()).faces(">Z").workplane(**cop).pushPoints(vac_hole_pts).cskHole(diameter=hole_d, cskDiameter=hole_cskd, cskAngle=csk_ang)
+        top_piece = top_piece.faces(">Z").workplane(**cop).pushPoints(vac_hole_pts).cskHole(diameter=hole_d, cskDiameter=hole_cskd, cskAngle=csk_ang)
 
         # clamping setscrew threaded holes
         # wp = wp.faces(">Z").workplane().pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_recess, baseAssembly=hardware)  # bug prevents this from working correctly, workaround below
@@ -319,7 +326,7 @@ def main():
         aso.add(top_piece, name=vac_name, color=color)
         aso.add(hardware.toCompound(), name="hardware", color=cadquery.Color(hardware_color))
 
-    # mkbase(asys[as_name], copper_thickness, center_shift, base_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero)
+    mkbase(asys[as_name], copper_thickness, center_shift, base_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero, substrate_raise)
 
     def mkwalls(
         aso: cadquery.Assembly,
