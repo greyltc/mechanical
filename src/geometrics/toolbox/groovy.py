@@ -7,10 +7,21 @@ import copy
 from . import utilities as u
 
 
+def get_gland_height(ring_cs=1, compression_ratio: float = 0.25):
+    return ring_cs * (1 - compression_ratio)
+
+
+def get_gland_width(ring_cs=1, compression_ratio: float = 0.25, gland_fill_ratio: float = 0.7):
+    ring_cs_area = math.pi * (ring_cs / 2) ** 2
+    gland_area = ring_cs_area / gland_fill_ratio
+    return gland_area / get_gland_height(ring_cs, compression_ratio)
+
+
 def mk_groove(self: cadquery.Workplane, vdepth: float = 0, ring_cs: float = 0, follow_pending_wires: bool = True, ring_id: float = None, gland_x: float = None, gland_y: float = None, compression_ratio: float = 0.25, gland_fill_ratio: float = 0.7, clean: bool = True, hardware: cadquery.Assembly = None):
     """
     for cutting grooves
     set vdepth > 0 to cut a vgroove of that depth
+    otherwise
     set ring_cs > 0 to cut an o-ring groove (the diameter of the cross section of the o-ring)
     follow_pending_wires = True, will mean the grooves will be cut according to pending wires/faces
     if that's false, we'll make a groove for a specific o-ring and you must set all off the following:
@@ -29,10 +40,8 @@ def mk_groove(self: cadquery.Workplane, vdepth: float = 0, ring_cs: float = 0, f
             half_profile = CQ(build_plane).polyline([(0, 0), (-_vdepth, 0), (0, _vdepth)]).close()
         elif ring_cs > 0:  # we'll cut an o-ring groove, ring_cs is the diameter of the cross section of the o-ring
             # according to https://web.archive.org/web/20220512010502/https://www.globaloring.com/o-ring-groove-design/
-            gland_height = _ring_cs * (1 - _compression_ratio)
-            ring_cs_area = math.pi * (_ring_cs / 2) ** 2
-            gland_area = ring_cs_area / _gland_fill_ratio
-            gland_width = gland_area / gland_height
+            gland_height = get_gland_height(_ring_cs, _compression_ratio)
+            gland_width = get_gland_width(_ring_cs, _compression_ratio, _gland_fill_ratio)
             half_profile = CQ(build_plane).polyline([(0, 0), (-gland_height, 0), (-gland_height, gland_width / 2), (0, gland_width / 2)]).close()
         else:
             raise ValueError("One of vdepth or ring_cs must be larger than 0")

@@ -139,23 +139,28 @@ def import_step(file):
     return wp
 
 
-def find_length(thisthing, along="X", bb_method=False):
+def find_length(thisthing, along="normal", bb_method=False):
     """
     Use distance between extreme verticies of an object to
     find its length along a coordinate direction
-    along can be "X", "Y" or "Z"
+    along can be "X", "Y", "Z" or "normal" to use the normal to workplane direction
     """
 
+    # use the first solid
+    tt = cq.Workplane(inPlane=thisthing.plane).add(obj=thisthing.findSolid())
+
     length = None
-    if bb_method == False:
+    if bb_method == False:  # vertex method
         if along == "X":
-            length = thisthing.vertices(">X").val().Center().x - thisthing.vertices("<X").val().Center().x
+            length = tt.vertices(">X").val().Center().x - tt.vertices("<X").val().Center().x
         elif along == "Y":
-            length = thisthing.vertices(">Y").val().Center().y - thisthing.vertices("<Y").val().Center().y
+            length = tt.vertices(">Y").val().Center().y - tt.vertices("<Y").val().Center().y
         elif along == "Z":
-            length = thisthing.vertices(">Z").val().Center().z - thisthing.vertices("<Z").val().Center().z
+            length = tt.vertices(">Z").val().Center().z - tt.vertices("<Z").val().Center().z
+        elif along == "normal":
+            length = tt.vertices(f">{tt.plane.zDir.toTuple()}").val().Center().dot(tt.plane.zDir) - tt.vertices(f"<{tt.plane.zDir.toTuple()}").val().Center().dot(tt.plane.zDir)
     else:
-        s = thisthing.findSolid()
+        s = tt.findSolid()
         tbb = s.BoundingBox()
         if along == "X":
             length = tbb.xlen

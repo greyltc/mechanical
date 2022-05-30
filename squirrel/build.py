@@ -6,6 +6,7 @@ from cadquery import CQ
 from geometrics.toolbox.twod_to_threed import TwoDToThreeD
 from geometrics.toolbox.utilities import import_step
 from geometrics.toolbox import groovy
+from geometrics.toolbox import passthrough
 from pathlib import Path
 from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, SetScrew, CounterSunkScrew, ButtonHeadScrew
 import cq_warehouse.extensions  # this does something even though it's not directly used
@@ -24,7 +25,8 @@ def main():
         wrk_dir / "drawings" / "2d.dxf",
     ]
 
-    cq.Workplane.mk_groove = groovy.mk_groove
+    cq.Workplane.mk_groove = groovy.mk_groove  # add in our groovemaker
+    cq.Workplane.make_oringer = passthrough.make_oringer  # add in our passthrough maker
 
     # instructions for 2d->3d
     instructions = []
@@ -393,28 +395,6 @@ def main():
         # cut the base o-ring groove
         wp = wp.faces("<Z").workplane(**cob).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=extents[0] - ooffset, gland_y=extents[1] - ooffset, hardware=wall_hardware)
 
-        # passthrough
-        pt_center_offset = 28.65
-        pt_pcb_width = 82.7
-        pt_pcb_depth = 30.54
-        pt_pcb_corner_r = 2
-        pt_pcb_thickness = 1.6
-        pt_bcp_top_bottom_padding = 0.2
-        pt_pcb_mount_hole_offset = (4.445, 3)  # from corners
-        pt_mnt_hl_dia = 3.2  #
-
-        pt_screws = ButtonHeadScrew(size="M3-0.5", fastener_type="iso7380_1", length=5, simple=no_threads)
-
-        pt_pcb = wp.faces("<X").workplane(**cob, offset=-thickness / 2 - pt_pcb_depth / 2).center(-pt_center_offset, 0).sketch().rect(pt_pcb_width, pt_pcb_thickness).finalize().extrude(until=pt_pcb_depth, combine=False)
-        pt_pcb = CQ(pt_pcb.findSolid()).faces(">Z").workplane(**cob).rarray(pt_pcb_depth - 2 * pt_pcb_mount_hole_offset[0], pt_pcb_width - 2 * pt_pcb_mount_hole_offset[1], 2, 2).clearanceHole(fastener=pt_screws, fit="Close", counterSunk=False, baseAssembly=wall_hardware)
-        pt_pcb = pt_pcb.edges("|Z").fillet(pt_pcb_corner_r)
-
-        aso.add(pt_pcb, name="passthrough_pcb", color=cadquery.Color("DARKGREEN"))
-
-        wp = wp.faces("<X").workplane(**cob).center(-pt_center_offset, 0).sketch().slot(w=pt_pcb_width - 2 * pt_bcp_top_bottom_padding, h=pt_pcb_thickness + 2 * pt_bcp_top_bottom_padding).finalize().cutBlind(-thickness)
-
-        aso.add(wp, name=name, color=color)
-
         # get pipe fitting geometry
         a_pipe_fitting = import_step(wrk_dir.joinpath("components", "5483T93_Miniature Nickel-Plated Brass Pipe Fitting.step"))
         a_pipe_fitting = a_pipe_fitting.translate((0, 0, -6.35 - gas_fitting_recess))
@@ -454,6 +434,32 @@ def main():
         wall_hardware.add(bonded_washer_asy, name="rear_left_bonded_washer")
 
         aso.add(wall_hardware.toCompound(), name="wall_hardware", color=cadquery.Color(hardware_color))
+
+        # passthrough
+        pt_center_offset = 28.65
+        pt_pcb_width = 82.7
+        pt_pcb_depth = 30.54
+        pt_pcb_outer_depth = 9.27
+        pt_pcb_inner_depth = 9.27
+        pt_pcb_corner_r = 2
+        pt_pcb_thickness = 1.6
+        pt_bcp_top_bottom_padding = 0.2
+        pt_pcb_mount_hole_offset = (4.445, 3)  # from corners
+        pt_mnt_hl_dia = 3.2  #
+
+        pt_screws = ButtonHeadScrew(size="M3-0.5", fastener_type="iso7380_1", length=5, simple=no_threads)
+
+        pt_pcb = wp.faces("<X").workplane(**cob, offset=-thickness / 2 - pt_pcb_depth / 2).center(-pt_center_offset, 0).sketch().rect(pt_pcb_width, pt_pcb_thickness).finalize().extrude(until=pt_pcb_depth, combine=False)
+        pt_pcb = CQ(pt_pcb.findSolid()).faces(">Z").workplane(**cob).rarray(pt_pcb_depth - 2 * pt_pcb_mount_hole_offset[0], pt_pcb_width - 2 * pt_pcb_mount_hole_offset[1], 2, 2).clearanceHole(fastener=pt_screws, fit="Close", counterSunk=False, baseAssembly=wall_hardware)
+        pt_pcb = pt_pcb.edges("|Z").fillet(pt_pcb_corner_r)
+
+        aso.add(pt_pcb, name="passthrough_pcb", color=cadquery.Color("DARKGREEN"))
+
+        # make the electrical passthrough
+        # wp = wp.faces("<X").workplane(**cob).center(-pt_center_offset, 0).sketch().slot(w=pt_pcb_width - 2 * pt_bcp_top_bottom_padding, h=pt_pcb_thickness + 2 * pt_bcp_top_bottom_padding).finalize().cutBlind(-thickness)
+        wp = wp.faces("<X").workplane(**cob).center(-pt_center_offset, 0).make_oringer(board_width=pt_pcb_width, board_inner_depth=pt_pcb_inner_depth, board_outer_depth=pt_pcb_outer_depth, wall_depth=thickness)
+
+        aso.add(wp, name=name, color=color)
 
     mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, copper_base_zero + copper_thickness)
 
