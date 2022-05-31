@@ -4,7 +4,7 @@ import pathlib  # noqa: F401
 import cadquery as cq  # type: ignore[import]
 
 # setup logging
-logger = logging.getLogger("cadbuilder")
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
@@ -14,6 +14,9 @@ logger.addHandler(ch)
 
 wd: pathlib.Path = None  # type: ignore[assignment] # noqa: F821
 tld: pathlib.Path = None  # type: ignore[assignment] # noqa: F821
+
+copo = {"centerOption": "ProjectedOrigin"}
+cobb = {"centerOption": "CenterOfBoundBox"}
 
 
 def undercutRelief2D(self, length, width, diameter, angle=0, kind="C", corner_tol=0):

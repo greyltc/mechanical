@@ -1,5 +1,6 @@
 import unittest
 from geometrics.toolbox import groovy
+import math
 
 from geometrics.toolbox import utilities as u
 
@@ -46,7 +47,15 @@ class GroovyTestCase(unittest.TestCase):
         demo_block = demo_block.faces("<Z").workplane(**co).sketch().rect(50, 50).vertices().fillet(10).finalize().mk_groove(vdepth=depth)
 
         demo_block = demo_block.faces("<X").workplane(**co).sketch().rarray(75, 75, 2, 2).circle(25).finalize().mk_groove(vdepth=depth)
-        demo_block = demo_block.faces(">X").workplane(**co).sketch().rarray(75, 75, 2, 2).circle(25).finalize().mk_groove(ring_cs=ring_cs, hardware=asy)
+        min_inner_rad = 3 * ring_cs
+        gland_width = groovy.get_gland_width(ring_cs=ring_cs)
+        mid_rad = min_inner_rad + gland_width / 2
+        demo_block = demo_block.faces(">X").workplane(**co).sketch()
+        demo_block = demo_block.push([(75 / 2, 75 / 2)]).rect(50, 50, angle=31).reset()
+        demo_block = demo_block.push([(-75 / 2, -75 / 2)]).rect(50, 50, angle=7).reset()
+        demo_block = demo_block.push([(75 / 2, -75 / 2)]).rect(50, 50, angle=23).reset()
+        demo_block = demo_block.push([(-75 / 2, 75 / 2)]).rect(50, 50, angle=-17).reset()
+        demo_block = demo_block.vertices().fillet(mid_rad).finalize().mk_groove(ring_cs=ring_cs, hardware=asy)
 
         demo_block = demo_block.faces("<Y").workplane(**co).mk_groove(ring_cs=ring_cs, follow_pending_wires=False, ring_id=90, gland_x=70, gland_y=100, hardware=asy)
         demo_block = demo_block.faces(">Y").workplane(**co).mk_groove(ring_cs=ring_cs, follow_pending_wires=False, ring_id=111, gland_x=80, gland_y=100, hardware=asy)

@@ -443,9 +443,8 @@ def main():
         pt_pcb_inner_depth = 9.27
         pt_pcb_corner_r = 2
         pt_pcb_thickness = 1.6
-        pt_bcp_top_bottom_padding = 0.2
         pt_pcb_mount_hole_offset = (4.445, 3)  # from corners
-        pt_mnt_hl_dia = 3.2  #
+        pt_mnt_hl_dia = 3.2
 
         pt_screws = ButtonHeadScrew(size="M3-0.5", fastener_type="iso7380_1", length=5, simple=no_threads)
 
@@ -457,7 +456,20 @@ def main():
 
         # make the electrical passthrough
         # wp = wp.faces("<X").workplane(**cob).center(-pt_center_offset, 0).sketch().slot(w=pt_pcb_width - 2 * pt_bcp_top_bottom_padding, h=pt_pcb_thickness + 2 * pt_bcp_top_bottom_padding).finalize().cutBlind(-thickness)
-        wp = wp.faces("<X").workplane(**cob).center(-pt_center_offset, 0).make_oringer(board_width=pt_pcb_width, board_inner_depth=pt_pcb_inner_depth, board_outer_depth=pt_pcb_outer_depth, wall_depth=thickness)
+        pt_asy = cadquery.Assembly()  # this will hold the passthrough part that gets created
+        pcb_asy = cadquery.Assembly()  # this will hold the pcb part that gets created
+        ptt = 5.5  # passthrough thickness, reduce a bit from default (hald wall thickness) to prevent some thin walls close to a o-ring gland
+        wp = wp.faces("<X").workplane(**cob).center(-pt_center_offset, 0).make_oringer(board_width=pt_pcb_width, board_inner_depth=pt_pcb_inner_depth, board_outer_depth=pt_pcb_outer_depth, wall_depth=thickness, part_thickness=ptt, pt_asy=pt_asy, pcb_asy=pcb_asy)
+        # insert passthrough into assembly
+        for asyo in pt_asy.traverse():
+            part = asyo[1]
+            if isinstance(part.obj, cadquery.occ_impl.shapes.Solid):
+                aso.add(part.obj, name=asyo[0], color=color)
+        # insert pcb into assembly
+        for asyo in pcb_asy.traverse():  # insert only one solid object
+            part = asyo[1]
+            if isinstance(part.obj, cadquery.occ_impl.shapes.Solid):
+                aso.add(part.obj, name=asyo[0], color=cadquery.Color("DARKGREEN"))
 
         aso.add(wp, name=name, color=color)
 

@@ -3,8 +3,17 @@ import cadquery
 from cadquery import cq, CQ
 import math
 import pathlib
-import copy
 from . import utilities as u
+import logging
+
+# setup logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter(("%(asctime)s|%(name)s|%(levelname)s|" "%(message)s"))
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 
 def get_gland_height(ring_cs=1, compression_ratio: float = 0.25):
@@ -14,10 +23,25 @@ def get_gland_height(ring_cs=1, compression_ratio: float = 0.25):
 def get_gland_width(ring_cs=1, compression_ratio: float = 0.25, gland_fill_ratio: float = 0.7):
     ring_cs_area = math.pi * (ring_cs / 2) ** 2
     gland_area = ring_cs_area / gland_fill_ratio
-    return gland_area / get_gland_height(ring_cs, compression_ratio)
+    width = gland_area / get_gland_height(ring_cs, compression_ratio)
+    logger = logging.getLogger(__name__)
+    logger.info(f"Found {width} gland width")
+    return width
 
 
-def mk_groove(self: cadquery.Workplane, vdepth: float = 0, ring_cs: float = 0, follow_pending_wires: bool = True, ring_id: float = None, gland_x: float = None, gland_y: float = None, compression_ratio: float = 0.25, gland_fill_ratio: float = 0.7, clean: bool = True, hardware: cadquery.Assembly = None):
+def mk_groove(
+    self: cq.Workplane,
+    vdepth: float = 0,
+    ring_cs: float = 0,
+    follow_pending_wires: bool = True,
+    ring_id: float = None,
+    gland_x: float = None,
+    gland_y: float = None,
+    compression_ratio: float = 0.25,
+    gland_fill_ratio: float = 0.7,
+    clean: bool = True,
+    hardware: cadquery.Assembly = None,
+) -> cq.Workplane:
     """
     for cutting grooves
     set vdepth > 0 to cut a vgroove of that depth
@@ -33,7 +57,7 @@ def mk_groove(self: cadquery.Workplane, vdepth: float = 0, ring_cs: float = 0, f
     """
 
     def _make_one_groove(wp, _wire, _vdepth, _ring_cs, _compression_ratio, _gland_fill_ratio):
-        cp_tangent = _wire.tangentAt()  # tangent to cutter_path
+        cp_tangent = _wire.tangentAt(0)  # tangent to cutter_path
         cp_start = _wire.startPoint()
         build_plane = cq.Plane(origin=cp_start, normal=cp_tangent, xDir=wp.plane.zDir)
         if _vdepth > 0:  # we'll cut a vgroove this deep
@@ -47,19 +71,23 @@ def mk_groove(self: cadquery.Workplane, vdepth: float = 0, ring_cs: float = 0, f
             raise ValueError("One of vdepth or ring_cs must be larger than 0")
         cutter = half_profile.revolve(axisEnd=(1, 0, 0))
         cutter_split = cutter.split(keepTop=True)
-        for face in cutter_split.faces().vals():  # find the right face to sweep with
+        faces = cutter_split.faces().vals()
+        for face in faces:  # find the right face to sweep with
             facenorm = face.normalAt()
-            if abs(facenorm.dot(cp_tangent)) == 1:
+            dotval = facenorm.dot(cp_tangent)
+            if abs((abs(dotval) - 1)) <= 0.001:  # allow for small errors in orientation calculation
                 cutter_crosssection = face
                 break
+        else:
+            raise ValueError("Unable to find a cutter cross-section")
 
         # make the squished o-ring hardware
-        if ring_cs > 0 and hardware is not None:
+        if (ring_cs > 0) and (hardware is not None):
             ring_sweep_wire = CQ(build_plane).center(-gland_height / 2, 0).ellipse(gland_height / 2, ring_cs / 2 * (1 + _compression_ratio)).wires().toPending()
             hardware.add(ring_sweep_wire.sweep(_wire, combine=True, transition="round", isFrenet=True).findSolid())
 
         to_sweep = CQ(cutter_crosssection).wires().toPending()
-        return to_sweep.sweep(_wire, combine=True, transition="round", isFrenet=True).findSolid()
+        return to_sweep.sweep(_wire).findSolid()
 
     s = self.findSolid()
 
@@ -67,6 +95,8 @@ def mk_groove(self: cadquery.Workplane, vdepth: float = 0, ring_cs: float = 0, f
         faces = self._getFaces()
         for face in faces:
             wire = face.outerWire()
+            logger = logging.getLogger(__name__)
+            logger.info(f"Made a gland for oring length {wire.Length()}")
             sweep_result = _make_one_groove(wp=self, _wire=wire, _vdepth=vdepth, _ring_cs=ring_cs, _compression_ratio=compression_ratio, _gland_fill_ratio=gland_fill_ratio)
             s = s.cut(sweep_result)
 
