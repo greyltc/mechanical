@@ -6,7 +6,7 @@ from . import utilities as u
 from . import constants as c
 from . import groovy
 import logging
-from cq_warehouse.fastener import CounterSunkScrew, ButtonHeadScrew
+from cq_warehouse.fastener import CounterSunkScrew, ButtonHeadScrew, CheeseHeadWasher
 import cq_warehouse.extensions  # this does something even though it's not directly used
 
 """
@@ -61,6 +61,7 @@ def make_oringer(
 
     fix_scr = CounterSunkScrew(size=screw, fastener_type="iso14581", length=wall_depth * 0.8)
     pcb_scr = ButtonHeadScrew(size=screw, fastener_type="iso7380_1", length=block_height_nominal + 3)
+    # washer = CheeseHeadWasher(size=screw, fastener_type="iso7092")
 
     oring_cs = 1  # oring thickness
 
@@ -150,7 +151,7 @@ def make_oringer(
     pfwp = pfwp.wires().offset(min_gap).clean().reset()  # edge of recess_cut
     recess_face = pfwp.finalize().extrude(-1).faces(">>Z").val()  # get just the face for the recess
 
-    def _make_pcb():
+    def _make_pcb(loc):
         """build the actual passthrough PCB"""
         pcb = CQ().workplane(offset=-wall_depth - board_inner_depth)
         pcb = pcb.rect(board_width, pcbt).extrude(until=board_inner_depth + wall_depth + board_outer_depth)
@@ -158,9 +159,9 @@ def make_oringer(
         pcb = pcb.edges("|Y").fillet(pcb_corner)
         pcb = pcb.faces(">Y").workplane(**u.cobb).rarray(board_width - 2 * block_width / 2, board_inner_depth + board_outer_depth + wall_depth - 2 * pt_pcb_mount_hole_offset[0], 2, 2).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
 
-        return pcb.findSolid()
+        return pcb.findSolid().moved(loc)
 
-    def _make_pt():
+    def _make_pt(loc):
         """build a passthrough component"""
         passthrough = CQ().add(passthrough_face)
         passthrough = passthrough.wires().toPending().extrude(-part_thickness)  # extrude the bulk
@@ -183,16 +184,16 @@ def make_oringer(
         passthrough = passthrough.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).sketch().push(sbpts).rect(*support_block).finalize().extrude(board_outer_depth)
         # mount holes
         # passthrough = passthrough.faces("+Y").faces(">>Z or <<Z").workplane(**u.cobo).rarray(board_width - 2 * pt_pcb_mount_hole_offset[1], board_inner_depth + board_outer_depth + wall_depth - 2 * pt_pcb_mount_hole_offset[0], 2, 2).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
-        ##passthrough = passthrough.faces("+Y").faces(">>Z").faces(">>X").workplane(**u.cobb).center(0, board_outer_depth / 2 - pt_pcb_mount_hole_offset[0]).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
-        ##passthrough = passthrough.faces("+Y").faces(">>Z").faces("<<X").workplane(**u.cobb).center(0, board_outer_depth / 2 - pt_pcb_mount_hole_offset[0]).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
-        ##passthrough = passthrough.faces("+Y").faces("<<Z").faces("<<X").workplane(**u.cobb).center(0, -(in_post_length - part_thickness) / 2 + pt_pcb_mount_hole_offset[0]).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
-        ##passthrough = passthrough.faces("+Y").faces("<<Z").faces(">>X").workplane(**u.cobb).center(0, -(in_post_length - part_thickness) / 2 + pt_pcb_mount_hole_offset[0]).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
+        passthrough = passthrough.faces("+Y").faces(">>Z").faces(">>X").workplane(**u.cobb).center(0, board_outer_depth / 2 - pt_pcb_mount_hole_offset[0]).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
+        passthrough = passthrough.faces("+Y").faces(">>Z").faces("<<X").workplane(**u.cobb).center(0, board_outer_depth / 2 - pt_pcb_mount_hole_offset[0]).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
+        passthrough = passthrough.faces("+Y").faces("<<Z").faces("<<X").workplane(**u.cobb).center(0, -(in_post_length - part_thickness) / 2 + pt_pcb_mount_hole_offset[0]).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
+        passthrough = passthrough.faces("+Y").faces("<<Z").faces(">>X").workplane(**u.cobb).center(0, -(in_post_length - part_thickness) / 2 + pt_pcb_mount_hole_offset[0]).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
         passthrough = passthrough.edges("<<Z or >>Z").edges("|Y").fillet(pcb_corner)
-        ##passthrough = passthrough.edges("<<Z[-1] or <<Z[-2] or <<Z[-3] or >>Z[-1] or >>Z[-2] or >>Z[-3]").chamfer(0.5)
+        passthrough = passthrough.edges("<<Z[-1] or <<Z[-2] or <<Z[-3] or >>Z[-1] or >>Z[-2] or >>Z[-3]").chamfer(0.5)
 
-        return passthrough.findSolid()
+        return passthrough.findSolid().moved(loc)
 
-    def _make_neg():
+    def _make_neg(loc):
         """makes a negative shape to be cut out of the parent"""
         nwp = CQ().add(through_face)
         through = nwp.wires().toPending().extrude(-wall_depth)
@@ -202,19 +203,20 @@ def make_oringer(
 
         neg = recess.union(through)
 
-        return neg.findSolid()
+        return neg.findSolid().moved(loc)
 
-    rslt = self.eachpoint(lambda loc: _make_neg().moved(loc), useLocalCoordinates=True, combine="cut", clean=True)
+    rslt = self.eachpoint(_make_neg, useLocalCoordinates=True, combine="cut", clean=True)
 
     # pass out the passthrough geometry
     if pt_asy is not None:
-        passthroughs = self.eachpoint(lambda loc: _make_pt().moved(loc), useLocalCoordinates=True, combine=False).vals()
+        passthroughs = self.eachpoint(_make_pt, useLocalCoordinates=True, combine=False).vals()
         for i, passthrough in enumerate(passthroughs):
             pt_asy.add(passthrough.Solids()[0], name=f"passthrough {i}")
 
     # pass out the pcb geometry
     if pcb_asy is not None:
-        pcbs = self.eachpoint(lambda loc: _make_pcb().moved(loc), useLocalCoordinates=True, combine=False).vals()
+        # pcbs = self.eachpoint(lambda loc: _make_pcb().moved(loc), useLocalCoordinates=True, combine=False).vals()
+        pcbs = self.eachpoint(_make_pcb, useLocalCoordinates=True, combine=False).vals()
         for i, pcb in enumerate(pcbs):
             pcb_asy.add(pcb.Solids()[0], name=f"pcb {i}")
 
