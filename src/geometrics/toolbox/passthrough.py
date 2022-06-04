@@ -37,6 +37,7 @@ def make_oringer(
     screw="M3-0.5",
     pt_asy: cadquery.Assembly = None,
     pcb_asy: cadquery.Assembly = None,
+    hw_asy: cadquery.Assembly = None,
 ) -> cq.Workplane:
     logger = logging.getLogger(__name__)
     if wall_depth == 0:  # if depth is not given do our best to find it
@@ -59,8 +60,10 @@ def make_oringer(
     pcb_corner = 2
     pt_pcb_mount_hole_offset = (4.445, block_width / 2)  # from corners
 
-    fix_scr = CounterSunkScrew(size=screw, fastener_type="iso14581", length=wall_depth * 0.8)
-    pcb_scr = ButtonHeadScrew(size=screw, fastener_type="iso7380_1", length=block_height_nominal + 3)
+    pcb_scr_len = round(block_height_nominal + pcbt + 3)
+    pt_fix_scr_len = round(wall_depth * 0.8)
+    fix_scr = CounterSunkScrew(size=screw, fastener_type="iso14581", length=pt_fix_scr_len)
+    pcb_scr = ButtonHeadScrew(size=screw, fastener_type="iso7380_1", length=pcb_scr_len)
     # washer = CheeseHeadWasher(size=screw, fastener_type="iso7092")
 
     oring_cs = 1  # oring thickness
@@ -151,18 +154,49 @@ def make_oringer(
     pfwp = pfwp.wires().offset(min_gap).clean().reset()  # edge of recess_cut
     recess_face = pfwp.finalize().extrude(-1).faces(">>Z").val()  # get just the face for the recess
 
-    def _make_pcb(loc):
+    # fastening screw hole points
+    fhps = []
+    fhps.append(((board_width - 2 * block_width / 2) / 2, pcbt / 2 + ffo + min_wall + effective_gland_width + min_wall + fix_scr.clearance_hole_diameters["Close"] / 2))
+    fhps.append((-(board_width - 2 * block_width / 2) / 2, pcbt / 2 + ffo + min_wall + effective_gland_width + min_wall + fix_scr.clearance_hole_diameters["Close"] / 2))
+    fhps.append((bcx, pcbt / 2 + ffo - co_tw - min_wall - effective_gland_width - min_wall - fix_scr.clearance_hole_diameters["Close"] / 2))
+    fhps.append((-bcx, pcbt / 2 + ffo - co_tw - min_wall - effective_gland_width - min_wall - fix_scr.clearance_hole_diameters["Close"] / 2))
+
+    def _make_pcb(what):
         """build the actual passthrough PCB"""
+        # this copies some logic in the eachpoint() function so that we can use each() which is safer
+        base_plane = self.plane
+        base = base_plane.location
+        if isinstance(what, (cq.Vector, cq.Shape)):
+            loc = base.inverse * cq.Location(base_plane, what.Center())
+        elif isinstance(what, cq.Sketch):
+            loc = base.inverse * cq.Location(base_plane, what._faces.Center())
+        else:
+            loc = what
+
         pcb = CQ().workplane(offset=-wall_depth - board_inner_depth)
         pcb = pcb.rect(board_width, pcbt).extrude(until=board_inner_depth + wall_depth + board_outer_depth)
 
         pcb = pcb.edges("|Y").fillet(pcb_corner)
-        pcb = pcb.faces(">Y").workplane(**u.cobb).rarray(board_width - 2 * block_width / 2, board_inner_depth + board_outer_depth + wall_depth - 2 * pt_pcb_mount_hole_offset[0], 2, 2).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
+        hardware = cadquery.Assembly()
+        pcb = pcb.faces(">Y").workplane(**u.cobb).rarray(board_width - 2 * block_width / 2, board_inner_depth + board_outer_depth + wall_depth - 2 * pt_pcb_mount_hole_offset[0], 2, 2).clearanceHole(pcb_scr, fit="Close", counterSunk=False, baseAssembly=hardware)
+        if hw_asy is not None:
+            hw_asy.add(hardware, loc=base * loc)
 
-        return pcb.findSolid().moved(loc)
+        return pcb.findSolid().moved(base * loc)
 
-    def _make_pt(loc):
+    def _make_pt(what):
         """build a passthrough component"""
+        # this copies some logic in the eachpoint() function so that we can use each() which is safer
+        base_plane = self.plane
+        base = base_plane.location
+        if isinstance(what, (cq.Vector, cq.Shape)):
+            loc = base.inverse * cq.Location(base_plane, what.Center())
+        elif isinstance(what, cq.Sketch):
+            loc = base.inverse * cq.Location(base_plane, what._faces.Center())
+        else:
+            loc = what
+
+        hardware = cadquery.Assembly()
         passthrough = CQ().add(passthrough_face)
         passthrough = passthrough.wires().toPending().extrude(-part_thickness)  # extrude the bulk
         slotd = pcbt + 2 * min_gap
@@ -172,51 +206,64 @@ def make_oringer(
         # cut the oring groove
         cq.Workplane.mk_groove = groovy.mk_groove
         oring_path = o_face.outerWire().translate((0, 0, -part_thickness))
-        passthrough = passthrough.faces("<<Z").workplane(**u.copo).add(oring_path).toPending().mk_groove(ring_cs=oring_cs)
+        passthrough = passthrough.faces("<<Z").workplane(**u.copo).add(oring_path).toPending().mk_groove(ring_cs=oring_cs, hardware=hardware)
 
         # cut the fastening screw holes
-        passthrough = passthrough.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).center(0, pcbt / 2 + ffo + min_wall + effective_gland_width + min_wall + fix_scr.clearance_hole_diameters["Close"] / 2).rarray(board_width - 2 * block_width / 2, 1, 2, 1).clearanceHole(fix_scr, fit="Close")
-        passthrough = passthrough.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).center(0, pcbt / 2 + ffo - co_tw - min_wall - effective_gland_width - min_wall - fix_scr.clearance_hole_diameters["Close"] / 2).rarray(2 * bcx, 1, 2, 1).clearanceHole(fix_scr, fit="Close")
+        passthrough = passthrough.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).pushPoints(fhps).clearanceHole(fix_scr, fit="Close", baseAssembly=hardware)
 
         # add the support towers
         in_post_length = wall_depth + board_inner_depth
         passthrough = passthrough.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).sketch().push(sbpts).rect(*support_block).finalize().extrude(-in_post_length)
         passthrough = passthrough.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).sketch().push(sbpts).rect(*support_block).finalize().extrude(board_outer_depth)
         # mount holes
-        # passthrough = passthrough.faces("+Y").faces(">>Z or <<Z").workplane(**u.cobo).rarray(board_width - 2 * pt_pcb_mount_hole_offset[1], board_inner_depth + board_outer_depth + wall_depth - 2 * pt_pcb_mount_hole_offset[0], 2, 2).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
-        passthrough = passthrough.faces("+Y").faces(">>Z").faces(">>X").workplane(**u.cobb).center(0, board_outer_depth / 2 - pt_pcb_mount_hole_offset[0]).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
-        passthrough = passthrough.faces("+Y").faces(">>Z").faces("<<X").workplane(**u.cobb).center(0, board_outer_depth / 2 - pt_pcb_mount_hole_offset[0]).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
-        passthrough = passthrough.faces("+Y").faces("<<Z").faces("<<X").workplane(**u.cobb).center(0, -(in_post_length - part_thickness) / 2 + pt_pcb_mount_hole_offset[0]).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
-        passthrough = passthrough.faces("+Y").faces("<<Z").faces(">>X").workplane(**u.cobb).center(0, -(in_post_length - part_thickness) / 2 + pt_pcb_mount_hole_offset[0]).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
+        pcb_center_z = ((board_outer_depth) - (wall_depth + board_inner_depth)) / 2
+        passthrough = passthrough.faces("+Y").faces(">>Z").workplane(**u.copo, origin=(0, 0, pcb_center_z)).rarray(board_width - 2 * pt_pcb_mount_hole_offset[1], board_inner_depth + board_outer_depth + wall_depth - 2 * pt_pcb_mount_hole_offset[0], 2, 2).clearanceHole(pcb_scr, fit="Close", counterSunk=False)
         passthrough = passthrough.edges("<<Z or >>Z").edges("|Y").fillet(pcb_corner)
         passthrough = passthrough.edges("<<Z[-1] or <<Z[-2] or <<Z[-3] or >>Z[-1] or >>Z[-2] or >>Z[-3]").chamfer(0.5)
 
-        return passthrough.findSolid().moved(loc)
+        if hw_asy is not None:
+            hw_asy.add(hardware, loc=base * loc)
 
-    def _make_neg(loc):
-        """makes a negative shape to be cut out of the parent"""
+        return passthrough.findSolid().moved(base * loc)
+
+    def _make_neg(what):
+        """makes a negative shape to be cut out of the parent walls"""
+        # this copies some logic in the eachpoint() function so that we can use each() which is safer
+        base_plane = self.plane
+        base = base_plane.location
+        if isinstance(what, (cq.Vector, cq.Shape)):
+            loc = base.inverse * cq.Location(base_plane, what.Center())
+        elif isinstance(what, cq.Sketch):
+            loc = base.inverse * cq.Location(base_plane, what._faces.Center())
+        else:
+            loc = what
+
+        # fastener threaded holes
+        # TODO: need to ensure the thread deapth is enough for the actual screw length, mark these as "M3-0.5 threaded" in the engineering drawing
+        fhs = CQ().pushPoints(fhps).circle(fix_scr.tap_hole_diameters["Hard"] / 2).extrude(-pt_fix_scr_len)
+
         nwp = CQ().add(through_face)
         through = nwp.wires().toPending().extrude(-wall_depth)
 
         nwp2 = CQ().add(recess_face)
         recess = nwp2.wires().toPending().extrude(-part_thickness)
 
-        neg = recess.union(through)
+        neg = recess.union(through).union(fhs)
 
-        return neg.findSolid().moved(loc)
+        return neg.findSolid().moved(base * loc)
 
-    rslt = self.eachpoint(_make_neg, useLocalCoordinates=True, combine="cut", clean=True)
+    rslt = self.each(_make_neg, useLocalCoordinates=False, combine="cut", clean=True)
 
     # pass out the passthrough geometry
     if pt_asy is not None:
-        passthroughs = self.eachpoint(_make_pt, useLocalCoordinates=True, combine=False).vals()
+        passthroughs = self.each(_make_pt, useLocalCoordinates=False, combine=False).vals()
         for i, passthrough in enumerate(passthroughs):
             pt_asy.add(passthrough.Solids()[0], name=f"passthrough {i}")
 
     # pass out the pcb geometry
     if pcb_asy is not None:
         # pcbs = self.eachpoint(lambda loc: _make_pcb().moved(loc), useLocalCoordinates=True, combine=False).vals()
-        pcbs = self.eachpoint(_make_pcb, useLocalCoordinates=True, combine=False).vals()
+        pcbs = self.each(_make_pcb, useLocalCoordinates=False, combine=False).vals()
         for i, pcb in enumerate(pcbs):
             pcb_asy.add(pcb.Solids()[0], name=f"pcb {i}")
 

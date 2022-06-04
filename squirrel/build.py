@@ -458,8 +458,9 @@ def main():
         # wp = wp.faces("<X").workplane(**cob).center(-pt_center_offset, 0).sketch().slot(w=pt_pcb_width - 2 * pt_bcp_top_bottom_padding, h=pt_pcb_thickness + 2 * pt_bcp_top_bottom_padding).finalize().cutBlind(-thickness)
         pt_asy = cadquery.Assembly()  # this will hold the passthrough part that gets created
         pcb_asy = cadquery.Assembly()  # this will hold the pcb part that gets created
-        ptt = 5.5  # passthrough thickness, reduce a bit from default (hald wall thickness) to prevent some thin walls close to a o-ring gland
-        wp = wp.faces("<X").workplane(**cob).center(-pt_center_offset, 0).make_oringer(board_width=pt_pcb_width, board_inner_depth=pt_pcb_inner_depth, board_outer_depth=pt_pcb_outer_depth, wall_depth=thickness, part_thickness=ptt, pt_asy=pt_asy, pcb_asy=pcb_asy)
+        hw_asy = cadquery.Assembly()  # this will hold the pcb part that gets created
+        ptt = 5.5  # passthrough thickness, reduce a bit from default (which was half wall thickness) to prevent some thin walls close to a o-ring gland
+        wp = wp.faces("<X").workplane(**cob).center(-pt_center_offset, 0).make_oringer(board_width=pt_pcb_width, board_inner_depth=pt_pcb_inner_depth, board_outer_depth=pt_pcb_outer_depth, wall_depth=thickness, part_thickness=ptt, pt_asy=pt_asy, pcb_asy=pcb_asy, hw_asy=hw_asy)
         # insert passthrough into assembly
         for asyo in pt_asy.traverse():
             part = asyo[1]
@@ -470,6 +471,8 @@ def main():
             part = asyo[1]
             if isinstance(part.obj, cadquery.occ_impl.shapes.Solid):
                 aso.add(part.obj, name=asyo[0], color=cadquery.Color("DARKGREEN"))
+        # insert hardware into assembly
+        aso.add(hw_asy.toCompound(), name="passthrough hardware")
 
         aso.add(wp, name=name, color=color)
 
