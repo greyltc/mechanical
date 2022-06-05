@@ -119,15 +119,6 @@ def main():
                         "3C9_slide",
                     ],
                 },
-                {
-                    "name": "passthrough",
-                    "color": "DARKGREEN",
-                    "thickness": pcb_thickness,
-                    "z_base": copper_base_zero + copper_thickness + passthrough_standoff_height,
-                    "drawing_layer_names": [
-                        "pcb2",
-                    ],
-                },
             ],
         }
     )
