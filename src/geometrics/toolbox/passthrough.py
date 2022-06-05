@@ -6,7 +6,7 @@ from . import utilities as u
 from . import constants as c
 from . import groovy
 import logging
-from cq_warehouse.fastener import CounterSunkScrew, ButtonHeadScrew, CheeseHeadWasher
+from cq_warehouse.fastener import CounterSunkScrew, PanHeadScrew, CheeseHeadWasher
 import cq_warehouse.extensions  # this does something even though it's not directly used
 
 """
@@ -51,7 +51,19 @@ def make_oringer(
     screw_nominal_d = 3
     screw_head_nominal_d = 6
 
-    block_width = 6
+    # header specific for making the pin0 holes, probably doesn't belong here, but it's too convenient...
+    non_notch_side_chunk_width = 0.381  # is 0.15 in
+    non_chunk_con_width = 8.89  # is 0.35 in
+    pin0_offsetx = non_chunk_con_width / 2 + non_notch_side_chunk_width + 2.54 / 2
+    pin0_offsety_25 = 2.54 * (25 - 1) / 2
+    pin0_offsety_20 = 2.54 * (20 - 1) / 2
+    pin0_holed = 1
+
+    p0pts = []  # the pin pin 1 points for the two connectors (for checking the correctness of the PCB designs)
+    p0pts.append((pin0_offsety_25, pin0_offsetx))
+    p0pts.append((-pin0_offsety_20 + 2.5 * 2.54, -(wall_depth + pin0_offsetx)))
+
+    block_width = 7
     block_height_nominal = 6
     support_block = (block_width, block_height_nominal - washert)  # actual support block (leaves room for washer)
     c_block = (block_width, block_height_nominal)  # virtual support block (includes washer)
@@ -60,10 +72,11 @@ def make_oringer(
     pcb_corner = 2
     pt_pcb_mount_hole_offset = (4.445, block_width / 2)  # from corners
 
-    pcb_scr_len = round(block_height_nominal + pcbt + 3)
-    pt_fix_scr_len = round(wall_depth * 0.8)
+    pcb_scr_len = 10  # SHP-M3-10-V2-A2, round(block_height_nominal + pcbt + 3)
+    pt_fix_scr_len = 10  # SHK-M3-10-V2-A2, round(wall_depth * 0.8)
+    pt_fix_wall_buffer = 1  # amount of wall to leave behind the threaded screw hole
     fix_scr = CounterSunkScrew(size=screw, fastener_type="iso14581", length=pt_fix_scr_len)
-    pcb_scr = ButtonHeadScrew(size=screw, fastener_type="iso7380_1", length=pcb_scr_len)
+    pcb_scr = PanHeadScrew(size=screw, fastener_type="iso14583", length=pcb_scr_len)
     # washer = CheeseHeadWasher(size=screw, fastener_type="iso7092")
 
     oring_cs = 1  # oring thickness
@@ -108,7 +121,7 @@ def make_oringer(
     a = o / math.tan(math.asin(o / h))  # adjacent
     bcx = board_width / 2 - support_block[0] - a + minr1 - ffo  # big circle x
     bcy = pcbt / 2 + ffo - (co_tw + minr2)
-    bcpts = []
+    bcpts = []  # big circle points
     bcpts.append((-bcx, bcy))
     bcpts.append((bcx, bcy))
 
@@ -177,10 +190,15 @@ def make_oringer(
         pcb = pcb.rect(board_width, pcbt).extrude(until=board_inner_depth + wall_depth + board_outer_depth)
 
         pcb = pcb.edges("|Y").fillet(pcb_corner)
+
+        # put in screws with holes
         hardware = cadquery.Assembly()
         pcb = pcb.faces(">Y").workplane(**u.cobb).rarray(board_width - 2 * block_width / 2, board_inner_depth + board_outer_depth + wall_depth - 2 * pt_pcb_mount_hole_offset[0], 2, 2).clearanceHole(pcb_scr, fit="Close", counterSunk=False, baseAssembly=hardware)
         if hw_asy is not None:
             hw_asy.add(hardware, loc=base * loc)
+
+        # put in pin0 holes
+        pcb = pcb.faces(">Y").workplane(**u.copo, origin=(0, 0, 0)).pushPoints(p0pts).circle(pin0_holed / 2).cutThruAll()
 
         return pcb.findSolid().moved(base * loc)
 
@@ -239,8 +257,8 @@ def make_oringer(
             loc = what
 
         # fastener threaded holes
-        # TODO: need to ensure the thread deapth is enough for the actual screw length, mark these as "M3-0.5 threaded" in the engineering drawing
-        fhs = CQ().pushPoints(fhps).circle(fix_scr.tap_hole_diameters["Hard"] / 2).extrude(-pt_fix_scr_len)
+        # TODO: mark these holes as "M3-0.5 threaded" in the engineering drawing
+        fhs = CQ().pushPoints(fhps).circle(fix_scr.tap_hole_diameters["Hard"] / 2).extrude(-wall_depth + pt_fix_wall_buffer)
 
         nwp = CQ().add(through_face)
         through = nwp.wires().toPending().extrude(-wall_depth)

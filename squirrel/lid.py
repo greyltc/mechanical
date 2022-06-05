@@ -55,7 +55,7 @@ support_screw_air_gap = 1
 # thickness of support plate
 support_h = 3
 
-chamber_bolt_size = "M6-1"
+chamber_bolt_size = "M5-0.8"  # TODO: I think there are more places to change to M5
 chamber_bolt = cqf.SetScrew(
     size=chamber_bolt_size,
     fastener_type="iso4026",
@@ -70,11 +70,11 @@ chamber_bolt_xys = [
     (-chamber_l / 2 + chamber_bolt_offset, -chamber_w / 2 + chamber_bolt_offset),
 ]
 
-chamber_nut = cqf.HexNut(
+chamber_nut = cqf.HexNutWithFlange(
     size=chamber_bolt_size,
-    fastener_type="iso4032",
+    fastener_type="din1665",
     simple=no_threads,
-)
+)  # HFFN-M5-A2
 m6_socket_clearance = 26  # from https://roymech.org/Useful_Tables/Screws/Head_Clearances.html
 
 # --- chamber detail ---

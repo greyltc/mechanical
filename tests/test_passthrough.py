@@ -30,9 +30,13 @@ class PassthroughTestCase(unittest.TestCase):
         cq.Workplane.make_oringer = passthrough.make_oringer
         wall_thickness = 12
 
-        pt_pcb_width = 82.7
-        outer_depth = 9.27
-        inner_depth = 9.27
+        pcb_scr_head_d_safe = 6
+        n_header_pins = 50
+        header_length = n_header_pins / 2 * 2.54 + 7.62  # n*0.1 + 0.3 inches
+        support_block_width = 7
+        pt_pcb_width = 2 * (support_block_width / 2 + pcb_scr_head_d_safe / 2) + header_length
+        outer_depth = 8.89 + 0.381  # 0.35 + 0.15 inches
+        inner_depth = 8.89 + 0.381  # 0.35 + 0.15 inches
 
         mwp = cq.Workplane("ZX").circle(80.0).extrude(wall_thickness)
         mwp = mwp.translate((99, 99, 99))
