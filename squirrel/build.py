@@ -137,6 +137,12 @@ def main():
 
     base_outer = (wall_outer[0] + 40, wall_outer[1])
 
+    # get vac fitting geometry
+    # takes 4mm OD tubes, needs M5x0.8 threads, part number 326-8956
+    a_vac_fitting = u.import_step(wrk_dir.joinpath("components", "3118_04_19.step"))
+    a_vac_fitting = a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(1, 0, 0), angleDegrees=90).translate((0, 0, 1.5))
+    vac_fitting_screw = SetScrew("M5-0.8", fastener_type="iso4026", length=30, simple=no_threads)  # dummy screw for making vac fitting threads
+
     def mkbase(
         aso: cadquery.Assembly,
         thickness: float,
@@ -170,9 +176,6 @@ def main():
         # slot plate clamp screws
         spscrew_length = 8
         spscrew = CounterSunkScrew(size="M3-0.5", fastener_type="iso14581", length=spscrew_length, simple=no_threads)  # SHK-M3-8-V2-A4
-
-        # dummy screw for vac fitting
-        vac_fitting_screw = SetScrew("M5-0.8", fastener_type="iso4026", length=30, simple=no_threads)
 
         # setscrew clamping stuff
         setscrew_len = 30
@@ -294,18 +297,12 @@ def main():
         sub_y_length = (n_sub_array_y - 1) * y_spacing_sub + hole_d
         array_y_length = (n_array_y - 1) * y_spacing + sub_y_length
 
-        # vac connection stuff
-        vac_fitting_loc_offset = -0.5 * y_spacing
-
+        # for the vac chuck fitting
+        vac_fitting_chuck_offset = -0.5 * y_spacing
         fitting_tap_depth = 20
-        # get vac fitting geometry
-        # takes 4mm OD tubes, needs M5x0.8 threads, part number 326-8956
-        a_vac_fitting = u.import_step(wrk_dir.joinpath("components", "3118_04_19.step"))
-        a_vac_fitting = a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(1, 0, 0), angleDegrees=90).translate((0, 0, 1.5))
-        vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-3), name="one_vac_fitting")
-        top_piece = top_piece.faces(">X").workplane(**u.cobb).center(vac_fitting_loc_offset, 0).tapHole(vac_fitting_screw, depth=fitting_tap_depth)
-        vac_chuck_fitting.loc = top_piece.plane.location
-        hardware.add(vac_chuck_fitting, name="vac chuck fitting")
+        top_piece = top_piece.faces(">X").workplane(**u.cobb).center(vac_fitting_chuck_offset, 0).tapHole(vac_fitting_screw, depth=fitting_tap_depth, counterSunk=False)
+        vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-5), name="chuck_vac_fitting")
+        hardware.add(vac_chuck_fitting, loc=top_piece.plane.location, name="vac chuck fitting")
 
         # vac distribution network
         zdrill_loc = (pedistal_xy[0] / 2 - fitting_tap_depth, 0.5 * y_spacing)
@@ -366,7 +363,7 @@ def main():
 
         back_holes_shift = 45
         back_holes_spacing = 27
-        front_holes_spacing = 60
+        front_holes_spacing = 70
 
         wp = CQ().workplane(offset=zbase).sketch()
         wp = wp.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
@@ -441,8 +438,7 @@ def main():
 
         aso.add(wall_hardware.toCompound(), name="wall_hardware", color=cadquery.Color(hardware_color))
 
-        # passthrough
-
+        # passthrough details
         pcb_scr_head_d_safe = 6
         n_header_pins = 50
         header_length = n_header_pins / 2 * 2.54 + 7.62  # n*0.1 + 0.3 inches
@@ -450,7 +446,7 @@ def main():
         pt_pcb_width = 2 * (support_block_width / 2 + pcb_scr_head_d_safe / 2) + header_length
         pt_pcb_outer_depth = 8.89 + 0.381  # 0.35 + 0.15 inches
         pt_pcb_inner_depth = 8.89 + 0.381  # 0.35 + 0.15 inches
-        pt_center_offset = 28.65
+        pt_center_offset = 28.65  # so that the internal passthrough connector aligns with the one in the chamber
 
         # make the electrical passthrough
         pt_asy = cadquery.Assembly()  # this will hold the passthrough part that gets created
@@ -471,7 +467,18 @@ def main():
         # insert hardware into assembly
         aso.add(hw_asy.toCompound(), name="passthrough hardware")
 
-        aso.add(wp, name=name, color=color)
+        # for the vac chuck fittings
+        rotation_angle = -155  # degrees
+        vac_fitting_wall_offset = extents[1] / 2 - thickness - inner_fillet - 4  # mounting location offset from center
+        wp = wp.faces(">X").workplane(**u.cobb).center(vac_fitting_wall_offset, 0).tapHole(vac_fitting_screw, depth=thickness)
+        vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=rotation_angle), name="outer_wall_vac_fitting")
+        aso.add(vac_chuck_fitting, loc=wp.plane.location, name="vac chuck fitting (wall outer)")
+
+        nwp = wp.faces(">X").workplane(**u.cobb, invert=True, offset=thickness).center(vac_fitting_wall_offset, 0)
+        vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-rotation_angle), name="inner_wall_vac_fitting")
+        aso.add(vac_chuck_fitting, loc=nwp.plane.location, name="vac chuck fitting (wall inner)")
+
+        aso.add(wp, name=name, color=color)  # add the walls bulk
 
     mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, copper_base_zero + copper_thickness)
 
