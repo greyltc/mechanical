@@ -8,7 +8,7 @@ import geometrics.toolbox.utilities as u
 from geometrics.toolbox import groovy
 from geometrics.toolbox import passthrough
 from pathlib import Path
-from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, SetScrew, CounterSunkScrew, HexNutWithFlange, CheeseHeadScrew
+from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, SetScrew, CounterSunkScrew, HexNutWithFlange, CheeseHeadScrew, PanHeadScrew
 import cq_warehouse.extensions  # this does something even though it's not directly used
 import math
 import itertools
@@ -101,15 +101,6 @@ def main():
                     ],
                 },
                 {
-                    "name": "pcb",
-                    "color": "DARKGREEN",
-                    "thickness": pcb_thickness,
-                    "drawing_layer_names": [
-                        "pcb",
-                        "clamper_clearance",
-                    ],
-                },
-                {
                     "name": "pusher",
                     "color": "GREEN",
                     "thickness": pusher_thickness,
@@ -158,7 +149,8 @@ def main():
         plate_name = "thermal_plate"
         vac_name = "vacuum_chuck"
         color = cadquery.Color("GOLD")
-        fillet = 2
+        fillet_outer = 2
+        fillet_inner = 10
         chamfer = 1
         corner_screw_depth = 4.5
 
@@ -196,13 +188,21 @@ def main():
             (-129, -wb_mount_offset),
         ]
 
+        # make the base chunk
         wp = CQ().workplane(**u.copo, offset=zbase).sketch()
-        wp = wp.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(fillet)
+        wp = wp.push([cshift]).rect(extents[0], extents[1], mode="a")
         wp = wp.finalize().extrude(thickness)
         wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
 
+        # cut for waterblock mnt ears
+        ear_square = 2 * wb_mount_offset
+        wp = wp.faces("<X").workplane(**u.cobb).rect(xLen=extents[1] - 2 * ear_square, yLen=thickness, centered=True).cutBlind(-(extents[0] - wall_outer[0]) / 2)
+        wp = wp.faces(">X").workplane(**u.cobb).rect(xLen=extents[1] - 2 * ear_square, yLen=thickness, centered=True).cutBlind(-(extents[0] - wall_outer[0]) / 2)
+        wp = wp.edges("|Z exc (<<X or >>X)").fillet(fillet_inner)
+        wp = wp.edges("|Z and (<<X or >>X)").fillet(fillet_outer)
+
         # pedistal
-        wp = wp.faces(">Z").workplane(**u.copo).sketch().rect(*pedistal_xy).reset().vertices().fillet(pedistal_fillet)
+        wp = wp.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).sketch().rect(*pedistal_xy).reset().vertices().fillet(pedistal_fillet)
         wp = wp.finalize().extrude(pedistal_height)
 
         hardware = cq.Assembly(None)  # a place to keep the harware
@@ -288,7 +288,7 @@ def main():
                 part.obj = sp
 
                 # make threaded holes to attach to, TODO: mark these as M3x0.5 threaded holes in engineering drawing
-                top_piece = top_piece.faces(">Z[-2]").workplane(**u.copo, origin=(0, 0, 0)).rarray(vacclamppts[3][0] * 2 + vch_shift_x, vacclamppts[3][1] * 2 + vch_shift_y, 2, 2).tapHole(spscrew, depth=spscrew_length - 1)
+                top_piece = top_piece.faces(">Z[-2]").workplane(**u.copo, origin=(0, 0, 0)).rarray(vacclamppts[3][0] * 2 + vch_shift_x, vacclamppts[3][1] * 2 + vch_shift_y, 2, 2).tapHole(spscrew, depth=spscrew_length - 1, counterSunk=False)
 
         # compute the hole array extents for o-ring path finding
         sub_x_length = (n_sub_array_x - 1) * x_spacing_sub + hole_d
@@ -300,9 +300,28 @@ def main():
         # for the vac chuck fitting
         vac_fitting_chuck_offset = -0.5 * y_spacing
         fitting_tap_depth = 20
-        top_piece = top_piece.faces(">X").workplane(**u.cobb).center(vac_fitting_chuck_offset, 0).tapHole(vac_fitting_screw, depth=fitting_tap_depth, counterSunk=False)
+        top_piece = top_piece.faces(">X").workplane(**u.cobb).center(vac_fitting_chuck_offset, 0).tapHole(vac_fitting_screw, depth=fitting_tap_depth)
         vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-5), name="chuck_vac_fitting")
         hardware.add(vac_chuck_fitting, loc=top_piece.plane.location, name="vac chuck fitting")
+
+        # handle the valve, part number 435-8101
+        a_valve = u.import_step(wrk_dir.joinpath("components", "VHK2-04F-04F.step"))
+        # a_valve = a_valve.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90).translate((0, 7.5, 9))
+        a_valve = a_valve.translate((0, 7.5, 9))
+        valve_mnt_spacing = 16.5
+        valve_mnt_screw_length = 30
+        valve_body_width = 18
+        valve_mnt_hole_depth = 15
+        valve_mnt_screw = PanHeadScrew(size="M4-0.7", fastener_type="iso14583", length=valve_mnt_screw_length)  # SHP-M4-30-V2-A4
+        btm_piece = btm_piece.faces(">X[-2]").workplane(**u.cobb).rarray(valve_mnt_spacing, 1, 2, 1).tapHole(valve_mnt_screw, depth=valve_mnt_hole_depth, counterSunk=False)  # cut threaded holes
+        btm_piece = btm_piece.faces(">X[-2]").workplane(**u.cobb).rarray(valve_mnt_spacing, 1, 2, 1).tapHole(valve_mnt_screw, depth=valve_mnt_screw_length - valve_body_width, counterSunk=False, baseAssembly=aso)  # add screws
+        aso.add(a_valve, loc=btm_piece.plane.location, name="valve")
+
+        # handle the elbow, part number 306-5993
+        an_elbow = u.import_step(wrk_dir.joinpath("components", "3182_04_00.step"))
+        an_elbow = an_elbow.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=-90).rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=90)  # rotate the elbow
+        btm_pln = btm_piece.faces(">X[-2]").workplane(**u.cobb, offset=valve_body_width / 2).center(-26.65, 7.5)  # position the elbow
+        aso.add(an_elbow, loc=btm_pln.plane.location, name="elbow")
 
         # vac distribution network
         zdrill_loc = (pedistal_xy[0] / 2 - fitting_tap_depth, 0.5 * y_spacing)
@@ -363,7 +382,7 @@ def main():
 
         back_holes_shift = 45
         back_holes_spacing = 27
-        front_holes_spacing = 70
+        front_holes_spacing = 75
 
         wp = CQ().workplane(offset=zbase).sketch()
         wp = wp.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
@@ -477,7 +496,6 @@ def main():
         nwp = wp.faces(">X").workplane(**u.cobb, invert=True, offset=thickness).center(vac_fitting_wall_offset, 0)
         vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-rotation_angle), name="inner_wall_vac_fitting")
         aso.add(vac_chuck_fitting, loc=nwp.plane.location, name="vac chuck fitting (wall inner)")
-        # VHK3-04F-04FRL
 
         aso.add(wp, name=name, color=color)  # add the walls bulk
 
