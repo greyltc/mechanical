@@ -477,6 +477,7 @@ def main():
         nwp = wp.faces(">X").workplane(**u.cobb, invert=True, offset=thickness).center(vac_fitting_wall_offset, 0)
         vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-rotation_angle), name="inner_wall_vac_fitting")
         aso.add(vac_chuck_fitting, loc=nwp.plane.location, name="vac chuck fitting (wall inner)")
+        # VHK3-04F-04FRL
 
         aso.add(wp, name=name, color=color)  # add the walls bulk
 
