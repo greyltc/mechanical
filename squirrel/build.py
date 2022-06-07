@@ -481,7 +481,7 @@ def main():
         # add in little detailed PCB
         a_little_pcb = u.import_step(wrk_dir.joinpath("components", "pt_pcb.step"))
         little_pcb = cadquery.Assembly(a_little_pcb.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90), name="small detailed pcb")
-        asys["squirrel"].add(little_pcb, loc=wp.plane.location name="little pcb")
+        asys["squirrel"].add(little_pcb, loc=wp.plane.location, name="little pcb")
 
         # for the vac chuck fittings
         rotation_angle = -155  # degrees
