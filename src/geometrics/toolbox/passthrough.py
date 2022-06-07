@@ -29,9 +29,9 @@ surface_length: float = None  # type: ignore[assignment]
 
 def make_oringer(
     self: cq.Workplane,
-    board_width: float = 82.7,
-    board_inner_depth: float = 9.27,
-    board_outer_depth: float = 9.27,
+    board_width: float = 84.12,
+    board_inner_depth: float = 9.271,
+    board_outer_depth: float = 9.271,
     part_thickness: float = 0,
     wall_depth: float = 0,
     screw="M3-0.5",

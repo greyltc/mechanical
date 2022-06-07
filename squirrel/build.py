@@ -101,9 +101,20 @@ def main():
                     ],
                 },
                 {
+                    "name": "pcb",
+                    "color": "DARKGREEN",
+                    "thickness": pcb_thickness,
+                    "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height + slot_plate_thickness,
+                    "drawing_layer_names": [
+                        "pcb",
+                        "clamper_clearance",
+                    ],
+                },
+                {
                     "name": "pusher",
                     "color": "GREEN",
                     "thickness": pusher_thickness,
+                    "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height + slot_plate_thickness + pcb_thickness,
                     "drawing_layer_names": [
                         "pusher",
                         "clamper_clearance",
@@ -501,13 +512,13 @@ def main():
 
     mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, copper_base_zero + copper_thickness)
 
-    # add in big PCB
-    big_pcb = a_vac_fitting = u.import_step(wrk_dir.joinpath("components", "pcb.step"))
+    # add in big detailed PCB
+    big_pcb = u.import_step(wrk_dir.joinpath("components", "pcb.step"))
     asys["squirrel"].add(big_pcb, name="big pcb")
 
-    # add in little PCB
-    # little_pcb = a_vac_fitting = u.import_step(wrk_dir.joinpath("components", "pt_pcb.step"))
-    # asys["squirrel"].add(little_pcb, name="little pcb")
+    # add in little detailed PCB
+    little_pcb = u.import_step(wrk_dir.joinpath("components", "pt_pcb.step"))
+    asys["squirrel"].add(little_pcb, name="little pcb")
 
     TwoDToThreeD.outputter(asys, wrk_dir)
 
