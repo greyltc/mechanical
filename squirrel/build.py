@@ -108,7 +108,7 @@ def main():
     to_build = [""]
     asys = ttt.build(to_build)
 
-    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
     center_shift = (-4.5, 0)
     wall_outer = (229, 180)
     corner_holes_offset = 7.5
@@ -480,7 +480,7 @@ def main():
 
         # add in little detailed PCB
         a_little_pcb = u.import_step(wrk_dir.joinpath("components", "pt_pcb.step"))
-        little_pcb = cadquery.Assembly(a_little_pcb.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90), name="small detailed pcb")
+        little_pcb = cadquery.Assembly(a_little_pcb.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90).rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=90), name="small detailed pcb")
         asys["squirrel"].add(little_pcb, loc=wp.plane.location, name="little pcb")
 
         # for the vac chuck fittings
