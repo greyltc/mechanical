@@ -59,27 +59,6 @@ def main():
                         "dowel",
                     ],
                 },
-                # {
-                #     "name": "thermal_plate2",
-                #     "color": "GOLD",
-                #     "thickness": copper_thickness,
-                #     "z_base": copper_base_zero,
-                #     "drawing_layer_names": [
-                #         "cu_base",
-                #         "corner_holes",
-                #         "clamper_threads",  # TODO: close up these thread holes from the bottom
-                #         "3K7_press",
-                #     ],
-                # },
-                # {
-                #     "name": "walls2",
-                #     "color": "GRAY55",
-                #     "thickness": wall_height,
-                #     "drawing_layer_names": [
-                #         "walls",
-                #         "corner_holes",
-                #     ],
-                # },
                 {
                     "name": "substrates",
                     "color": "BLUE",
@@ -100,16 +79,16 @@ def main():
                         "3C9_slide",
                     ],
                 },
-                {
-                    "name": "pcb",
-                    "color": "DARKGREEN",
-                    "thickness": pcb_thickness,
-                    "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height + slot_plate_thickness,
-                    "drawing_layer_names": [
-                        "pcb",
-                        "clamper_clearance",
-                    ],
-                },
+                # {
+                #     "name": "pcb",
+                #     "color": "DARKGREEN",
+                #     "thickness": pcb_thickness,
+                #     "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height + slot_plate_thickness,
+                #     "drawing_layer_names": [
+                #         "pcb",
+                #         "clamper_clearance",
+                #     ],
+                # },
                 {
                     "name": "pusher",
                     "color": "GREEN",
@@ -129,7 +108,7 @@ def main():
     to_build = [""]
     asys = ttt.build(to_build)
 
-    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
     center_shift = (-4.5, 0)
     wall_outer = (229, 180)
     corner_holes_offset = 7.5
@@ -480,7 +459,8 @@ def main():
 
         # make the electrical passthrough
         pt_asy = cadquery.Assembly()  # this will hold the passthrough part that gets created
-        pcb_asy = cadquery.Assembly()  # this will hold the pcb part that gets created
+        # pcb_asy = cadquery.Assembly()  # this will hold the pcb part that gets created
+        pcb_asy = None  # dont generate the base PCB (will probably later import the detailed board model)
         hw_asy = cadquery.Assembly()  # this will hold the pcb part that gets created
         ptt = 5.5  # passthrough thickness, reduce a bit from default (which was half wall thickness) to prevent some thin walls close to an o-ring gland
         wp = wp.faces("<X").workplane(**u.cobb).center(-pt_center_offset, 0).make_oringer(board_width=pt_pcb_width, board_inner_depth=pt_pcb_inner_depth, board_outer_depth=pt_pcb_outer_depth, wall_depth=thickness, part_thickness=ptt, pt_asy=pt_asy, pcb_asy=pcb_asy, hw_asy=hw_asy)
@@ -489,13 +469,19 @@ def main():
             part = asyo[1]
             if isinstance(part.obj, cadquery.occ_impl.shapes.Solid):
                 aso.add(part.obj, name=asyo[0], color=color)
-        # insert pcb into assembly
-        for asyo in pcb_asy.traverse():  # insert only one solid object
-            part = asyo[1]
-            if isinstance(part.obj, cadquery.occ_impl.shapes.Solid):
-                aso.add(part.obj, name=asyo[0], color=cadquery.Color("DARKGREEN"))
+        if pcb_asy is not None:
+            # insert pcb into assembly
+            for asyo in pcb_asy.traverse():  # insert only one solid object
+                part = asyo[1]
+                if isinstance(part.obj, cadquery.occ_impl.shapes.Solid):
+                    aso.add(part.obj, name=asyo[0], color=cadquery.Color("DARKGREEN"))
         # insert hardware into assembly
         aso.add(hw_asy.toCompound(), name="passthrough hardware")
+
+        # add in little detailed PCB
+        a_little_pcb = u.import_step(wrk_dir.joinpath("components", "pt_pcb.step"))
+        little_pcb = cadquery.Assembly(a_little_pcb.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90), name="small detailed pcb")
+        asys["squirrel"].add(little_pcb, loc=wp.plane.location name="little pcb")
 
         # for the vac chuck fittings
         rotation_angle = -155  # degrees
@@ -515,10 +501,6 @@ def main():
     # add in big detailed PCB
     big_pcb = u.import_step(wrk_dir.joinpath("components", "pcb.step"))
     asys["squirrel"].add(big_pcb, name="big pcb")
-
-    # add in little detailed PCB
-    little_pcb = u.import_step(wrk_dir.joinpath("components", "pt_pcb.step"))
-    asys["squirrel"].add(little_pcb, name="little pcb")
 
     TwoDToThreeD.outputter(asys, wrk_dir)
 
