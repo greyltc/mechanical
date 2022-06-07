@@ -501,6 +501,14 @@ def main():
 
     mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, copper_base_zero + copper_thickness)
 
+    # add in big PCB
+    big_pcb = a_vac_fitting = u.import_step(wrk_dir.joinpath("components", "pcb.step"))
+    asys["squirrel"].add(big_pcb, name="big pcb")
+
+    # add in little PCB
+    # little_pcb = a_vac_fitting = u.import_step(wrk_dir.joinpath("components", "pt_pcb.step"))
+    # asys["squirrel"].add(little_pcb, name="little pcb")
+
     TwoDToThreeD.outputter(asys, wrk_dir)
 
 
