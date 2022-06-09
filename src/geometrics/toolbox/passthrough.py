@@ -66,8 +66,6 @@ def make_oringer(
     block_width = 7
     block_height_nominal = 6
     support_block = (block_width, block_height_nominal - washert)  # actual support block (leaves room for washer)
-    c_block = (block_width, block_height_nominal)  # virtual support block (includes washer)
-    c_block2 = (block_width, block_height_nominal + pcbt)  # virtual support block2 (includes parts of PCB)
 
     pcb_corner = 2
     pt_pcb_mount_hole_offset = (4.445, block_width / 2)  # from corners
@@ -87,65 +85,157 @@ def make_oringer(
     min_gap = 0.25  # cutting tolerances prevent smaller gaps between things
 
     gland_width = groovy.get_gland_width(oring_cs)
-    effective_gland_width = (round(gland_width * 100) + 1) / 100  # rounded up to the nearest 0.01mm
-    logger.info(f"Using {effective_gland_width=}")
+    # effective_gland_width = (round(gland_width * 100) + 1) / 100  # rounded up to the nearest 0.01mm
+    # logger.info(f"Using {effective_gland_width=}")
 
     # some important radii for construction to ensure we don't overbend the o-ring
     minr1 = min_radius - min_wall
-    minr2 = min_radius + min_wall + effective_gland_width
-
-    # virtual support block centers
-    sby = -pcbt / 2 - c_block[1] / 2
-    sbx = board_width / 2 - support_block[0] / 2
-    vbpts = []
-    vbpts.append((-sbx, sby))
-    vbpts.append((sbx, sby))
-    vb2pts = [(p[0], p[1] + pcbt / 2) for p in vbpts]
+    minr2 = min_radius + min_wall + gland_width
 
     # actual support block centers
-    sbpts = [(p[0], p[1] - washert / 2) for p in vbpts]
+    sbpts = []
+    sbx = board_width / 2 - block_width / 2
+    sby = ((-pcbt / 2 - washert) + (-pcbt / 2 - block_height_nominal)) / 2
+    sbpts.append((sbx, sby))
+    sbpts.append((-sbx, sby))
 
-    # make the through cutout
-    in_off = minr1 - min_gap - (minr1 - min_gap) * 2**0.5 / 2  # exact inward offset to get min_gap spacing with minr1 fillets
-    in_off_eff = (round(in_off * 100) + 1) / 100  # effective inward offset to make numbers round to 0.01mm
-    ffo = in_off_eff + min_gap  # clearance between through parts flats and the flats of the cutout
+    in_off = minr1 * 2**-0.5 - min_gap * 2**0.5 / 2  # exact inward offset to get min_gap spacing with minr1 fillets
+
+    ffo = minr1 * (1 - 2**-0.5) + min_gap * (2**0.5 / 2)
     co_tw = minr1 * 2 + min_gap  # width of the thin part of the cutout (so that the cutting tool can easily fit)
-    twl = board_width - 2 * ffo - 2 * support_block[0]  # length of the thin part
-    twh = c_block[1] + 2 * ffo + pcbt - co_tw  # height of the negative
-    twr = (twl, twh)  # thin with negative rect dims
-    twx = 0  # thin width cutout center y
-    twy = twh / 2 - pcbt / 2 - c_block[1] - ffo  # thin width cutout center y
-    twc = (twx, twy)  # thin width cutout center
-    o = co_tw + minr2 - (ffo + pcbt + c_block[1] + ffo - minr1)  # opposite
-    h = minr2 + minr1  # hypotenuse
-    a = o / math.tan(math.asin(o / h))  # adjacent
-    bcx = board_width / 2 - support_block[0] - a + minr1 - ffo  # big circle x
-    bcy = pcbt / 2 + ffo - (co_tw + minr2)
-    bcpts = []  # big circle points
-    bcpts.append((-bcx, bcy))
-    bcpts.append((bcx, bcy))
+    max_slot_y = ffo + pcbt + block_height_nominal + ffo  # width at the slot at its max
+    if co_tw > max_slot_y:
+        co_tw = max_slot_y
 
-    c_block3 = [p + 2 * ffo for p in c_block2]  # expanded with clearance
-    vb3pts = vb2pts
+    scy = -pcbt / 2 - block_height_nominal + in_off  # y coordinate for the inner, small radius circle
+    scx = board_width / 2 - block_width + in_off  # small, inner circle x value
 
-    c_block4 = [board_width + 2 * ffo, 2 * ffo + pcbt + washert + support_block[1]]  # one construction block spanning across
-    vb4pts = (0, -c_block4[1] / 2 + pcbt / 2 + ffo)
+    tcy = pcbt / 2 - in_off  # top circles center y value
+    tcx = board_width / 2 - in_off  # top circles center c values
+    tcpts = []  # top circle points
+    tcpts.append((tcx, tcy))
+    tcpts.append((-tcx, tcy))
 
-    swp = CQ().sketch()  # make sketch workplane
-    swp = swp.push([vb4pts]).rect(*c_block4).reset()
-    swp = swp.push(bcpts).circle(minr2, mode="s").clean().reset()  # cut away the large circles
-    swp = swp.push([(0, bcy)]).rect(2 * bcx, minr2 * 2, mode="s").clean().reset()  # cut away the space between the circles
-    swp = swp.vertices().fillet(minr1).clean().reset()  # round all the remaining edges
+    ocpts1 = []  # outer circle points for positive x
+    ocpts1.append((tcx, tcy))
+    ocpts1.append((tcx, scy))
+
+    ocpts2 = []  # outer circle points for negative x
+    ocpts2.append((-tcx, tcy))
+    ocpts2.append((-tcx, scy))
+
+    bcpts1 = []  # bottom circle points for positive x
+    bcpts1.append((tcx, scy))
+    bcpts1.append((scx, scy))
+
+    bcpts2 = []  # bottom circle points for negative x
+    bcpts2.append((-tcx, scy))
+    bcpts2.append((-scx, scy))
+
+    icpts1 = []  # inner circle points for positive x
+    icpts1.append((scx, scy))
+    icpts1.append((scx, tcy))
+
+    icpts2 = []  # inner circle points for negative x
+    icpts2.append((-scx, scy))
+    icpts2.append((-scx, tcy))
+
+    swp = CQ().sketch()
+
+    # need support block shapes to fill in gaps
+    swp.push(sbpts).rect(*support_block)
+
+    # the fillets at the bottom collide and should be unified with a circle, but the ones at the sides don't
+    if (2 * minr1 > 2 * ffo + block_width) and (2 * minr1 < max_slot_y):
+        scx = board_width / 2 - block_width / 2  # new center point for circles
+        tcpts = []  # top circle points
+        tcpts.append((scx, tcy))
+        tcpts.append((-scx, tcy))
+
+        ocpts1 = []  # outer circle points for positive x
+        ocpts1.append((scx, tcy))
+        ocpts1.append((scx, scy))
+
+        ocpts2 = []  # outer circle points for negative x
+        ocpts2.append((-scx, tcy))
+        ocpts2.append((-scx, scy))
+
+        # make the right circle hull
+        swp.push(ocpts1).circle(minr1, mode="c", tag="c").reset().edges(tag="c").hull().clean().reset()
+
+        # make the left circle hull
+        swp.push(ocpts2).circle(minr1, mode="c", tag="d").reset().edges(tag="d").hull().clean().reset()
+
+    # the fillets at the side collide and should be unified with a circle
+    elif 2 * minr1 >= max_slot_y:
+        cpts = []  # center points for new circles
+        scy = (pcbt / 2 + (-pcbt / 2 - block_height_nominal)) / 2
+        tcpts = []  # top circle points
+        tcpts.append((tcx, scy))
+        tcpts.append((-tcx, scy))
+
+    # normal case, no fillets collide
+    else:
+        # make the right outer circle hull
+        swp.push(ocpts1).circle(minr1, mode="c", tag="c").reset().edges(tag="c").hull().clean().reset()
+
+        # make the left outer circle hull
+        swp.push(ocpts2).circle(minr1, mode="c", tag="d").reset().edges(tag="d").hull().clean().reset()
+
+        # make the right bottom circle hull
+        swp.push(bcpts1).circle(minr1, mode="c", tag="e").reset().edges(tag="e").hull().clean().reset()
+
+        # make the left bottom circle hull
+        swp.push(bcpts2).circle(minr1, mode="c", tag="f").reset().edges(tag="f").hull().clean().reset()
+
+    bcy = pcbt / 2 + ffo - (co_tw + minr2)  # y coordinate for the large radius circle
+
+    # make the top circle hull
+    swp.push(tcpts).circle(minr1, mode="c", tag="g").reset().edges(tag="g").hull().clean().reset()
+
+    # do all the big circle stuff only if the outer fillets haven't merged
+    if not (2 * minr1 > max_slot_y):
+        o = scy - bcy  # opposite triangle side length (along y)
+        h = minr2 + minr1  # hypotenuse
+        if o < 0:  # the circles have moved apart: big one above small one (and the trig breaks)
+            a = h
+        elif o > h:  # the circles have moved apart (and the trig breaks)
+            a = h  # adjacent (along x)
+        else:
+            a = h * math.cos(math.asin(o / h))
+            # a = o/math.tan(math.asin(o/h))  # adjacent (along x)
+        bcx = scx - a  # big circle x
+        # bcy = pcbt/2+ffo-(co_tw+minr2)
+        bcpts = []
+        bcpts.append((-bcx, bcy))
+        bcpts.append((bcx, bcy))
+
+        swp.push([(-scx, scy), (scx, scy)]).circle(minr1).clean().reset()
+
+        if o < 0:  # the circles have moved apart: big one above small one
+            scy = bcy
+            if 2 * minr1 < 2 * ffo + block_width:  # the bottom fillets haven't merged
+                # make the left inner circle hull
+                swp.push(icpts1).circle(minr1, mode="c", tag="h").reset().edges(tag="h").hull().clean().reset()
+                # make the right inner circle hull
+                swp.push(icpts2).circle(minr1, mode="c", tag="i").reset().edges(tag="i").hull().clean().reset()
+
+        swp.polygon([(-bcx, bcy), (bcx, bcy), (scx, scy), (scx, 0), (-scx, 0), (-scx, scy), (-bcx, bcy)]).clean().reset()
+
+        swp.push(bcpts).circle(minr2, mode="s").clean().reset()  # cut away the large circles
+
+        swp.push([(0, bcy)]).rect(2 * bcx, minr2 * 2, mode="s").clean().reset()  # cut away the space between the circles
+
     through_face = swp.finalize().extrude(-1).faces(">>Z").val()  # get just the face for the through cut
 
-    swp = swp.wires().offset(min_wall + effective_gland_width / 2).clean().reset()  # inner edge of ogland
+    swp = swp.wires().offset(min_wall + gland_width / 2).clean().reset()  # inner edge of ogland
     o_face = swp.finalize().extrude(-1).faces(">>Z").val()  # get just the face for the oring path wire
 
     # passthrough face
-    pfw = min_wall + effective_gland_width + min_wall + c_block4[0] + min_wall + effective_gland_width + min_wall  # passthrough face width
-    pfha = min_wall + effective_gland_width + min_wall + screw_nominal_d + (screw_head_nominal_d / 2 - screw_nominal_d / 2) + min_wall  # passthrough face height above cutout top edge
-    pfhb1 = co_tw + min_wall + effective_gland_width + min_wall + screw_nominal_d + (screw_head_nominal_d / 2 - screw_nominal_d / 2) + min_wall  # passthrough face height below cutout top edge
-    pfhb2 = ffo + pcbt + block_height_nominal + ffo + min_wall + effective_gland_width + min_wall  # passthrough face height below cutout top edge if limited by support block clearance
+    pfw = min_wall + gland_width + min_wall + ffo + board_width + ffo + min_wall + gland_width + min_wall  # passthrough face width
+    pfha = min_wall + gland_width + min_wall + screw_nominal_d + (screw_head_nominal_d / 2 - screw_nominal_d / 2) + min_wall  # passthrough face height above cutout top edge
+    pfhb1 = co_tw + min_wall + gland_width + min_wall + screw_nominal_d + (screw_head_nominal_d / 2 - screw_nominal_d / 2) + min_wall  # passthrough face height below cutout top edge
+    pfhb2 = ffo + pcbt + block_height_nominal + ffo + min_wall + gland_width + min_wall  # passthrough face height below cutout top edge if limited by support block clearance
     if pfhb2 > pfhb1:  # if the part below the support blocks would be lower, use that to determine the face height
         pfhb = pfhb2
     else:
@@ -160,7 +250,7 @@ def make_oringer(
     pfwp = CQ().sketch()  # make passthrough face sketch workplane
     pfwp = pfwp.push([pf_ctr]).rect(*pfdim).reset()
     pfwp = pfwp.vertices().fillet(pf_fillets).clean().reset()
-    # swp = swp.wires().offset(effective_gland_width / 2 + min_wall).clean().reset()  # edge of passthrough part
+    # swp = swp.wires().offset(gland_width / 2 + min_wall).clean().reset()  # edge of passthrough part
     # + screw_nominal_d + (screw_head_nominal_d / 2 - screw_nominal_d / 2) + min_wall
     passthrough_face = pfwp.finalize().extrude(-1).faces(">>Z").val()  # get just the face for the passthrough part
 
@@ -169,10 +259,10 @@ def make_oringer(
 
     # fastening screw hole points
     fhps = []
-    fhps.append(((board_width - 2 * block_width / 2) / 2, pcbt / 2 + ffo + min_wall + effective_gland_width + min_wall + fix_scr.clearance_hole_diameters["Close"] / 2))
-    fhps.append((-(board_width - 2 * block_width / 2) / 2, pcbt / 2 + ffo + min_wall + effective_gland_width + min_wall + fix_scr.clearance_hole_diameters["Close"] / 2))
-    fhps.append((bcx, pcbt / 2 + ffo - co_tw - min_wall - effective_gland_width - min_wall - fix_scr.clearance_hole_diameters["Close"] / 2))
-    fhps.append((-bcx, pcbt / 2 + ffo - co_tw - min_wall - effective_gland_width - min_wall - fix_scr.clearance_hole_diameters["Close"] / 2))
+    fhps.append(((board_width - 2 * block_width / 2) / 2, pcbt / 2 + ffo + min_wall + gland_width + min_wall + fix_scr.clearance_hole_diameters["Close"] / 2))
+    fhps.append((-(board_width - 2 * block_width / 2) / 2, pcbt / 2 + ffo + min_wall + gland_width + min_wall + fix_scr.clearance_hole_diameters["Close"] / 2))
+    fhps.append((bcx, pcbt / 2 + ffo - co_tw - min_wall - gland_width - min_wall - fix_scr.clearance_hole_diameters["Close"] / 2))
+    fhps.append((-bcx, pcbt / 2 + ffo - co_tw - min_wall - gland_width - min_wall - fix_scr.clearance_hole_diameters["Close"] / 2))
 
     def _make_pcb(what):
         """build the actual passthrough PCB"""
