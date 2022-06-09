@@ -55,7 +55,7 @@ support_screw_air_gap = 1
 # thickness of support plate
 support_h = 3
 
-chamber_bolt_size = "M5-0.8"  # TODO: I think there are more places to change to M5
+chamber_bolt_size = "M5-0.8"
 chamber_bolt = cqf.SetScrew(
     size=chamber_bolt_size,
     fastener_type="iso4026",
@@ -75,7 +75,10 @@ chamber_nut = cqf.HexNutWithFlange(
     fastener_type="din1665",
     simple=no_threads,
 )  # HFFN-M5-A2
-m6_socket_clearance = 26  # from https://roymech.org/Useful_Tables/Screws/Head_Clearances.html
+# socket diameter in mm
+# from https://roymech.org/Useful_Tables/Screws/Head_Clearances.html
+# + 1 is for clearnance
+m5_socket_clearance = 22 + 1
 
 # --- chamber detail ---
 chamber_fillet = 2
@@ -244,9 +247,9 @@ def lid(assembly, include_hardware=False):
     lid = cq.Workplane("XY").box(chamber_l, chamber_w, lid_h)
 
     # make the socket clearance ears on the corners
-    lid = lid.faces(">Z").rect(chamber_l, chamber_w, forConstruction=True).vertices().rect(m6_socket_clearance + chamber_bolt_offset * 2, chamber_bolt_offset * 2, centered=True).cutBlind(-bolts_sink_depth)
-    lid = lid.faces(">Z").rect(chamber_l, chamber_w, forConstruction=True).vertices().rect(chamber_bolt_offset * 2, m6_socket_clearance + chamber_bolt_offset * 2, centered=True).cutBlind(-bolts_sink_depth)
-    lid = lid.faces(">Z").workplane().pushPoints(chamber_bolt_xys).circle(m6_socket_clearance / 2).cutBlind(-bolts_sink_depth)
+    lid = lid.faces(">Z").rect(chamber_l, chamber_w, forConstruction=True).vertices().rect(m5_socket_clearance + chamber_bolt_offset * 2, chamber_bolt_offset * 2, centered=True).cutBlind(-bolts_sink_depth)
+    lid = lid.faces(">Z").rect(chamber_l, chamber_w, forConstruction=True).vertices().rect(chamber_bolt_offset * 2, m5_socket_clearance + chamber_bolt_offset * 2, centered=True).cutBlind(-bolts_sink_depth)
+    lid = lid.faces(">Z").workplane().pushPoints(chamber_bolt_xys).circle(m5_socket_clearance / 2).cutBlind(-bolts_sink_depth)
 
     # make the bolt holes and put on the nuts
     lid = lid.faces(">Z").workplane(offset=-bolts_sink_depth).pushPoints(chamber_bolt_xys).clearanceHole(chamber_nut, counterSunk=False, baseAssembly=hardware)
@@ -309,7 +312,7 @@ def window_support(assembly, include_hardware=False):
         "|Z and >X and >Y",
     ]
     for (x, y), e in zip(chamber_bolt_xys, edges):
-        corner = cq.Workplane("XY").box(m6_socket_clearance, m6_socket_clearance, support_h).edges(e).fillet(m6_socket_clearance / 2).translate((x, y, 0))
+        corner = cq.Workplane("XY").box(m5_socket_clearance, m5_socket_clearance, support_h).edges(e).fillet(m5_socket_clearance / 2).translate((x, y, 0))
         window_support = window_support.cut(corner)
 
     # fillet side edges
