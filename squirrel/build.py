@@ -205,7 +205,7 @@ def main():
         wp = wp.faces(">Z").workplane(**u.copo).pushPoints(dowelpts).hole(dowel_nominal_d, depth=pedistal_height)
 
         # waterblock mounting
-        wp = wp.faces(">Z[-2]").workplane(**u.copo).pushPoints(wb_mount_points).clearanceHole(fastener=waterblock_mount_nut, counterSunk=False, baseAssembly=hardware)
+        wp = wp.faces(">Z[-2]").workplane(**u.copo).pushPoints(wb_mount_points).clearanceHole(fastener=waterblock_mount_nut, counterSunk=False, fit="Loose", baseAssembly=hardware)
 
         # vac chuck stuff
         # split
@@ -338,6 +338,17 @@ def main():
         # cut the o-ring groove
         top_piece = top_piece.faces("<Z").workplane(**u.cobb).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=array_x_length + groove_x_pad, gland_y=array_y_length + groove_y_pad, hardware=hardware)
 
+        # cut the electrical contact screw mount holes
+        vc_e_screw_spacing = 15
+        vc_e_screw_center_offset = 10
+        vc_e_screw_hole_depth = 12
+        vc_e_screw_screw_length = 8
+        vc_e_srew_type = "M3-0.5"
+        e_dummy = SetScrew(vc_e_srew_type, fastener_type="iso4026", length=vc_e_screw_screw_length, simple=no_threads)
+
+        # mark these chuck electrical connection screw holes in engineering drawing as M3x0.5
+        top_piece = top_piece.faces("<X").workplane(**u.cobb).center(vc_e_screw_center_offset, 0).rarray(vc_e_screw_spacing, 1, 2, 1).tapHole(e_dummy, depth=vc_e_screw_hole_depth)
+
         aso.add(btm_piece, name=plate_name, color=color)
         aso.add(top_piece, name=vac_name, color=color)
         aso.add(hardware.toCompound(), name="hardware", color=cadquery.Color(hardware_color))
@@ -374,10 +385,27 @@ def main():
         back_holes_spacing = 27
         front_holes_spacing = 75
 
+        fitting_step_xy = (3, 15)  # dims of the little step for the vac fitting alignment
+        fitting_step_center = (-fitting_step_xy[0] / 2 + inner[0] / 2 + cshift[0], extents[1] / 2 - fitting_step_xy[1] / 2 - thickness)
         wp = CQ().workplane(offset=zbase).sketch()
         wp = wp.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
-        wp = wp.push([inner_shift]).rect(inner[0], inner[1], mode="s").reset().vertices().fillet(inner_fillet)
-        wp = wp.finalize().extrude(height)
+        wp = wp.push([inner_shift]).rect(inner[0], inner[1], mode="s").reset()
+        dummy_xy = (fitting_step_xy[0], inner[1])
+        dummy_center = (fitting_step_center[0], 0)
+        wp = wp.push([dummy_center]).rect(*dummy_xy, mode="a")  # add on a dummy bit that we'll mostly subtract away
+
+        wp = wp.finalize().extrude(height).edges("|Z").fillet(inner_fillet)
+
+        sub_xy = (40, inner[1] - fitting_step_xy[1])
+        sub_center = (-sub_xy[0] / 2 + inner[0] / 2 + cshift[0], -fitting_step_xy[1] / 2)
+        wp2 = CQ().workplane(offset=zbase).sketch().push([sub_center]).rect(*sub_xy, mode="a")
+        wp2 = wp2.finalize().extrude(height).edges("|Z").fillet(inner_fillet)
+        wp = wp.cut(wp2)
+
+        # wp = CQ().workplane(offset=zbase).sketch()
+        # wp = wp.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
+        # wp = wp.push([inner_shift]).rect(inner[0], inner[1], mode="s")  # .reset().vertices().fillet(inner_fillet)
+        # wp = wp.finalize().extrude(height)
         wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
 
         wall_hardware = cq.Assembly(None, name="wall_hardware")
@@ -432,7 +460,8 @@ def main():
         bonded_washer_asy = cadquery.Assembly(bonded_washer, name="one_bonded_washer")
 
         # move bonded washers to their wall holes
-        wpbw = wp.faces(">X[-5]").workplane(**u.cobb).center(-front_holes_spacing / 2, 0)
+        washer_thickness = 2.5
+        wpbw = wp.faces(">X").workplane(**u.cobb, offset=-thickness - washer_thickness).center(-front_holes_spacing / 2, 0)
         bonded_washer_asy.loc = wpbw.plane.location
         wall_hardware.add(bonded_washer_asy, name="front_right_bonded_washer")
         wpbw = wpbw.center(front_holes_spacing, 0)
@@ -479,7 +508,7 @@ def main():
         aso.add(hw_asy.toCompound(), name="passthrough hardware")
 
         # add in little detailed PCB
-        a_little_pcb = u.import_step(wrk_dir.joinpath("components", "pt_pcb.step"))
+        a_little_pcb = u.import_step(wrk_dir.joinpath("components", "pt_pcb.step")).translate((0, 0, -pcb_thickness / 2))  # shift pcb to be z-centered
         little_pcb = cadquery.Assembly(a_little_pcb.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90).rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=90), name="small detailed pcb")
         asys["squirrel"].add(little_pcb, loc=wp.plane.location, name="little pcb")
 
@@ -490,7 +519,7 @@ def main():
         vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=rotation_angle), name="outer_wall_vac_fitting")
         aso.add(vac_chuck_fitting, loc=wp.plane.location, name="vac chuck fitting (wall outer)")
 
-        nwp = wp.faces(">X").workplane(**u.cobb, invert=True, offset=thickness).center(vac_fitting_wall_offset, 0)
+        nwp = wp.faces(">X").workplane(**u.cobb, invert=True, offset=thickness + fitting_step_xy[0]).center(vac_fitting_wall_offset, 0)
         vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-rotation_angle), name="inner_wall_vac_fitting")
         aso.add(vac_chuck_fitting, loc=nwp.plane.location, name="vac chuck fitting (wall inner)")
 
