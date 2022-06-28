@@ -515,7 +515,7 @@ def main():
         # for the vac chuck fittings
         rotation_angle = -155  # degrees
         vac_fitting_wall_offset = extents[1] / 2 - thickness - inner_fillet - 4  # mounting location offset from center
-        wp = wp.faces(">X").workplane(**u.cobb).center(vac_fitting_wall_offset, 0).tapHole(vac_fitting_screw, depth=thickness)
+        wp = wp.faces(">X").workplane(**u.cobb).center(vac_fitting_wall_offset, 0).tapHole(vac_fitting_screw, depth=thickness+fitting_step_xy[0])
         vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=rotation_angle), name="outer_wall_vac_fitting")
         aso.add(vac_chuck_fitting, loc=wp.plane.location, name="vac chuck fitting (wall outer)")
 
