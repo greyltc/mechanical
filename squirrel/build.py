@@ -42,6 +42,10 @@ def main():
     passthrough_standoff_height = 15
     hardware_color = "GRAY75"
 
+    # for 3m6 dowel pins (3m6 ones are +2um to +8um larger than the nominal 3mm diameter)
+    dowel3_delta_press = -0.005  # draw pressfit holes as 5um smaller than nominal, mark as 3K7 (-0um to -10um allowed)
+    dowel3_delta_slide = 0.1  # draw slidefit holes as 100um larger than nominal, mark as 3C11 (+60um to +120um allowed)
+
     # base posision of the pedistal now
     copper_base_zero = -copper_thickness - thermal_pedestal_height - slot_plate_thickness
 
@@ -202,7 +206,7 @@ def main():
         wp = wp.faces("<Z[-2]").wires().toPending().extrude(corner_screw_depth, combine="cut")  # make sure the recessed screw is not buried
 
         # dowel holes
-        wp = wp.faces(">Z").workplane(**u.copo).pushPoints(dowelpts).hole(dowel_nominal_d, depth=pedistal_height)
+        wp = wp.faces(">Z").workplane(**u.copo).pushPoints(dowelpts).hole(dowel_nominal_d + dowel3_delta_press, depth=pedistal_height)
 
         # waterblock mounting
         wp = wp.faces(">Z[-2]").workplane(**u.copo).pushPoints(wb_mount_points).clearanceHole(fastener=waterblock_mount_nut, counterSunk=False, fit="Loose", baseAssembly=hardware)
@@ -256,14 +260,15 @@ def main():
         top_piece = top_piece.faces(">Z").workplane(**u.copo).pushPoints(vac_hole_pts).cskHole(diameter=hole_d, cskDiameter=hole_cskd, cskAngle=csk_ang)
 
         # clamping setscrew threaded holes
-        wp = wp.faces(">Z").workplane().pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_recess, baseAssembly=hardware)  # bug prevents this from working correctly, workaround below
+        top_piece = top_piece.faces(">Z").workplane().pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_recess, baseAssembly=hardware)  # bug prevents this from working correctly, workaround below
+        # clamping setscrew downbumps in the thermal plate
         btm_piece = CQ(btm_piece.findSolid()).faces(">Z").workplane(**u.copo).pushPoints(setscrewpts).circle(vacscrew.clearance_hole_diameters["Close"] / 2).cutBlind(-screw_well_depth)
 
         # vac chuck clamping screws
         top_piece = top_piece.faces(">Z[-2]").workplane(**u.copo, origin=(0, 0, 0)).pushPoints(vacclamppts).clearanceHole(vacscrew, fit="Close", baseAssembly=hardware)
         # next line is a hack to make absolutely sure the screws are recessed
         top_piece = top_piece.faces(">Z[-2]").workplane(**u.copo, origin=(0, 0, 0)).pushPoints(vacclamppts).cskHole(vacscrew.clearance_hole_diameters["Close"], cskDiameter=vacscrew.head_diameter + 1, cskAngle=vacscrew.screw_data["a"])
-        btm_piece = btm_piece.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).pushPoints(vacclamppts).tapHole(vacscrew, depth=vacscrew_length - pedistal_height + 1)  # threaded holes to attach to
+        btm_piece = btm_piece.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).pushPoints(vacclamppts).tapHole(setscrew, depth=vacscrew_length - pedistal_height + 1)  # threaded holes to attach to
 
         # mod the slot plate to include csk screws for clamping
         for name, part in asys["squirrel"].traverse():
@@ -515,7 +520,7 @@ def main():
         # for the vac chuck fittings
         rotation_angle = -155  # degrees
         vac_fitting_wall_offset = extents[1] / 2 - thickness - inner_fillet - 4  # mounting location offset from center
-        wp = wp.faces(">X").workplane(**u.cobb).center(vac_fitting_wall_offset, 0).tapHole(vac_fitting_screw, depth=thickness+fitting_step_xy[0])
+        wp = wp.faces(">X").workplane(**u.cobb).center(vac_fitting_wall_offset, 0).tapHole(vac_fitting_screw, depth=thickness + fitting_step_xy[0])
         vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=rotation_angle), name="outer_wall_vac_fitting")
         aso.add(vac_chuck_fitting, loc=wp.plane.location, name="vac chuck fitting (wall outer)")
 
