@@ -6,7 +6,7 @@ from . import utilities as u
 from . import constants as c
 from . import groovy
 import logging
-from cq_warehouse.fastener import CounterSunkScrew, PanHeadScrew, CheeseHeadWasher
+from cq_warehouse.fastener import CounterSunkScrew, PanHeadScrew
 import cq_warehouse.extensions  # this does something even though it's not directly used
 
 """

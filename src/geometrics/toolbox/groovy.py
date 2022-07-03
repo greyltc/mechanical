@@ -116,6 +116,8 @@ def mk_groove(
         r = (wire_length - 2 * gland_x - 2 * gland_y) / (2 * math.pi - 8)
         if (2 * r > gland_x) or (2 * r > gland_y):
             raise ValueError("The o-ring circumference is too small for the given x and y gland dims")
+        logger = logging.getLogger(__name__)
+        logger.info(f"Using path bend radius {r}mm, that's an uncompressed cord inner radius of {r-ring_cs/2} (and the min is {ring_cs*3})")
         wire = CQ(self.plane).rect(gland_x, gland_y).wires().val()
         wire = wire.fillet2D(r, wire.Vertices())
         sweep_result = _make_one_groove(wp=self, _wire=wire, _vdepth=vdepth, _ring_cs=ring_cs, _compression_ratio=compression_ratio, _gland_fill_ratio=gland_fill_ratio)

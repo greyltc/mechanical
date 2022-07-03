@@ -16,6 +16,8 @@ import geometrics.toolbox as tb
 
 
 logger = logging.getLogger("cadbuilder")
+logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler())
 logger.info(f'toolbox module imported from "{tb.__file__}"')
 
 # let logger capture warnings
@@ -277,7 +279,7 @@ def lid(assembly, include_hardware=False):
         lid_oring_groove_r,
     )
     groove = groove.translate((window_ap_x_offset, 0, (lid_h / 2 - lid_oring_groove_h / 2 - window_h)))
-    lid = lid.cut(groove)
+    # lid = lid.cut(groove)  # we'll cut it below instead with the toolbox version of the groove cutter
 
     # cut aperture for light transmission
     window_ap = cq.Workplane("XY").box(window_ap_l, window_ap_w, lid_h).edges("|Z").fillet(window_ap_r).translate((window_ap_x_offset, 0, 0))
@@ -287,6 +289,12 @@ def lid(assembly, include_hardware=False):
     window_recess = drilled_corner_cube(window_recess_l, window_recess_w, window_h, window_recess_r)
     window_recess = window_recess.translate((window_ap_x_offset, 0, lid_h / 2 - window_h / 2))
     lid = lid.cut(window_recess)
+
+    # cut o-ring groove
+    cq.Workplane.mk_groove = tb.groovy.mk_groove  # add in our groovemaker
+    lid = cq.CQ(lid.findSolid()).faces(">Z[-3]").workplane(centerOption="CenterOfBoundBox")
+    lid = lid.mk_groove(ring_cs=2.62, follow_pending_wires=False, ring_id=190.17, gland_x=151, gland_y=162)  # BS169N70 standard
+    # lid = lid.mk_groove(ring_cs=2, follow_pending_wires=False, ring_id=190, gland_x=151, gland_y=162)  # polymax metric option: 190X2N70
 
     assembly.add(lid, name="lid")
 
