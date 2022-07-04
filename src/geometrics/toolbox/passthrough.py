@@ -349,7 +349,7 @@ def make_oringer(
 
         # fastener threaded holes
         # TODO: mark these holes as "M3-0.5 threaded" in the engineering drawing
-        fhs = CQ().pushPoints(fhps).circle(fix_scr.tap_hole_diameters["Hard"] / 2).extrude(-wall_depth + pt_fix_wall_buffer)
+        fhs = CQ().pushPoints(fhps).circle(fix_scr.tap_hole_diameters["Soft"] / 2).extrude(-wall_depth + pt_fix_wall_buffer)
 
         nwp = CQ().add(through_face)
         through = nwp.wires().toPending().extrude(-wall_depth)
