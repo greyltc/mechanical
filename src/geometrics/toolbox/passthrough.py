@@ -70,12 +70,13 @@ def make_oringer(
     pcb_corner = 2
     pt_pcb_mount_hole_offset = (4.445, block_width / 2)  # from corners
 
-    pcb_scr_len = 10  # SHP-M3-10-V2-A2, round(block_height_nominal + pcbt + 3)
+    pcb_scr_len = 12  # SHP-M3-12-V2-A2, round(block_height_nominal + pcbt + 4)
     pt_fix_scr_len = 10  # SHK-M3-10-V2-A2, round(wall_depth * 0.8)
     pt_fix_wall_buffer = 1  # amount of wall to leave behind the threaded screw hole
     fix_scr = CounterSunkScrew(size=screw, fastener_type="iso14581", length=pt_fix_scr_len)
     pcb_scr = PanHeadScrew(size=screw, fastener_type="iso14583", length=pcb_scr_len)
     # washer = CheeseHeadWasher(size=screw, fastener_type="iso7092")
+    # nylock nut = HNN-M3-A2
 
     oring_cs = 1  # oring thickness
 

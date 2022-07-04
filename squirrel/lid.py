@@ -154,7 +154,7 @@ logger.info(f"Support bolt length = {support_bolt_length} mm")
 support_bolt_size = "M4-0.7"
 support_bolt = cqf.CounterSunkScrew(
     size=support_bolt_size,
-    fastener_type="iso10642",
+    fastener_type="iso14581",
     length=support_bolt_length,
     simple=no_threads,
 )
