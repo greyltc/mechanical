@@ -96,7 +96,7 @@ def mk_groove(
         for face in faces:
             wire = face.outerWire()
             logger = logging.getLogger(__name__)
-            logger.info(f"Made a gland for oring length {wire.Length()}")
+            logger.info(f"Made an o-ring gland for ring length {wire.Length()}mm and diameter {ring_cs}mm")
             sweep_result = _make_one_groove(wp=self, _wire=wire, _vdepth=vdepth, _ring_cs=ring_cs, _compression_ratio=compression_ratio, _gland_fill_ratio=gland_fill_ratio)
             s = s.cut(sweep_result)
 
