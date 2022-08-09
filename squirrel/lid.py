@@ -290,10 +290,15 @@ def lid(assembly, include_hardware=False):
     window_recess = window_recess.translate((window_ap_x_offset, 0, lid_h / 2 - window_h / 2))
     lid = lid.cut(window_recess)
 
+    # window
+    if include_hardware is True:
+        window = cq.Workplane().box(159, 170, window_h).translate((window_ap_x_offset, 0, lid_h / 2 - window_h / 2))
+        assembly.add(window, name="window")
+
     # cut o-ring groove
     cq.Workplane.mk_groove = tb.groovy.mk_groove  # add in our groovemaker
     lid = cq.CQ(lid.findSolid()).faces(">Z[-3]").workplane(centerOption="CenterOfBoundBox")
-    lid = lid.mk_groove(ring_cs=2.62, follow_pending_wires=False, ring_id=190.17, gland_x=151, gland_y=162)  # BS169N70 standard
+    lid = lid.mk_groove(ring_cs=2.62, follow_pending_wires=False, ring_id=190.17, gland_x=151, gland_y=162, hardware=assembly)  # BS169N70 standard
     # lid = lid.mk_groove(ring_cs=2, follow_pending_wires=False, ring_id=190, gland_x=151, gland_y=162)  # polymax metric option: 190X2N70
 
     assembly.add(lid, name="lid")

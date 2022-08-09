@@ -112,7 +112,7 @@ def main():
     to_build = [""]
     asys = ttt.build(to_build)
 
-    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
     center_shift = (-4.5, 0)
     wall_outer = (229, 180)
     corner_holes_offset = 7.5
