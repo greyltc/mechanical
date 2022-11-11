@@ -1,42 +1,49 @@
 [build-system]
-requires = [
-  "setuptools @ git+https://github.com/pypa/setuptools#tag=v62.1.0",
-  "wheel",
-]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.11.1", "hatch-vcs>=0.2.0"]
+build-backend = "hatchling.build"
 
 [project]
 name = "geometrics"
+description = "some 3d stuff"
 readme = "README.md"
+license = "GPL-3.0-or-later"
 requires-python = ">=3.10"
-license = {file = "LICENSE"}
-keywords = ["3d", "mechanical"]
+keywords = [
+    "cad",
+    "3d",
+    "science",
+]
 authors = [
-  {name = "Greyson Christoforo", email = "grey@christoforo.net"}
+    { name="Greyson Christoforo", email="grey@christoforo.net" },
 ]
-maintainers = [
-  {name = "Greyson Christoforo", email = "grey@christoforo.net"}
-]
+
 classifiers = [
-  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-  "Development Status :: 4 - Beta",
-  "Programming Language :: Python"
+    "License :: OSI Approved :: GNU Affero General Public License v3",
 ]
-
-dynamic = ['version']
-
 dependencies = [
-  "cadquery"
+    "cadquery",
+    "cq_warehouse",
+]
+dynamic = [
+    "version",
 ]
 
 [project.urls]
-homepage = "https://github.com/greyltc/mechanical"
-documentation = "https://github.com/greyltc/mechanical/blob/master/README.md"
-repository = "https://github.com/greyltc/mechanical.git"
-changelog = "https://github.com/greyltc/mechanical/blob/master/CHANGELOG.md"
+Source = "https://github.com/greyltc/mechanical.git"
 
-[tool.setuptools.dynamic]
-version = {attr = "geometrics.__version__"}
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build]
+ignore-vcs = true
+include = [
+  "src/*.py",
+  "src/livechart/*.py",
+]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src"]
+sources = ["src"]
 
 [tool.black]
 line-length = 999999

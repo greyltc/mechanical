@@ -1238,9 +1238,10 @@ class ChamberNG(object):
         # fmt: on
 
         # cut the v potting groove for the potting between the pieces
-        cq.Workplane.mk_groove = tb.groovy.mk_groove  # add our vgroove function to the Workplane class
+        cq.Workplane.mk_groove = tb.groovy.mk_vgroove  # add our vgroove function to the Workplane class
         co = {"centerOption": "CenterOfBoundBox"}
-        middle = middle.faces(">Z").workplane(**co).add(pot_slot_path_wire.translate((0, 0, -s.top_mid_height))).wires().toPending().mk_groove(vdepth=s.pg_depth)  # cut the vgroove
+        # TODO: get vgroove back!
+        #middle = middle.faces(">Z").workplane(**co).add(pot_slot_path_wire.translate((0, 0, -s.top_mid_height))).wires().toPending().mk_groove(entry_point=(0,0,0), depth=s.pg_depth)  # cut the vgroove
 
         # gas feedthroughs
         if s.do_gas_feedthroughs == True:
@@ -1310,12 +1311,13 @@ class ChamberNG(object):
 
 
 def main():
-    # s = ChamberNG(array=(1, 1), subs =(28, 28), spacing=(10, 10), padding=(5,5,0,0))
+    s = ChamberNG(array=(1, 1), subs =(28, 28), spacing=(10, 10), padding=(5,5,0,0))
     # s = ChamberNG(array=(1, 4), subs=(30, 30), spacing=(10, 10), padding=(5, 5, 0, 0))
     # s = ChamberNG(array=(5, 6), subs =(30, 30), spacing=(10, 10), padding=(5,5,0,0))
     # s = ChamberNG(array=(5, 5), subs =(30, 30), spacing=(0, 0), padding=(10,10,5,5))
     # s = ChamberNG(array=(4, 4), subs=(25.4, 25.4), spacing=(10, 10), padding=(5, 5, 0, 0))
-    s = ChamberNG(array=(1, 4), subs=(25.4, 25.4), spacing=(10, 10), padding=(5, 5, 0, 0))
+    # s = ChamberNG(array=(4, 4), subs=(30, 30), spacing=(10, 10), padding=(5, 5, 0, 0))
+    # s = ChamberNG(array=(1, 4), subs=(25.4, 25.4), spacing=(10, 10), padding=(5, 5, 0, 0))
     # s = ChamberNG(array=(1, 4), subs =(28, 28), spacing=(10, 10), padding=(5,5,0,0))
     (asy, crossbar, adapter, adapter_spacer, spring_pin_spacer, spring_pin_spacer_no_holes, substrate_holder, top_pcb) = s.build()
 

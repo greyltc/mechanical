@@ -1,7 +1,7 @@
 */output/
 *.bak
 *.csg
-.buildwork/
+buildout/
 
 
 *.step
