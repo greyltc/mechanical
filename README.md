@@ -14,7 +14,7 @@ Make sure you have the latest versions of:
 ## Build
 From the root of this repo
 ```
-python -m build --no-isolation --outdir buildout
+python -m build --wheel --no-isolation --outdir buildout
 ```
 
 ## Install
