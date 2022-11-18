@@ -3,6 +3,8 @@ from cadquery import CQ, cq
 from pathlib import Path
 from typing import List, Dict
 import ezdxf
+import concurrent.futures
+from geometrics.toolbox.cq_serialize import register as register_cq_helper
 
 
 class TwoDToThreeD(object):
@@ -14,7 +16,7 @@ class TwoDToThreeD(object):
         self.stacks: List[Dict] = instructions
         self.sources: List[Path] = sources
 
-    def build(self, stacks_to_build: List[str] = [""]):
+    def build(self, stacks_to_build: List[str] = [""], nparallel: int = 1):
         if stacks_to_build == [""]:  # build them all by default
             stacks_to_build = [x["name"] for x in self.stacks]
 
@@ -29,59 +31,98 @@ class TwoDToThreeD(object):
 
         # all the faces we'll need here
         layers = self.get_layers(self.sources, drawing_layers_needed_unique)
-        self._layers = layers
+        # self._layers = layers
 
         stacks = {}
-        for stack_instructions in self.stacks:
-            asy = cadquery.Assembly()
-            # asy = None
-            if stack_instructions["name"] in stacks_to_build:
-                asy.name = stack_instructions["name"]
-                z_base = 0
-                for stack_layer in stack_instructions["layers"]:
-                    t = stack_layer["thickness"]
-                    boundary_layer_name = stack_layer["drawing_layer_names"][0]  # boundary layer must always be the first one listed
-                    layer_comp = cadquery.Compound.makeCompound(layers[boundary_layer_name].faces().vals())
+        # for stack_instructions in self.stacks:
+        #     stack_done = do_stack(stack_instructions)
+        #     if stack_done:
+        #         key, val = stack_done
+        #         stacks[key] = val
 
-                    if "array" in stack_layer:
-                        array_points = stack_layer["array"]
-                    else:
-                        array_points = [(0, 0, 0)]
+        register_cq_helper()  # register picklers
 
-                    if len(stack_layer["drawing_layer_names"]) == 1:
-                        wp = CQ().sketch().push(array_points).face(layer_comp, mode="a", ignore_selection=False)
-                    else:
-                        wp = CQ().sketch().face(layer_comp, mode="a", ignore_selection=False)
+        with concurrent.futures.ProcessPoolExecutor(max_workers=nparallel) as executor:
+            fs = [executor.submit(self.do_stack, stack_instructions, stacks_to_build, layers) for stack_instructions in self.stacks]
+            for future in concurrent.futures.as_completed(fs):
+                try:
+                    stack_done = future.result()
+                except Exception as e:
+                    print(repr(e))
+                else:
+                    if stack_done:
+                        asy = cadquery.Assembly()
+                        asy.name = stack_done["name"]
+                        for layer in stack_done["layers"]:
+                            # wp = cq.Workplane()
+                            # wp.add(layer["solid"])
+                            # asy.add(wp, name=layer["name"], color=cadquery.Color(layer["color"]))
+                            asy.add(layer["solid"], name=layer["name"], color=cadquery.Color(layer["color"]))
+                        stacks[stack_done["name"]] = asy
+                        # stacks.append(stack_done)
+                        # key, val = stack_done
+                        # stacks[key] = val
 
-                    wp = wp.finalize().extrude(t)  # the workpiece base is now made
-                    if len(stack_layer["drawing_layer_names"]) > 1:
-                        wp = wp.faces(">Z").workplane(centerOption="ProjectedOrigin").sketch()
-
-                        for drawing_layer_name in stack_layer["drawing_layer_names"][1:]:
-                            layer_comp = cadquery.Compound.makeCompound(layers[drawing_layer_name].faces().vals())
-                            wp = wp.push(array_points).face(layer_comp, mode="a", ignore_selection=False)
-
-                        wp = wp.faces()
-                        if "edge_case" in stack_layer:
-                            edge_layer_name = stack_layer["edge_case"]
-                            layer_comp = cadquery.Compound.makeCompound(layers[edge_layer_name].faces().vals())
-                            es = CQ().sketch().face(layer_comp)
-                            wp = wp.face(es.faces(), mode="i")
-                            wp = wp.clean()
-                        # wp = wp.finalize().cutThruAll()  # this is a fail, but should work. if it's not a fail is slower than the below line
-                        wp = wp.finalize().extrude(-t, combine="cut")
-
-                    # give option to override calculated z_base
-                    if "z_base" in stack_layer:
-                        z_base = stack_layer["z_base"]
-
-                    new = wp.translate([0, 0, z_base])
-                    asy.add(new, name=stack_layer["name"], color=cadquery.Color(stack_layer["color"]))
-                    z_base = z_base + t
-                stacks[stack_instructions["name"]] = asy
         return stacks
         # asy.save(str(Path(__file__).parent / "output" / f"{stack_instructions['name']}.step"))
         # cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(Path(__file__).parent / "output" / "badger.brep"))
+
+    def do_stack(self, instructions, stacks_to_build, layers):
+
+        # asy = cadquery.Assembly()
+        stack = {}
+        # asy = None
+        if instructions["name"] in stacks_to_build:
+            stack["name"] = instructions["name"]
+            stack["layers"] = []
+            # asy.name = instructions["name"]
+            z_base = 0
+
+            for stack_layer in instructions["layers"]:
+                t = stack_layer["thickness"]
+                boundary_layer_name = stack_layer["drawing_layer_names"][0]  # boundary layer must always be the first one listed
+                layer_comp = cadquery.Compound.makeCompound(layers[boundary_layer_name])
+
+                if "array" in stack_layer:
+                    array_points = stack_layer["array"]
+                else:
+                    array_points = [(0, 0, 0)]
+
+                if len(stack_layer["drawing_layer_names"]) == 1:
+                    wp = CQ().sketch().push(array_points).face(layer_comp, mode="a", ignore_selection=False)
+                else:
+                    wp = CQ().sketch().face(layer_comp, mode="a", ignore_selection=False)
+
+                wp = wp.finalize().extrude(t)  # the workpiece base is now made
+                if len(stack_layer["drawing_layer_names"]) > 1:
+                    wp = wp.faces(">Z").workplane(centerOption="ProjectedOrigin").sketch()
+
+                    for drawing_layer_name in stack_layer["drawing_layer_names"][1:]:
+                        layer_comp = cadquery.Compound.makeCompound(layers[drawing_layer_name])
+                        wp = wp.push(array_points).face(layer_comp, mode="a", ignore_selection=False)
+
+                    wp = wp.faces()
+                    if "edge_case" in stack_layer:
+                        edge_layer_name = stack_layer["edge_case"]
+                        layer_comp = cadquery.Compound.makeCompound(layers[edge_layer_name])
+                        es = CQ().sketch().face(layer_comp)
+                        wp = wp.face(es.faces(), mode="i")
+                        wp = wp.clean()
+                    # wp = wp.finalize().cutThruAll()  # this is a fail, but should work. if it's not a fail is slower than the below line
+                    wp = wp.finalize().extrude(-t, combine="cut")
+
+                # give option to override calculated z_base
+                if "z_base" in stack_layer:
+                    z_base = stack_layer["z_base"]
+
+                new = wp.translate([0, 0, z_base])
+                new_layer = {"name": stack_layer["name"], "color": stack_layer["color"], "solid": new.findSolid()}
+                stack["layers"].append(new_layer)
+                # asy.add(new, name=stack_layer["name"], color=cadquery.Color(stack_layer["color"]))
+                z_base = z_base + t
+            # return (instructions["name"], asy)
+            return stack
+        return None
 
     def get_layers(self, dxf_filepaths: List[Path], layer_names: List[str] = []) -> List[cq.Workplane]:
         """returns the requested layers from dxfs"""
@@ -105,16 +146,15 @@ class TwoDToThreeD(object):
             else:
                 raise ValueError(f"Could not a layer named '{layer_name}' in any drawing")
             to_exclude = list(layer_set - set((layer_name,)))
-            layers[layer_name] = cadquery.importers.importDXF(which_file, exclude=to_exclude)
+            layers[layer_name] = cadquery.importers.importDXF(which_file, exclude=to_exclude).faces().vals()
 
         return layers
 
-    def faceputter(cls, wrk_dir):
+    def faceputter(self, wrk_dir, layers):
         """ouputs faces that were read from dxfs during build"""
         Path.mkdir(wrk_dir / "output" / "faces", exist_ok=True)
         all_faces = cadquery.Assembly()
-        for layer_name, layer_wp in cls._layers.items():
-            faces = layer_wp.faces().vals()
+        for layer_name, faces in layers.items():
             for i, face in enumerate(faces):
                 all_faces.add(face)
                 cadquery.exporters.export(face, str(wrk_dir / "output" / "faces" / f"{layer_name}-{i}.stl"), cadquery.exporters.ExportTypes.STL)
@@ -124,7 +164,7 @@ class TwoDToThreeD(object):
         all_faces.save(str(wrk_dir / "output" / "faces" / f"all_faces.step"))
 
     @classmethod
-    def outputter(cls, asys, wrk_dir, save_dxfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False):
+    def outputter(cls, asys, wrk_dir, save_dxfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, nparallel=1):
         """do output tasks on a dictionary of assemblies"""
         for stack_name, asy in asys.items():
             if "show_object" in globals():  # we're in cq-editor
@@ -150,17 +190,19 @@ class TwoDToThreeD(object):
                 # asy.save(str(wrk_dir / "output" / f"{stack_name}.brep"))
                 asy.save(str(wrk_dir / "output" / f"{stack_name}.xml"), "XML")
                 # asy.save(str(wrk_dir / "output" / f"{stack_name}.vtkjs"), "VTKJS")
+                asy.save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
+                asy.save(str(wrk_dir / "output" / f"{stack_name}.stl"), "STL")
 
-                # stupid workaround for gltf export bug: https://github.com/CadQuery/cadquery/issues/993
-                asy2 = None
-                # for path, child in asy._flatten().items():
-                for child in asy.children:
-                    # if "/" in path:
-                    if asy2 is None:
-                        asy2 = cadquery.Assembly(child.obj, name=child.name, color=child.color)
-                    else:
-                        asy2.add(child.obj, name=child.name, color=child.color)
-                asy2.save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
+                # # stupid workaround for gltf export bug: https://github.com/CadQuery/cadquery/issues/993
+                # asy2 = None
+                # # for path, child in asy._flatten().items():
+                # for child in asy.children:
+                #     # if "/" in path:
+                #     if asy2 is None:
+                #         asy2 = cadquery.Assembly(child.obj, name=child.name, color=child.color)
+                #     else:
+                #         asy2.add(child.obj, name=child.name, color=child.color)
+                # asy2.save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
 
                 # cadquery.exporters.assembly.exportCAF(asy, str(wrk_dir / "output" / f"{stack_name}.std"))
                 # cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(wrk_dir / "output" / f"{stack_name}.brep"))

@@ -1,5 +1,8 @@
 [build-system]
-requires = ["hatchling>=1.11.1", "hatch-vcs>=0.2.0"]
+requires = [
+  "hatchling >=1.11.0,<2",
+  "hatch-vcs >=0.2.0",
+]
 build-backend = "hatchling.build"
 
 [project]
@@ -9,23 +12,23 @@ readme = "README.md"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.10"
 keywords = [
-    "cad",
-    "3d",
-    "science",
+  "cad",
+  "3d",
+  "science",
 ]
 authors = [
-    { name="Greyson Christoforo", email="grey@christoforo.net" },
+  { name="Greyson Christoforo", email="grey@christoforo.net" },
 ]
 
 classifiers = [
-    "License :: OSI Approved :: GNU Affero General Public License v3",
+  "License :: OSI Approved :: GNU Affero General Public License v3",
 ]
 dependencies = [
-    "cadquery",
-    "cq_warehouse",
+  "cadquery",
+  "cq_warehouse",
 ]
 dynamic = [
-    "version",
+  "version",
 ]
 
 [project.urls]
@@ -38,7 +41,7 @@ source = "vcs"
 ignore-vcs = true
 include = [
   "src/*.py",
-  "src/livechart/*.py",
+  "src/geometrics/*.py",
 ]
 
 [tool.hatch.build.targets.wheel]

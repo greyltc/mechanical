@@ -14,7 +14,7 @@ Make sure you have the latest versions of:
 ## Build
 From the root of this repo
 ```
-python -m build --wheel --no-isolation --outdir buildout
+rm -rf buildout && python -m build --wheel --no-isolation --outdir buildout
 ```
 
 ## Install
@@ -32,8 +32,8 @@ deactivate  # when you're done with the venv
 ### Install without a venv
 See https://docs.python.org/3/library/sysconfig.html?highlight=installation%20scheme#installation-paths for valid schemas and pick one that's appropriate for your use case
 ```
+python -m uninstaller --scheme posix_user geometrics
 python -m installer --scheme posix_user buildout/*.whl
-rm -r buildout
 ```
 
 ## Some folders
