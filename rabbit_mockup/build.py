@@ -31,7 +31,7 @@ def main():
     # instructions for 2d->3d
     instructions = []
     substrate_raise = 0.25
-    substrate_thickness = 0.3
+    substrate_thickness = 1.1
     copper_thickness = 15
     thermal_pedestal_height = 14.1
     slot_plate_thickness = 2.3 + substrate_raise
@@ -39,7 +39,10 @@ def main():
     pusher_thickness = 4
     dowel_length = slot_plate_thickness + pcb_thickness + pusher_thickness + thermal_pedestal_height + 3  # nominally 25
     wall_height = 28
+    sleeve_holder_thickness = 15.25 - pcb_thickness
     passthrough_standoff_height = 15
+    pin_travel = 2.65
+    no_substrate_pin_compression = 0.2
     hardware_color = "GRAY75"
 
     # for 3m6 dowel pins (3m6 ones are +2um to +8um larger than the nominal 3mm diameter)
@@ -49,59 +52,47 @@ def main():
     # base posision of the pedistal now
     copper_base_zero = -copper_thickness - thermal_pedestal_height - slot_plate_thickness
 
-    as_name = "squirrel"
+    as_name = "rabbit"
     instructions.append(
         {
             "name": as_name,
             "layers": [
                 {
-                    "name": "dowels",
-                    "color": hardware_color,
-                    "thickness": dowel_length,
-                    "z_base": copper_base_zero + copper_thickness,
+                    "name": "pusher",
+                    "color": "GREEN",
+                    "thickness": pusher_thickness,
+                    "z_base": 6.2 + pcb_thickness + sleeve_holder_thickness + pin_travel - no_substrate_pin_compression,
                     "drawing_layer_names": [
-                        "dowel",
+                        "pusher_outer",
+                        "pusher_inner_small",
                     ],
                 },
                 {
                     "name": "substrates",
                     "color": "BLUE",
                     "thickness": substrate_thickness,
-                    "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height + substrate_raise,
+                    "z_base": 6.2 + pcb_thickness + sleeve_holder_thickness + pin_travel - no_substrate_pin_compression - substrate_thickness,
                     "drawing_layer_names": [
-                        "substrates",
+                        "small_glasses",
                     ],
                 },
                 {
                     "name": "slot_plate",
                     "color": "RED",
                     "thickness": slot_plate_thickness,
-                    "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height,
+                    "z_base": 6.2 + pcb_thickness + sleeve_holder_thickness + pin_travel - no_substrate_pin_compression - slot_plate_thickness,
                     "drawing_layer_names": [
-                        "slot_plate",
-                        "clamper_clearance",
-                        "3C9_slide",
+                        "slot_plate_outer",
+                        "slot_plate_inner_small",
                     ],
                 },
-                # {
-                #     "name": "pcb",
-                #     "color": "DARKGREEN",
-                #     "thickness": pcb_thickness,
-                #     "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height + slot_plate_thickness,
-                #     "drawing_layer_names": [
-                #         "pcb",
-                #         "clamper_clearance",
-                #     ],
-                # },
                 {
-                    "name": "pusher",
-                    "color": "GREEN",
-                    "thickness": pusher_thickness,
-                    "z_base": copper_base_zero + copper_thickness + thermal_pedestal_height + slot_plate_thickness + pcb_thickness,
+                    "name": "pcb",
+                    "color": "DARKGREEN",
+                    "thickness": pcb_thickness,
+                    "z_base": 6.2,
                     "drawing_layer_names": [
-                        "pusher",
-                        "clamper_clearance",
-                        "3C9_slide",
+                        "pcb",
                     ],
                 },
             ],
@@ -112,9 +103,9 @@ def main():
     to_build = [""]
     asys = ttt.build(to_build)
 
-    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
-    center_shift = (-4.5, 0)
-    wall_outer = (229, 180)
+    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
+    center_shift = (0, 0)
+    wall_outer = (119, 119)
     corner_holes_offset = 7.5
     corner_hole_points = [(x * (wall_outer[0] - 2 * corner_holes_offset) - (wall_outer[0] - 2 * corner_holes_offset) / 2 + center_shift[0], y * (wall_outer[1] - 2 * corner_holes_offset) - (wall_outer[1] - 2 * corner_holes_offset) / 2 + center_shift[1]) for x, y in itertools.product(range(0, 2), range(0, 2))]
     assembly_screw_length = 45
@@ -122,11 +113,11 @@ def main():
 
     base_outer = (wall_outer[0] + 40, wall_outer[1])
 
-    # get vac fitting geometry
-    # takes 4mm OD tubes, needs M5x0.8 threads, part number 326-8956
-    a_vac_fitting = u.import_step(wrk_dir.joinpath("components", "3118_04_19.step"))
-    a_vac_fitting = a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(1, 0, 0), angleDegrees=90).translate((0, 0, 1.5))
-    vac_fitting_screw = SetScrew("M5-0.8", fastener_type="iso4026", length=30, simple=no_threads)  # dummy screw for making vac fitting threads
+    # # get vac fitting geometry
+    # # takes 4mm OD tubes, needs M5x0.8 threads, part number 326-8956
+    # a_vac_fitting = u.import_step(wrk_dir.joinpath("components", "3118_04_19.step"))
+    # a_vac_fitting = a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(1, 0, 0), angleDegrees=90).translate((0, 0, 1.5))
+    # vac_fitting_screw = SetScrew("M5-0.8", fastener_type="iso4026", length=30, simple=no_threads)  # dummy screw for making vac fitting threads
 
     def mkbase(
         aso: cadquery.Assembly,
@@ -358,7 +349,7 @@ def main():
         aso.add(top_piece, name=vac_name, color=color)
         aso.add(hardware.toCompound(), name="hardware", color=cadquery.Color(hardware_color))
 
-    mkbase(asys[as_name], copper_thickness, center_shift, base_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero, substrate_raise)
+    # mkbase(asys[as_name], copper_thickness, center_shift, base_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero, substrate_raise)
 
     def mkwalls(
         aso: cadquery.Assembly,
@@ -371,7 +362,7 @@ def main():
         """the chamber walls"""
         name = "walls"
         color = cadquery.Color("GRAY55")
-        thickness = 12
+        thickness = 20
         inner = (extents[0] - 2 * thickness, extents[1] - 2 * thickness)
         inner_shift = cshift
         outer_fillet = 2
@@ -394,18 +385,36 @@ def main():
         fitting_step_center = (-fitting_step_xy[0] / 2 + inner[0] / 2 + cshift[0], extents[1] / 2 - fitting_step_xy[1] / 2 - thickness)
         wp = CQ().workplane(offset=zbase).sketch()
         wp = wp.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
-        wp = wp.push([inner_shift]).rect(inner[0], inner[1], mode="s").reset()
+        # wp = wp.push([inner_shift]).rect(inner[0], inner[1], mode="s").reset()
         dummy_xy = (fitting_step_xy[0], inner[1])
         dummy_center = (fitting_step_center[0], 0)
         wp = wp.push([dummy_center]).rect(*dummy_xy, mode="a")  # add on a dummy bit that we'll mostly subtract away
 
-        wp = wp.finalize().extrude(height).edges("|Z").fillet(inner_fillet)
+        wp = wp.finalize().extrude(height)
 
-        sub_xy = (40, inner[1] - fitting_step_xy[1])
-        sub_center = (-sub_xy[0] / 2 + inner[0] / 2 + cshift[0], -fitting_step_xy[1] / 2)
-        wp2 = CQ().workplane(offset=zbase).sketch().push([sub_center]).rect(*sub_xy, mode="a")
-        wp2 = wp2.finalize().extrude(height).edges("|Z").fillet(inner_fillet)
-        wp = wp.cut(wp2)
+        wp8 = CQ().workplane(offset=zbase).sketch()
+        wp8 = wp8.push([inner_shift]).rect(inner[0], inner[1], mode="a").reset()
+        wp8 = wp8.finalize().extrude(6.2 + pcb_thickness)
+        wp = wp.cut(wp8).edges("|Z")
+
+        wp9 = CQ().workplane(offset=zbase).sketch()
+        wp9 = wp9.push([inner_shift]).rect(inner[0], inner[1], mode="a").reset()
+        wp9 = wp9.finalize().extrude(height).translate((0, 0, 6.2 + 15.25))
+        wp = wp.cut(wp9).edges("|Z").fillet(inner_fillet)
+
+        # cut thru_stuff
+        cut_thru = cadquery.importers.importDXF("drawings/2d.dxf", include=["small_tower_holes", "small_pin_holes"]).wires().toPending().extrude(height)
+        wp = wp.cut(cut_thru)
+
+        cut_side = cadquery.importers.importDXF("drawings/2d.dxf", include=["pcb"]).wires().toPending().extrude(pcb_thickness)
+        wp = wp.cut(cut_side.translate((0, 0, 6.2)))
+
+        # # the fitting bump
+        # sub_xy = (40, inner[1] - fitting_step_xy[1])
+        # sub_center = (-sub_xy[0] / 2 + inner[0] / 2 + cshift[0], -fitting_step_xy[1] / 2)
+        # wp2 = CQ().workplane(offset=zbase).sketch().push([sub_center]).rect(*sub_xy, mode="a")
+        # wp2 = wp2.finalize().extrude(height).edges("|Z").fillet(inner_fillet)
+        # wp = wp.cut(wp2)
 
         # wp = CQ().workplane(offset=zbase).sketch()
         # wp = wp.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
@@ -422,119 +431,119 @@ def main():
         # chamfers
         wp = wp.faces(">Z").edges(">>X").chamfer(chamfer)
 
-        # gas holes with recesses
-        wp = wp.faces("<X").workplane(**u.cobb).center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).hole(diameter=gas_fitting_hole_diameter, depth=thickness)
-        # wp = wp.faces("<X").workplane(**u.cobb).center(back_holes_shift, 0).sketch().rarray(back_holes_spacing, 1, 2, 1).rect(gas_fitting_diameter, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)
-        wp = wp.faces("<X").workplane(**u.cobb).center(back_holes_shift, 0).sketch().rect(2 * gas_fitting_diameter / 2 + back_holes_spacing, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)  # unify the back holes
-        wp = wp.faces(">X").workplane(**u.cobb).rarray(front_holes_spacing, 1, 2, 1).hole(diameter=gas_fitting_hole_diameter, depth=thickness)
-        wp = wp.faces(">X").workplane(**u.cobb).sketch().rarray(front_holes_spacing, 1, 2, 1).rect(gas_fitting_diameter, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)
+        # # gas holes with recesses
+        # wp = wp.faces("<X").workplane(**u.cobb).center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).hole(diameter=gas_fitting_hole_diameter, depth=thickness)
+        # # wp = wp.faces("<X").workplane(**u.cobb).center(back_holes_shift, 0).sketch().rarray(back_holes_spacing, 1, 2, 1).rect(gas_fitting_diameter, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)
+        # wp = wp.faces("<X").workplane(**u.cobb).center(back_holes_shift, 0).sketch().rect(2 * gas_fitting_diameter / 2 + back_holes_spacing, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)  # unify the back holes
+        # wp = wp.faces(">X").workplane(**u.cobb).rarray(front_holes_spacing, 1, 2, 1).hole(diameter=gas_fitting_hole_diameter, depth=thickness)
+        # wp = wp.faces(">X").workplane(**u.cobb).sketch().rarray(front_holes_spacing, 1, 2, 1).rect(gas_fitting_diameter, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)
 
-        # that's part number polymax 230X2N70
-        o_ring_thickness = 2
-        o_ring_inner_diameter = 230
+        # # that's part number polymax 230X2N70
+        o_ring_thickness = 3
+        o_ring_inner_diameter = 110
         ooffset = 17  # two times the o-ring path's center offset from the outer edge of the walls
 
         # cut the lid o-ring groove
         wp = wp.faces(">Z").workplane(**u.cobb).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=extents[0] - ooffset, gland_y=extents[1] - ooffset, hardware=wall_hardware)
 
-        # cut the base o-ring groove
+        # # cut the base o-ring groove
         wp = wp.faces("<Z").workplane(**u.cobb).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=extents[0] - ooffset, gland_y=extents[1] - ooffset, hardware=wall_hardware)
 
-        # get pipe fitting geometry
-        a_pipe_fitting = u.import_step(wrk_dir.joinpath("components", "5483T93_Miniature Nickel-Plated Brass Pipe Fitting.step"))
-        a_pipe_fitting = a_pipe_fitting.translate((0, 0, -6.35 - gas_fitting_recess))
-        pipe_fitting_asy = cadquery.Assembly(a_pipe_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=30), name="one_pipe_fitting")
+        # # get pipe fitting geometry
+        # a_pipe_fitting = u.import_step(wrk_dir.joinpath("components", "5483T93_Miniature Nickel-Plated Brass Pipe Fitting.step"))
+        # a_pipe_fitting = a_pipe_fitting.translate((0, 0, -6.35 - gas_fitting_recess))
+        # pipe_fitting_asy = cadquery.Assembly(a_pipe_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=30), name="one_pipe_fitting")
 
-        # move the pipe fittings to their wall holes
-        wppf = wp.faces(">X").workplane(**u.cobb).center(front_holes_spacing / 2, 0)
-        pipe_fitting_asy.loc = wppf.plane.location
-        wall_hardware.add(pipe_fitting_asy, name="front_right_gas_fitting")
-        wppf = wppf.center(-front_holes_spacing, 0)
-        pipe_fitting_asy.loc = wppf.plane.location
-        wall_hardware.add(pipe_fitting_asy, name="front_left_gas_fitting")
-        wppf = wp.faces("<X").workplane(**u.cobb).center(back_holes_shift + back_holes_spacing / 2, 0)
-        pipe_fitting_asy.loc = wppf.plane.location
-        wall_hardware.add(pipe_fitting_asy, name="rear_left_gas_fitting")
-        wppf = wppf.center(-back_holes_spacing, 0)
-        pipe_fitting_asy.loc = wppf.plane.location
-        wall_hardware.add(pipe_fitting_asy, name="rear_right_gas_fitting")
+        # # move the pipe fittings to their wall holes
+        # wppf = wp.faces(">X").workplane(**u.cobb).center(front_holes_spacing / 2, 0)
+        # pipe_fitting_asy.loc = wppf.plane.location
+        # wall_hardware.add(pipe_fitting_asy, name="front_right_gas_fitting")
+        # wppf = wppf.center(-front_holes_spacing, 0)
+        # pipe_fitting_asy.loc = wppf.plane.location
+        # wall_hardware.add(pipe_fitting_asy, name="front_left_gas_fitting")
+        # wppf = wp.faces("<X").workplane(**u.cobb).center(back_holes_shift + back_holes_spacing / 2, 0)
+        # pipe_fitting_asy.loc = wppf.plane.location
+        # wall_hardware.add(pipe_fitting_asy, name="rear_left_gas_fitting")
+        # wppf = wppf.center(-back_holes_spacing, 0)
+        # pipe_fitting_asy.loc = wppf.plane.location
+        # wall_hardware.add(pipe_fitting_asy, name="rear_right_gas_fitting")
 
-        # get bonded washer geometry, part 229-6277
-        bonded_washer = u.import_step(wrk_dir.joinpath("components", "hutchinson_ljf_207242.stp"))
-        bonded_washer = bonded_washer.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90).translate((0, 0, 1.25))
-        bonded_washer_asy = cadquery.Assembly(bonded_washer, name="one_bonded_washer")
+        # # get bonded washer geometry, part 229-6277
+        # bonded_washer = u.import_step(wrk_dir.joinpath("components", "hutchinson_ljf_207242.stp"))
+        # bonded_washer = bonded_washer.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90).translate((0, 0, 1.25))
+        # bonded_washer_asy = cadquery.Assembly(bonded_washer, name="one_bonded_washer")
 
-        # move bonded washers to their wall holes
-        washer_thickness = 2.5
-        wpbw = wp.faces(">X").workplane(**u.cobb, offset=-thickness - washer_thickness).center(-front_holes_spacing / 2, 0)
-        bonded_washer_asy.loc = wpbw.plane.location
-        wall_hardware.add(bonded_washer_asy, name="front_right_bonded_washer")
-        wpbw = wpbw.center(front_holes_spacing, 0)
-        bonded_washer_asy.loc = wpbw.plane.location
-        wall_hardware.add(bonded_washer_asy, name="front_left_bonded_washer")
-        wpbw = wp.faces("<X[-5]").workplane(**u.cobb).center(-back_holes_shift - back_holes_spacing / 2, 0)
-        bonded_washer_asy.loc = wpbw.plane.location
-        wall_hardware.add(bonded_washer_asy, name="rear_right_bonded_washer")
-        wpbw = wpbw.center(back_holes_spacing, 0)
-        bonded_washer_asy.loc = wpbw.plane.location
-        wall_hardware.add(bonded_washer_asy, name="rear_left_bonded_washer")
+        # # move bonded washers to their wall holes
+        # washer_thickness = 2.5
+        # wpbw = wp.faces(">X").workplane(**u.cobb, offset=-thickness - washer_thickness).center(-front_holes_spacing / 2, 0)
+        # bonded_washer_asy.loc = wpbw.plane.location
+        # wall_hardware.add(bonded_washer_asy, name="front_right_bonded_washer")
+        # wpbw = wpbw.center(front_holes_spacing, 0)
+        # bonded_washer_asy.loc = wpbw.plane.location
+        # wall_hardware.add(bonded_washer_asy, name="front_left_bonded_washer")
+        # wpbw = wp.faces("<X[-5]").workplane(**u.cobb).center(-back_holes_shift - back_holes_spacing / 2, 0)
+        # bonded_washer_asy.loc = wpbw.plane.location
+        # wall_hardware.add(bonded_washer_asy, name="rear_right_bonded_washer")
+        # wpbw = wpbw.center(back_holes_spacing, 0)
+        # bonded_washer_asy.loc = wpbw.plane.location
+        # wall_hardware.add(bonded_washer_asy, name="rear_left_bonded_washer")
 
-        aso.add(wall_hardware.toCompound(), name="wall_hardware", color=cadquery.Color(hardware_color))
+        # aso.add(wall_hardware.toCompound(), name="wall_hardware", color=cadquery.Color(hardware_color))
 
-        # passthrough details
-        pcb_scr_head_d_safe = 6
-        n_header_pins = 50
-        header_length = n_header_pins / 2 * 2.54 + 7.62  # n*0.1 + 0.3 inches
-        support_block_width = 7
-        pt_pcb_width = 2 * (support_block_width / 2 + pcb_scr_head_d_safe / 2) + header_length
-        pt_pcb_outer_depth = 8.89 + 0.381  # 0.35 + 0.15 inches
-        pt_pcb_inner_depth = 8.89 + 0.381  # 0.35 + 0.15 inches
-        pt_center_offset = 28.65  # so that the internal passthrough connector aligns with the one in the chamber
+        # # passthrough details
+        # pcb_scr_head_d_safe = 6
+        # n_header_pins = 50
+        # header_length = n_header_pins / 2 * 2.54 + 7.62  # n*0.1 + 0.3 inches
+        # support_block_width = 7
+        # pt_pcb_width = 2 * (support_block_width / 2 + pcb_scr_head_d_safe / 2) + header_length
+        # pt_pcb_outer_depth = 8.89 + 0.381  # 0.35 + 0.15 inches
+        # pt_pcb_inner_depth = 8.89 + 0.381  # 0.35 + 0.15 inches
+        # pt_center_offset = 28.65  # so that the internal passthrough connector aligns with the one in the chamber
 
-        # make the electrical passthrough
-        pt_asy = cadquery.Assembly()  # this will hold the passthrough part that gets created
-        # pcb_asy = cadquery.Assembly()  # this will hold the pcb part that gets created
-        pcb_asy = None  # dont generate the base PCB (will probably later import the detailed board model)
-        hw_asy = cadquery.Assembly()  # this will hold the pcb part that gets created
-        ptt = 5.5  # passthrough thickness, reduce a bit from default (which was half wall thickness) to prevent some thin walls close to an o-ring gland
-        wp = wp.faces("<X").workplane(**u.cobb).center(-pt_center_offset, 0).make_oringer(board_width=pt_pcb_width, board_inner_depth=pt_pcb_inner_depth, board_outer_depth=pt_pcb_outer_depth, wall_depth=thickness, part_thickness=ptt, pt_asy=pt_asy, pcb_asy=pcb_asy, hw_asy=hw_asy)
-        # insert passthrough into assembly
-        for asyo in pt_asy.traverse():
-            part = asyo[1]
-            if isinstance(part.obj, cadquery.occ_impl.shapes.Solid):
-                aso.add(part.obj, name=asyo[0], color=color)
-        if pcb_asy is not None:
-            # insert pcb into assembly
-            for asyo in pcb_asy.traverse():  # insert only one solid object
-                part = asyo[1]
-                if isinstance(part.obj, cadquery.occ_impl.shapes.Solid):
-                    aso.add(part.obj, name=asyo[0], color=cadquery.Color("DARKGREEN"))
-        # insert hardware into assembly
-        aso.add(hw_asy.toCompound(), name="passthrough hardware")
+        # # make the electrical passthrough
+        # pt_asy = cadquery.Assembly()  # this will hold the passthrough part that gets created
+        # # pcb_asy = cadquery.Assembly()  # this will hold the pcb part that gets created
+        # pcb_asy = None  # dont generate the base PCB (will probably later import the detailed board model)
+        # hw_asy = cadquery.Assembly()  # this will hold the pcb part that gets created
+        # ptt = 5.5  # passthrough thickness, reduce a bit from default (which was half wall thickness) to prevent some thin walls close to an o-ring gland
+        # wp = wp.faces("<X").workplane(**u.cobb).center(-pt_center_offset, 0).make_oringer(board_width=pt_pcb_width, board_inner_depth=pt_pcb_inner_depth, board_outer_depth=pt_pcb_outer_depth, wall_depth=thickness, part_thickness=ptt, pt_asy=pt_asy, pcb_asy=pcb_asy, hw_asy=hw_asy)
+        # # insert passthrough into assembly
+        # for asyo in pt_asy.traverse():
+        #     part = asyo[1]
+        #     if isinstance(part.obj, cadquery.occ_impl.shapes.Solid):
+        #         aso.add(part.obj, name=asyo[0], color=color)
+        # if pcb_asy is not None:
+        #     # insert pcb into assembly
+        #     for asyo in pcb_asy.traverse():  # insert only one solid object
+        #         part = asyo[1]
+        #         if isinstance(part.obj, cadquery.occ_impl.shapes.Solid):
+        #             aso.add(part.obj, name=asyo[0], color=cadquery.Color("DARKGREEN"))
+        # # insert hardware into assembly
+        # aso.add(hw_asy.toCompound(), name="passthrough hardware")
 
-        # add in little detailed PCB
-        a_little_pcb = u.import_step(wrk_dir.joinpath("components", "pt_pcb.step")).translate((0, 0, -pcb_thickness / 2))  # shift pcb to be z-centered
-        little_pcb = cadquery.Assembly(a_little_pcb.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90).rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=90), name="small detailed pcb")
-        asys["squirrel"].add(little_pcb, loc=wp.plane.location, name="little pcb")
+        # # add in little detailed PCB
+        # a_little_pcb = u.import_step(wrk_dir.joinpath("components", "pt_pcb.step")).translate((0, 0, -pcb_thickness / 2))  # shift pcb to be z-centered
+        # little_pcb = cadquery.Assembly(a_little_pcb.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90).rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=90), name="small detailed pcb")
+        # asys["squirrel"].add(little_pcb, loc=wp.plane.location, name="little pcb")
 
-        # for the vac chuck fittings
-        rotation_angle = -155  # degrees
-        vac_fitting_wall_offset = extents[1] / 2 - thickness - inner_fillet - 4  # mounting location offset from center
-        wp = wp.faces(">X").workplane(**u.cobb).center(vac_fitting_wall_offset, 0).tapHole(vac_fitting_screw, depth=thickness + fitting_step_xy[0])
-        vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=rotation_angle), name="outer_wall_vac_fitting")
-        aso.add(vac_chuck_fitting, loc=wp.plane.location, name="vac chuck fitting (wall outer)")
+        # # for the vac chuck fittings
+        # rotation_angle = -155  # degrees
+        # vac_fitting_wall_offset = extents[1] / 2 - thickness - inner_fillet - 4  # mounting location offset from center
+        # wp = wp.faces(">X").workplane(**u.cobb).center(vac_fitting_wall_offset, 0).tapHole(vac_fitting_screw, depth=thickness + fitting_step_xy[0])
+        # vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=rotation_angle), name="outer_wall_vac_fitting")
+        # aso.add(vac_chuck_fitting, loc=wp.plane.location, name="vac chuck fitting (wall outer)")
 
-        nwp = wp.faces(">X").workplane(**u.cobb, invert=True, offset=thickness + fitting_step_xy[0]).center(vac_fitting_wall_offset, 0)
-        vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-rotation_angle), name="inner_wall_vac_fitting")
-        aso.add(vac_chuck_fitting, loc=nwp.plane.location, name="vac chuck fitting (wall inner)")
+        # nwp = wp.faces(">X").workplane(**u.cobb, invert=True, offset=thickness + fitting_step_xy[0]).center(vac_fitting_wall_offset, 0)
+        # vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-rotation_angle), name="inner_wall_vac_fitting")
+        # aso.add(vac_chuck_fitting, loc=nwp.plane.location, name="vac chuck fitting (wall inner)")
 
         aso.add(wp, name=name, color=color)  # add the walls bulk
 
-    mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, copper_base_zero + copper_thickness)
+    mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, 0)
 
     # add in big detailed PCB
-    big_pcb = u.import_step(wrk_dir.joinpath("components", "pcb.step"))
-    asys["squirrel"].add(big_pcb, name="big pcb")
+    # big_pcb = u.import_step(wrk_dir.joinpath("components", "pcb.step"))
+    # asys["squirrel"].add(big_pcb, name="big pcb")
 
     TwoDToThreeD.outputter(asys, wrk_dir)
 
