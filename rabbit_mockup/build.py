@@ -539,6 +539,16 @@ def main():
 
         aso.add(wp, name=name, color=color)  # add the walls bulk
 
+        # the towers
+        wp7 = CQ().workplane(offset=-5).sketch()
+        wp7 = wp7.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
+        wp7_base = wp7.finalize().extrude(5)
+
+        twrs = cadquery.importers.importDXF("drawings/2d.dxf", include=["towers"]).wires().toPending().extrude(22.8)
+        twr_part = wp7_base.union(twrs)
+
+        aso.add(twr_part, name="towers", color=cadquery.Color("goldenrod"))  # add the towers bulk
+
     mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, 0)
 
     # add in big detailed PCB
