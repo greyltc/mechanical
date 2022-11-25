@@ -44,6 +44,14 @@ def main():
     pin_travel = 2.65
     no_substrate_pin_compression = 0.2
     hardware_color = "GRAY75"
+    pcb_standoff_height = 5
+    pcb_base_offset = 5
+    underpocket_airgap = pcb_base_offset + pcb_thickness + pcb_standoff_height
+    pin_sleeve_end_to_stopper_len = 17.75 - 2.5
+    pin_stopper_drilldown = pcb_base_offset + pin_sleeve_end_to_stopper_len
+    pocket_depth_drilldown = pin_stopper_drilldown + 2.5 + 2.65 *2/3
+    tower_thermal_pad_thickness = 0.5
+    tower_height = pocket_depth_drilldown - tower_thermal_pad_thickness
 
     # for 3m6 dowel pins (3m6 ones are +2um to +8um larger than the nominal 3mm diameter)
     dowel3_delta_press = -0.005  # draw pressfit holes as 5um smaller than nominal, mark as 3K7 (-0um to -10um allowed)
@@ -57,40 +65,40 @@ def main():
         {
             "name": as_name,
             "layers": [
-                {
-                    "name": "pusher",
-                    "color": "GREEN",
-                    "thickness": pusher_thickness,
-                    "z_base": 6.2 + pcb_thickness + sleeve_holder_thickness + pin_travel - no_substrate_pin_compression,
-                    "drawing_layer_names": [
-                        "pusher_outer",
-                        "pusher_inner_small",
-                    ],
-                },
+                # {
+                #     "name": "pusher",
+                #     "color": "GREEN",
+                #     "thickness": pusher_thickness,
+                #     "z_base": 6.2 + pcb_thickness + sleeve_holder_thickness + pin_travel - no_substrate_pin_compression,
+                #     "drawing_layer_names": [
+                #         "pusher_outer",
+                #         "pusher_inner_small",
+                #     ],
+                # },
                 {
                     "name": "substrates",
                     "color": "BLUE",
                     "thickness": substrate_thickness,
-                    "z_base": 6.2 + pcb_thickness + sleeve_holder_thickness + pin_travel - no_substrate_pin_compression - substrate_thickness,
+                    "z_base": pocket_depth_drilldown,
                     "drawing_layer_names": [
                         "small_glasses",
                     ],
                 },
-                {
-                    "name": "slot_plate",
-                    "color": "RED",
-                    "thickness": slot_plate_thickness,
-                    "z_base": 6.2 + pcb_thickness + sleeve_holder_thickness + pin_travel - no_substrate_pin_compression - slot_plate_thickness,
-                    "drawing_layer_names": [
-                        "slot_plate_outer",
-                        "slot_plate_inner_small",
-                    ],
-                },
+                # {
+                #     "name": "slot_plate",
+                #     "color": "RED",
+                #     "thickness": slot_plate_thickness,
+                #     "z_base": 6.2 + pcb_thickness + sleeve_holder_thickness + pin_travel - no_substrate_pin_compression - slot_plate_thickness,
+                #     "drawing_layer_names": [
+                #         "slot_plate_outer",
+                #         "slot_plate_inner_small",
+                #     ],
+                # },
                 {
                     "name": "pcb",
                     "color": "DARKGREEN",
                     "thickness": pcb_thickness,
-                    "z_base": 6.2,
+                    "z_base": pcb_base_offset, 
                     "drawing_layer_names": [
                         "pcb",
                     ],
@@ -356,7 +364,7 @@ def main():
         # wp7 = wp7.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
         # wp7_base = wp7.finalize().extrude(5)
 
-        twrs = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["towers"]).wires().toPending().extrude(22.8)
+        twrs = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["towers"]).wires().toPending().extrude(tower_height)
         wp = wp.union(twrs)
 
         # aso.add(twr_part, name="towers", color=cadquery.Color("goldenrod"))  # add the towers bulk
@@ -410,17 +418,16 @@ def main():
         wp = wp.finalize().extrude(height)
 
         # underpocket
-        underpocket_airgap = 6
         up = CQ().workplane(offset=zbase).sketch()
         up = up.push([inner_shift]).rect(inner[0], inner[1], mode="a").reset()
-        up = up.finalize().extrude(underpocket_airgap + pcb_thickness)
+        up = up.finalize().extrude(underpocket_airgap)
         wp = wp.cut(up)
 
         # overpocket
-        overpocket_airgap = 
+        overpocket_airgap = 1
         wp = wp.faces(">Z").workplane(**u.cobb).sketch()
         wp = wp.push([inner_shift]).rect(inner[0], inner[1], mode="a").reset()
-        wp = wp.finalize().cutBlind(-1 * (height))
+        wp = wp.finalize().cutBlind(-overpocket_airgap)
 
         # wp9 = CQ().workplane(offset=zbase).sketch()
         # wp9 = wp9.push([inner_shift]).rect(inner[0], inner[1], mode="a").reset()
@@ -453,16 +460,47 @@ def main():
         wp = wp.faces(">Z").workplane(**u.copo, offset=-nut.nut_thickness).pushPoints(hps).clearanceHole(fastener=nut, fit="Close", counterSunk=False, baseAssembly=wall_hardware)
         wp = wp.faces(">Z").workplane(**u.copo).sketch().push(hps[0:4:3]).rect(flat_to_flat, nut.nut_diameter, angle=45).reset().push(hps[1:3]).rect(flat_to_flat, nut.nut_diameter, angle=-45).reset().vertices().fillet(nut.nut_diameter / 4).finalize().cutBlind(-nut.nut_thickness)
 
+
+        # cut the top gas hole
+        gas_hole_diameter = 4.2
+        side_depth = extents[0]/2-10
+        top_cyl_length = 36
+        wp = wp.faces("<X").workplane(**u.cobb).circle(gas_hole_diameter/2).cutBlind(-side_depth)
+        cyl = wp.faces(">Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0,45,0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter/2,  centered=(True,True,True), combine=False)
+        wp = wp.cut(cyl)
+
+        # cut the bottom gas hole
+        gas_hole_diameter = 4.2
+        side_depth = extents[0]/2+4
+        top_cyl_length = 18
+        wp = wp.faces(">X").workplane(**u.cobb).circle(gas_hole_diameter/2).cutBlind(-side_depth)
+        #wp = wp.faces("<Z[-2]").workplane(**u.cobb).circle(4).cutBlind(-1)
+        cyl = wp.faces("<Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0,-45,0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter/2,  centered=(True,True,True), combine=False)
+        wp = wp.cut(cyl)
+
         # cut the side slot
         side_slot_cutter_d = 2
         card_width = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["pcb"]).faces().val().BoundingBox().ylen
-        slot_point = [(0, -height / 2 + underpocket_airgap + pcb_thickness / 2)]
-        wp = wp.faces("<X").workplane(**u.cobb).pushPoints(slot_point).slot2D(card_width + side_slot_cutter_d, side_slot_cutter_d).cutBlind(-1 * (extents[0] - inner[0]) / 2)
+        slot_point = [(0, -height / 2 + pcb_base_offset + pcb_thickness/2)]
+        wp = wp.faces("<X").workplane(**u.cobb).pushPoints(slot_point).slot2D(card_width + side_slot_cutter_d, side_slot_cutter_d).cutBlind(-1 * ((extents[0] - inner[0]) / 2+inner_fillet))
         # wp = wp.slot2D()
         # wp = wp.faces("<X").workplane(**u.cobb).center(0, -height / 2 + underpocket_airgap - pcb_thickness / 2).circle(side_slot_cutter_d / 2).cutBlind(-1 * (extents[0] - inner[0]) / 2)
 
+        # cut the stopper holes
+        stopper_holes = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["small_pin_top_clear"]).wires().toPending().extrude(height).translate((0,0,pin_stopper_drilldown))
+        wp = wp.cut(stopper_holes)
+
+        # cut the substrate pockets
+        substrate_pockets = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["slot_plate_inner_small"]).wires().toPending().extrude(height).translate((0,0,pocket_depth_drilldown))
+        wp = wp.cut(substrate_pockets)
+        
+        #cyl = wp.faces("<Z[-2]").workplane(**u.copo, origin=cq.Vector(0,0,0)).transformed(rotate=cq.Vector(0,-45,0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter/2,  centered=(True,True,True), combine=False)
+        #cyl = wp.faces("<Z[-3]").workplane(**u.copo).transformed(rotate=cq.Vector(0,-45,0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter/2,  centered=(True,True,True), combine=False)
+        #wp = wp.cut(cyl)
+
+        
         # chamfers
-        wp = wp.faces(">Z").edges(">>X").chamfer(chamfer)
+        #wp = wp.faces(">Z").edges(">>X").chamfer(chamfer)
 
         # # gas holes with recesses
         # wp = wp.faces("<X").workplane(**u.cobb).center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).hole(diameter=gas_fitting_hole_diameter, depth=thickness)
@@ -524,7 +562,7 @@ def main():
         # bonded_washer_asy.loc = wpbw.plane.location
         # wall_hardware.add(bonded_washer_asy, name="rear_left_bonded_washer")
 
-        # aso.add(wall_hardware.toCompound(), name="wall_hardware", color=cadquery.Color(hardware_color))
+        aso.add(wall_hardware.toCompound(), name="wall_hardware", color=cadquery.Color(hardware_color))
 
         # # passthrough details
         # pcb_scr_head_d_safe = 6
@@ -581,7 +619,7 @@ def main():
     # big_pcb = u.import_step(wrk_dir.joinpath("components", "pcb.step"))
     # asys["squirrel"].add(big_pcb, name="big pcb")
 
-    TwoDToThreeD.outputter(asys, wrk_dir)
+    TwoDToThreeD.outputter(asys, wrk_dir, save_steps=True)
 
 
 # temp is what we get when run via cq-editor
