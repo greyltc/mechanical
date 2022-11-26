@@ -32,13 +32,13 @@ def main():
     instructions = []
     substrate_raise = 0.25
     substrate_thickness = 1.1
-    copper_thickness = 15
+    copper_thickness = 10
     thermal_pedestal_height = 14.1
     slot_plate_thickness = 2.3 + substrate_raise
     pcb_thickness = 1.6
     pusher_thickness = 4
     dowel_length = slot_plate_thickness + pcb_thickness + pusher_thickness + thermal_pedestal_height + 3  # nominally 25
-    wall_height = 28
+    wall_height = 32
     sleeve_holder_thickness = 15.25 - pcb_thickness
     passthrough_standoff_height = 15
     pin_travel = 2.65
@@ -49,7 +49,7 @@ def main():
     underpocket_airgap = pcb_base_offset + pcb_thickness + pcb_standoff_height
     pin_sleeve_end_to_stopper_len = 17.75 - 2.5
     pin_stopper_drilldown = pcb_base_offset + pin_sleeve_end_to_stopper_len
-    pocket_depth_drilldown = pin_stopper_drilldown + 2.5 + 2.65 *2/3
+    pocket_depth_drilldown = pin_stopper_drilldown + 2.5 + 2.65 * 2 / 3
     tower_thermal_pad_thickness = 0.5
     tower_height = pocket_depth_drilldown - tower_thermal_pad_thickness
 
@@ -98,7 +98,7 @@ def main():
                     "name": "pcb",
                     "color": "DARKGREEN",
                     "thickness": pcb_thickness,
-                    "z_base": pcb_base_offset, 
+                    "z_base": pcb_base_offset,
                     "drawing_layer_names": [
                         "pcb",
                     ],
@@ -148,7 +148,7 @@ def main():
         color = cadquery.Color("GOLD")
         fillet_inner = 10
         chamfer = 1
-        corner_screw_depth = 4.5
+        corner_screw_depth = 3
 
         # pedistal_xy = (161, 152)
         # pedistal_fillet = 10
@@ -364,7 +364,17 @@ def main():
         # wp7 = wp7.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
         # wp7_base = wp7.finalize().extrude(5)
 
+        # extrude towers
         twrs = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["towers"]).wires().toPending().extrude(tower_height)
+
+        # make tmp measurement widget mounting
+        widget_mount_hole_d = 2.3
+        widget_length = 4.83
+        tower_square = 7
+        offset_from_top = widget_mount_hole_d / 2 + 0.5
+        depth = tower_square / 2 + widget_length / 2
+        twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, offset_from_top).circle(widget_mount_hole_d / 2).cutBlind(-depth)
+
         wp = wp.union(twrs)
 
         # aso.add(twr_part, name="towers", color=cadquery.Color("goldenrod"))  # add the towers bulk
@@ -388,7 +398,7 @@ def main():
         """the chamber walls"""
         name = "walls"
         color = cadquery.Color("GRAY55")
-        thickness = 20
+        thickness = 17
         inner = (extents[0] - 2 * thickness, extents[1] - 2 * thickness)
         inner_shift = cshift
         inner_fillet = 6
@@ -424,7 +434,7 @@ def main():
         wp = wp.cut(up)
 
         # overpocket
-        overpocket_airgap = 1
+        overpocket_airgap = 1 + 2.48
         wp = wp.faces(">Z").workplane(**u.cobb).sketch()
         wp = wp.push([inner_shift]).rect(inner[0], inner[1], mode="a").reset()
         wp = wp.finalize().cutBlind(-overpocket_airgap)
@@ -460,47 +470,56 @@ def main():
         wp = wp.faces(">Z").workplane(**u.copo, offset=-nut.nut_thickness).pushPoints(hps).clearanceHole(fastener=nut, fit="Close", counterSunk=False, baseAssembly=wall_hardware)
         wp = wp.faces(">Z").workplane(**u.copo).sketch().push(hps[0:4:3]).rect(flat_to_flat, nut.nut_diameter, angle=45).reset().push(hps[1:3]).rect(flat_to_flat, nut.nut_diameter, angle=-45).reset().vertices().fillet(nut.nut_diameter / 4).finalize().cutBlind(-nut.nut_thickness)
 
-
         # cut the top gas hole
         gas_hole_diameter = 4.2
-        side_depth = extents[0]/2-10
+        side_depth = extents[0] / 2 - 10
         top_cyl_length = 36
-        wp = wp.faces("<X").workplane(**u.cobb).circle(gas_hole_diameter/2).cutBlind(-side_depth)
-        cyl = wp.faces(">Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0,45,0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter/2,  centered=(True,True,True), combine=False)
+        wp = wp.faces("<X").workplane(**u.cobb).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
+        cyl = wp.faces(">Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, 45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
         wp = wp.cut(cyl)
 
-        # cut the bottom gas hole
+        # pusher-downer secureer
+        wp = wp.faces(">Z[-2]").workplane(**u.cobb, offset=-nut.nut_thickness * 2).pushPoints([(0, 35), (0, -35)]).clearanceHole(fastener=nut, fit="Close", counterSunk=False, baseAssembly=wall_hardware)
+        wp = wp.faces(">Z[-2]").workplane(**u.cobb).sketch().push([(0, 35), (0, -35)]).rect(flat_to_flat, nut.nut_diameter, angle=90).reset().vertices().fillet(nut.nut_diameter / 4).finalize().cutBlind(-nut.nut_thickness * 2)
+
+        wp = wp.faces("<Z[-2]").workplane(**u.cobb).pushPoints([(0, 35), (0, -35)]).clearanceHole(fastener=corner_screw, fit="Close", baseAssembly=wall_hardware, counterSunk=False)
+        # wp = wp.faces("<Z[-2]").wires().toPending().extrude(corner_screw_depth, combine="cut")  # make sure the recessed screw is not buried
+
+        # cut the bottom gas hole and the vent holes
+        vent_hole_spacing = 35
         gas_hole_diameter = 4.2
-        side_depth = extents[0]/2+4
+        side_depth = extents[0] / 2 + 4
+        side_vent_depth = 35
         top_cyl_length = 18
-        wp = wp.faces(">X").workplane(**u.cobb).circle(gas_hole_diameter/2).cutBlind(-side_depth)
-        #wp = wp.faces("<Z[-2]").workplane(**u.cobb).circle(4).cutBlind(-1)
-        cyl = wp.faces("<Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0,-45,0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter/2,  centered=(True,True,True), combine=False)
+        wp = wp.faces(">X").workplane(**u.cobb).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
+        wp = wp.faces(">X").workplane(**u.cobb).rarray(vent_hole_spacing * 2, 1, 2, 1).circle(gas_hole_diameter / 2).cutBlind(-side_vent_depth)
+        # wp = wp.faces("<Z[-2]").workplane(**u.cobb).circle(4).cutBlind(-1)
+        cyl = wp.faces("<Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, -45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
         wp = wp.cut(cyl)
+        wp = wp.faces("<Z[-2]").workplane(**u.cobb).center(x=vent_hole_spacing, y=0).rarray(1, 2 * vent_hole_spacing, 1, 2).circle(gas_hole_diameter / 2).cutThruAll()  # cut the vertical vent holes
 
         # cut the side slot
         side_slot_cutter_d = 2
         card_width = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["pcb"]).faces().val().BoundingBox().ylen
-        slot_point = [(0, -height / 2 + pcb_base_offset + pcb_thickness/2)]
-        wp = wp.faces("<X").workplane(**u.cobb).pushPoints(slot_point).slot2D(card_width + side_slot_cutter_d, side_slot_cutter_d).cutBlind(-1 * ((extents[0] - inner[0]) / 2+inner_fillet))
+        slot_point = [(0, -height / 2 + pcb_base_offset + pcb_thickness / 2)]
+        wp = wp.faces("<X").workplane(**u.cobb).pushPoints(slot_point).slot2D(card_width + side_slot_cutter_d, side_slot_cutter_d).cutBlind(-1 * ((extents[0] - inner[0]) / 2 + inner_fillet))
         # wp = wp.slot2D()
         # wp = wp.faces("<X").workplane(**u.cobb).center(0, -height / 2 + underpocket_airgap - pcb_thickness / 2).circle(side_slot_cutter_d / 2).cutBlind(-1 * (extents[0] - inner[0]) / 2)
 
         # cut the stopper holes
-        stopper_holes = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["small_pin_top_clear"]).wires().toPending().extrude(height).translate((0,0,pin_stopper_drilldown))
+        stopper_holes = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["small_pin_top_clear"]).wires().toPending().extrude(height).translate((0, 0, pin_stopper_drilldown))
         wp = wp.cut(stopper_holes)
 
         # cut the substrate pockets
-        substrate_pockets = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["slot_plate_inner_small"]).wires().toPending().extrude(height).translate((0,0,pocket_depth_drilldown))
+        substrate_pockets = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["slot_plate_inner_small"]).wires().toPending().extrude(height).translate((0, 0, pocket_depth_drilldown))
         wp = wp.cut(substrate_pockets)
-        
-        #cyl = wp.faces("<Z[-2]").workplane(**u.copo, origin=cq.Vector(0,0,0)).transformed(rotate=cq.Vector(0,-45,0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter/2,  centered=(True,True,True), combine=False)
-        #cyl = wp.faces("<Z[-3]").workplane(**u.copo).transformed(rotate=cq.Vector(0,-45,0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter/2,  centered=(True,True,True), combine=False)
-        #wp = wp.cut(cyl)
 
-        
+        # cyl = wp.faces("<Z[-2]").workplane(**u.copo, origin=cq.Vector(0,0,0)).transformed(rotate=cq.Vector(0,-45,0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter/2,  centered=(True,True,True), combine=False)
+        # cyl = wp.faces("<Z[-3]").workplane(**u.copo).transformed(rotate=cq.Vector(0,-45,0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter/2,  centered=(True,True,True), combine=False)
+        # wp = wp.cut(cyl)
+
         # chamfers
-        #wp = wp.faces(">Z").edges(">>X").chamfer(chamfer)
+        # wp = wp.faces(">Z").edges(">>X").chamfer(chamfer)
 
         # # gas holes with recesses
         # wp = wp.faces("<X").workplane(**u.cobb).center(back_holes_shift, 0).rarray(back_holes_spacing, 1, 2, 1).hole(diameter=gas_fitting_hole_diameter, depth=thickness)
@@ -511,7 +530,7 @@ def main():
 
         # # that's part number polymax 230X2N70
         o_ring_thickness = 3
-        o_ring_inner_diameter = 110
+        o_ring_inner_diameter = 115
         ooffset = 17  # two times the o-ring path's center offset from the outer edge of the walls
 
         # cut the lid o-ring groove
