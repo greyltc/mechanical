@@ -373,7 +373,12 @@ def main():
         tower_square = 7
         offset_from_top = widget_mount_hole_d / 2 + 0.5
         depth = tower_square / 2 + widget_length / 2
-        twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, offset_from_top).circle(widget_mount_hole_d / 2).cutBlind(-depth)
+        wire_channel_depth = 2
+        wire_channel_length = 15
+        # cut the mounting hole
+        twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, tower_height / 2 - offset_from_top).circle(widget_mount_hole_d / 2).cutBlind(-depth)
+        # cut the wire slot
+        twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, tower_height / 2 - offset_from_top - wire_channel_length / 2).slot2D(wire_channel_length, widget_mount_hole_d, angle=90).cutBlind(-wire_channel_depth)
 
         wp = wp.union(twrs)
 

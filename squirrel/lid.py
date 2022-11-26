@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Lid with an o-ring sealed window for an environment chamber."""
 
-from email.mime import base
 import logging
 import os
 import pathlib
