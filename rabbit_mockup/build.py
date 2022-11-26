@@ -373,12 +373,12 @@ def main():
         tower_square = 7
         offset_from_top = widget_mount_hole_d / 2 + 0.5
         depth = tower_square / 2 + widget_length / 2
-        wire_channel_depth = 2
-        wire_channel_length = 15
+        wire_channel_depth = 1.5
+        wire_channel_length = 20
         # cut the mounting hole
         twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, tower_height / 2 - offset_from_top).circle(widget_mount_hole_d / 2).cutBlind(-depth)
         # cut the wire slot
-        twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, tower_height / 2 - offset_from_top - wire_channel_length / 2).slot2D(wire_channel_length, widget_mount_hole_d, angle=90).cutBlind(-wire_channel_depth)
+        twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, tower_height / 2 - offset_from_top - wire_channel_length / 2).slot2D(wire_channel_length + widget_mount_hole_d, widget_mount_hole_d, angle=90).cutBlind(-wire_channel_depth)
 
         wp = wp.union(twrs)
 
@@ -480,6 +480,8 @@ def main():
         side_depth = extents[0] / 2 - 10
         top_cyl_length = 36
         wp = wp.faces("<X").workplane(**u.cobb).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
+
+        # cut the angle gas hole
         cyl = wp.faces(">Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, 45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
         wp = wp.cut(cyl)
 
@@ -498,7 +500,7 @@ def main():
         top_cyl_length = 18
         wp = wp.faces(">X").workplane(**u.cobb).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
         wp = wp.faces(">X").workplane(**u.cobb).rarray(vent_hole_spacing * 2, 1, 2, 1).circle(gas_hole_diameter / 2).cutBlind(-side_vent_depth)
-        # wp = wp.faces("<Z[-2]").workplane(**u.cobb).circle(4).cutBlind(-1)
+        # cut the angle gas hole
         cyl = wp.faces("<Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, -45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
         wp = wp.cut(cyl)
         wp = wp.faces("<Z[-2]").workplane(**u.cobb).center(x=vent_hole_spacing, y=0).rarray(1, 2 * vent_hole_spacing, 1, 2).circle(gas_hole_diameter / 2).cutThruAll()  # cut the vertical vent holes
@@ -512,7 +514,9 @@ def main():
         # wp = wp.faces("<X").workplane(**u.cobb).center(0, -height / 2 + underpocket_airgap - pcb_thickness / 2).circle(side_slot_cutter_d / 2).cutBlind(-1 * (extents[0] - inner[0]) / 2)
 
         # cut the stopper holes
-        stopper_holes = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["small_pin_top_clear"]).wires().toPending().extrude(height).translate((0, 0, pin_stopper_drilldown))
+        # small_pin_top_layer_name = "small_pin_top_clear"  # using slots
+        small_pin_top_layer_name = "small_pin_top_clear_individual"
+        stopper_holes = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=[small_pin_top_layer_name]).wires().toPending().extrude(height).translate((0, 0, pin_stopper_drilldown))
         wp = wp.cut(stopper_holes)
 
         # cut the substrate pockets

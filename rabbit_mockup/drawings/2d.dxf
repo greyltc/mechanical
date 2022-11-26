@@ -101,7 +101,7 @@ Standard
   9
 $CLAYER
   8
-dims
+small_pin_top_clear_individual
   9
 $CELTYPE
   6
@@ -501,11 +501,11 @@ $TDUCREATE
   9
 $TDUPDATE
  40
-2458909.389950833
+2458909.458753646
   9
 $TDUUPDATE
  40
-2458909.389950833
+2458909.458753646
   9
 $TDINDWG
  40
@@ -513,7 +513,7 @@ $TDINDWG
   9
 $TDUSRTIMER
  40
-0.0456090046
+0.1144118171
   9
 $USRTIMER
  70
@@ -553,7 +553,7 @@ $SPLINESEGS
   9
 $HANDSEED
   5
-5F3
+78F
   9
 $SURFTAB1
  70
@@ -1329,9 +1329,9 @@ AcDbViewportTableRecord
  21
 1.0
  12
-446.1247604389892
+138.7572774602701
  22
-66.51229821156008
+-6.637965961293762
  13
 0.0
  23
@@ -1351,13 +1351,13 @@ AcDbViewportTableRecord
  36
 1.0
  17
--134.1869158878503
+-134.1869158878501
  27
 0.0
  37
 0.0
  40
-304.5908307070221
+40.88148926712917
  41
 1.968807339449541
  42
@@ -1529,7 +1529,7 @@ LAYER
 100
 AcDbSymbolTable
  70
-    18
+    19
   0
 LAYER
   5
@@ -1571,7 +1571,7 @@ Defpoints
  70
      0
  62
-     7
+    -7
   6
 Continuous
 290
@@ -1599,7 +1599,7 @@ small_glasses
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -1631,7 +1631,7 @@ small_tower_holes
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -1663,7 +1663,7 @@ small_pin_holes
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -1695,7 +1695,7 @@ side_on
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -1727,7 +1727,7 @@ dims
  70
      0
  62
-     3
+    -3
   6
 Continuous
 370
@@ -1759,7 +1759,7 @@ box_xy_extents
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -1791,7 +1791,7 @@ big_glasses
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -1823,7 +1823,7 @@ small_layout_contact_pads
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -1855,7 +1855,7 @@ lid_glass
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -1887,7 +1887,7 @@ pcb
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -1919,7 +1919,7 @@ pusher_outer
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -1951,7 +1951,7 @@ pusher_inner_small
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -1983,7 +1983,7 @@ slot_plate_outer
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -2015,7 +2015,7 @@ slot_plate_inner_small
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -2076,6 +2076,38 @@ AcDbSymbolTableRecord
 AcDbLayerTableRecord
   2
 small_pin_top_clear
+ 70
+     0
+ 62
+     7
+  6
+Continuous
+370
+    -3
+390
+F
+347
+75
+348
+0
+1001
+AcAecLayerStandard
+1000
+
+1000
+
+  0
+LAYER
+  5
+5F6
+330
+2
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+small_pin_top_clear_individual
  70
      0
  62
@@ -9457,7 +9489,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9477,7 +9509,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9497,7 +9529,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9517,7 +9549,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9537,7 +9569,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9557,7 +9589,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9577,7 +9609,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9597,7 +9629,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9617,7 +9649,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9637,7 +9669,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9657,7 +9689,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9677,7 +9709,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9697,7 +9729,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9717,7 +9749,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9737,7 +9769,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9757,7 +9789,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9777,7 +9809,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9797,7 +9829,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9817,7 +9849,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9837,7 +9869,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9857,7 +9889,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9877,7 +9909,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9897,7 +9929,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9917,7 +9949,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9937,7 +9969,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9957,7 +9989,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9977,7 +10009,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -9997,7 +10029,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10017,7 +10049,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10037,7 +10069,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10057,7 +10089,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10077,7 +10109,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10097,7 +10129,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10117,7 +10149,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10137,7 +10169,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10157,7 +10189,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10177,7 +10209,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10197,7 +10229,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10217,7 +10249,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10237,7 +10269,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10257,7 +10289,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10277,7 +10309,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10297,7 +10329,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10317,7 +10349,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10337,7 +10369,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10357,7 +10389,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10377,7 +10409,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10397,7 +10429,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10417,7 +10449,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10437,7 +10469,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10457,7 +10489,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10477,7 +10509,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10497,7 +10529,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10517,7 +10549,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10537,7 +10569,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10557,7 +10589,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10577,7 +10609,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10597,7 +10629,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10617,7 +10649,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10637,7 +10669,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10657,7 +10689,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10677,7 +10709,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10697,7 +10729,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -10717,7 +10749,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_top_clear
+small_pin_top_clear_individual
 100
 AcDbCircle
  10
@@ -11311,6 +11343,634 @@ AcDbAlignedDimension
 100
 AcDbRotatedDimension
   0
+CIRCLE
+  5
+5F4
+330
+1F
+100
+AcDbEntity
+  8
+dims
+100
+AcDbCircle
+ 10
+15.15216086701254
+ 20
+15.1811776343258
+ 30
+0.0
+ 40
+1.0
+  0
+LWPOLYLINE
+  5
+63A
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+11.36499999999991
+ 20
+20.08499999999991
+ 10
+18.63499999999988
+ 20
+20.08499999999991
+ 42
+0.9999999999999999
+ 10
+18.63499999999988
+ 20
+21.18499999999991
+ 10
+11.36499999999991
+ 20
+21.18499999999991
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+660
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+11.36499999999991
+ 20
+9.915000000000088
+ 10
+18.63499999999988
+ 20
+9.915000000000092
+ 42
+-0.9999999999999999
+ 10
+18.63499999999988
+ 20
+8.81500000000009
+ 10
+11.36499999999991
+ 20
+8.815000000000087
+ 42
+-0.9999999999999999
+  0
+LWPOLYLINE
+  5
+69B
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+20.08499999999988
+ 20
+15.63500000000001
+ 10
+20.08499999999988
+ 20
+14.36499999999999
+ 42
+0.9999999999999999
+ 10
+21.18499999999988
+ 20
+14.36499999999999
+ 10
+21.18499999999988
+ 20
+15.63500000000001
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+6AD
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+8.81499999999998
+ 20
+15.63500000000001
+ 10
+8.81499999999998
+ 20
+14.36499999999999
+ 42
+0.9999999999999999
+ 10
+9.914999999999981
+ 20
+14.36499999999999
+ 10
+9.914999999999981
+ 20
+15.63500000000001
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+6BF
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+-9.915000000000116
+ 20
+15.63500000000001
+ 10
+-9.915000000000116
+ 20
+14.36499999999999
+ 42
+0.9999999999999999
+ 10
+-8.815000000000115
+ 20
+14.36499999999999
+ 10
+-8.815000000000115
+ 20
+15.63500000000001
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+6D1
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+-21.18500000000001
+ 20
+15.63500000000001
+ 10
+-21.18500000000001
+ 20
+14.36499999999999
+ 42
+0.9999999999999999
+ 10
+-20.08500000000001
+ 20
+14.36499999999999
+ 10
+-20.08500000000001
+ 20
+15.63500000000001
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+6E3
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+-9.915000000000116
+ 20
+-14.36499999999999
+ 10
+-9.915000000000116
+ 20
+-15.63500000000001
+ 42
+0.9999999999999999
+ 10
+-8.815000000000115
+ 20
+-15.63500000000001
+ 10
+-8.815000000000115
+ 20
+-14.36499999999999
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+6F5
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+-21.18500000000001
+ 20
+-14.36499999999999
+ 10
+-21.18500000000001
+ 20
+-15.63500000000001
+ 42
+0.9999999999999999
+ 10
+-20.08500000000001
+ 20
+-15.63500000000001
+ 10
+-20.08500000000001
+ 20
+-14.36499999999999
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+707
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+8.81499999999998
+ 20
+-14.36499999999997
+ 10
+8.81499999999998
+ 20
+-15.63499999999999
+ 42
+0.9999999999999999
+ 10
+9.914999999999981
+ 20
+-15.63499999999999
+ 10
+9.914999999999981
+ 20
+-14.36499999999997
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+719
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+20.08499999999988
+ 20
+-14.36499999999997
+ 10
+20.08499999999988
+ 20
+-15.63499999999999
+ 42
+0.9999999999999999
+ 10
+21.18499999999988
+ 20
+-15.63499999999999
+ 10
+21.18499999999988
+ 20
+-14.36499999999997
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+72B
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+11.36499999999991
+ 20
+-9.915000000000038
+ 10
+18.63499999999988
+ 20
+-9.915000000000038
+ 42
+0.9999999999999999
+ 10
+18.63499999999988
+ 20
+-8.815000000000037
+ 10
+11.36499999999991
+ 20
+-8.815000000000037
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+73D
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+11.36499999999991
+ 20
+-21.18499999999999
+ 10
+18.63499999999988
+ 20
+-21.18499999999999
+ 42
+0.9999999999999999
+ 10
+18.63499999999988
+ 20
+-20.08499999999999
+ 10
+11.36499999999991
+ 20
+-20.08499999999999
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+74F
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+-18.63500000000008
+ 20
+-21.18500000000001
+ 10
+-11.36500000000011
+ 20
+-21.18500000000001
+ 42
+0.9999999999999999
+ 10
+-11.36500000000011
+ 20
+-20.08500000000001
+ 10
+-18.63500000000008
+ 20
+-20.08500000000001
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+761
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+-18.63500000000008
+ 20
+-9.915000000000052
+ 10
+-11.36500000000011
+ 20
+-9.915000000000052
+ 42
+0.9999999999999999
+ 10
+-11.36500000000011
+ 20
+-8.815000000000051
+ 10
+-18.63500000000008
+ 20
+-8.815000000000051
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+773
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+-18.63500000000008
+ 20
+8.814999999999994
+ 10
+-11.36500000000011
+ 20
+8.814999999999994
+ 42
+0.9999999999999999
+ 10
+-11.36500000000011
+ 20
+9.914999999999996
+ 10
+-18.63500000000008
+ 20
+9.914999999999996
+ 42
+0.9999999999999999
+  0
+LWPOLYLINE
+  5
+785
+330
+1F
+100
+AcDbEntity
+  8
+small_pin_top_clear
+100
+AcDbPolyline
+ 90
+        4
+ 70
+     1
+ 43
+0.0
+ 10
+-18.63500000000008
+ 20
+20.08499999999991
+ 10
+-11.36500000000011
+ 20
+20.08499999999991
+ 42
+0.9999999999999999
+ 10
+-11.36500000000011
+ 20
+21.18499999999991
+ 10
+-18.63500000000008
+ 20
+21.18499999999991
+ 42
+0.9999999999999999
+  0
 ENDSEC
   0
 SECTION
@@ -11381,7 +12041,7 @@ ACAD_VISUALSTYLE
   3
 ACDB_RECOMPOSE_DATA
 350
-5F2
+78E
   3
 AcDbVariableDictionary
 350
@@ -11441,7 +12101,7 @@ ACAD_LAYERSTATES
   3
 ACLYDICTIONARY
 360
-57D
+610
   0
 DICTIONARY
   5
@@ -12023,7 +12683,7 @@ X-Ray
   0
 XRECORD
   5
-5F2
+78E
 102
 {ACAD_REACTORS
 330
@@ -12111,7 +12771,7 @@ AcDbDictionary
   0
 DICTIONARY
   5
-57D
+610
 102
 {ACAD_REACTORS
 330
@@ -13945,7 +14605,7 @@ TABLESTYLE
 102
 {ACAD_XDICTIONARY
 360
-5F0
+78C
 102
 }
 330
@@ -21039,7 +21699,7 @@ DictionaryVariables
   0
 DICTIONARY
   5
-5F0
+78C
 330
 3C
 100
@@ -21051,19 +21711,19 @@ AcDbDictionary
   3
 ACAD_ROUNDTRIP_2008_TABLESTYLE_CELLSTYLEMAP
 360
-5F1
+78D
   0
 CELLSTYLEMAP
   5
-5F1
+78D
 102
 {ACAD_REACTORS
 330
-5F0
+78C
 102
 }
 330
-5F0
+78C
 100
 AcDbCellStyleMap
  90
