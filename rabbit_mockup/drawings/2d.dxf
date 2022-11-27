@@ -101,7 +101,7 @@ Standard
   9
 $CLAYER
   8
-small_pin_top_clear_individual
+small_pin_holes_force
   9
 $CELTYPE
   6
@@ -501,19 +501,19 @@ $TDUCREATE
   9
 $TDUPDATE
  40
-2458909.458753646
+2458909.472726701
   9
 $TDUUPDATE
  40
-2458909.458753646
+2458909.472726701
   9
 $TDINDWG
  40
-0.0000001736
+0.0000001852
   9
 $TDUSRTIMER
  40
-0.1144118171
+0.1283848843
   9
 $USRTIMER
  70
@@ -553,7 +553,7 @@ $SPLINESEGS
   9
 $HANDSEED
   5
-78F
+7B5
   9
 $SURFTAB1
  70
@@ -1329,9 +1329,9 @@ AcDbViewportTableRecord
  21
 1.0
  12
-138.7572774602701
+139.0164498139619
  22
--6.637965961293762
+-2.747290006441244
  13
 0.0
  23
@@ -1357,7 +1357,7 @@ AcDbViewportTableRecord
  37
 0.0
  40
-40.88148926712917
+63.8773269798893
  41
 1.968807339449541
  42
@@ -1529,7 +1529,7 @@ LAYER
 100
 AcDbSymbolTable
  70
-    19
+    20
   0
 LAYER
   5
@@ -1659,11 +1659,11 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-small_pin_holes
+small_pin_holes_force
  70
      0
  62
-    -7
+     7
   6
 Continuous
 370
@@ -2079,7 +2079,7 @@ small_pin_top_clear
  70
      0
  62
-     7
+    -7
   6
 Continuous
 370
@@ -2108,6 +2108,38 @@ AcDbSymbolTableRecord
 AcDbLayerTableRecord
   2
 small_pin_top_clear_individual
+ 70
+     0
+ 62
+    -7
+  6
+Continuous
+370
+    -3
+390
+F
+347
+75
+348
+0
+1001
+AcAecLayerStandard
+1000
+
+1000
+
+  0
+LAYER
+  5
+7AB
+330
+2
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+small_pin_holes_sense
  70
      0
  62
@@ -5473,7 +5505,7 @@ CB
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -5493,7 +5525,7 @@ D9
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -5513,7 +5545,7 @@ E8
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -5533,7 +5565,7 @@ E9
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -5553,7 +5585,7 @@ F8
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -5573,7 +5605,7 @@ F9
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -5593,7 +5625,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -5613,7 +5645,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -5633,7 +5665,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -5653,7 +5685,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -5673,7 +5705,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -5693,7 +5725,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -5713,7 +5745,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -5733,7 +5765,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -5753,7 +5785,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -5773,7 +5805,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6099,7 +6131,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6119,7 +6151,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6139,7 +6171,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6159,7 +6191,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6179,7 +6211,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6199,7 +6231,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6219,7 +6251,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6239,7 +6271,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6259,7 +6291,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6279,7 +6311,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6299,7 +6331,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6319,7 +6351,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6339,7 +6371,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6359,7 +6391,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6379,7 +6411,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6399,7 +6431,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6725,7 +6757,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6745,7 +6777,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6765,7 +6797,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6785,7 +6817,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6805,7 +6837,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6825,7 +6857,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6845,7 +6877,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6865,7 +6897,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6885,7 +6917,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6905,7 +6937,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6925,7 +6957,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6945,7 +6977,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -6965,7 +6997,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -6985,7 +7017,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -7005,7 +7037,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -7025,7 +7057,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -7351,7 +7383,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -7371,7 +7403,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -7391,7 +7423,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -7411,7 +7443,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -7431,7 +7463,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -7451,7 +7483,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -7471,7 +7503,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -7491,7 +7523,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -7511,7 +7543,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -7531,7 +7563,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -7551,7 +7583,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -7571,7 +7603,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -7591,7 +7623,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -7611,7 +7643,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -7631,7 +7663,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_force
 100
 AcDbCircle
  10
@@ -7651,7 +7683,7 @@ CIRCLE
 100
 AcDbEntity
   8
-small_pin_holes
+small_pin_holes_sense
 100
 AcDbCircle
  10
@@ -11105,60 +11137,6 @@ AcDbRotatedDimension
   0
 LWPOLYLINE
   5
-5B7
-330
-1F
-100
-AcDbEntity
-  8
-dims
-100
-AcDbPolyline
- 90
-        4
- 70
-     1
- 43
-0.0
- 10
-0.0
- 20
-0.0
- 10
-0.0
- 20
-34.99999999999999
- 10
-35.00000000000001
- 20
-34.99999999999999
- 10
-35.00000000000001
- 20
-0.0
-  0
-CIRCLE
-  5
-5B8
-330
-1F
-100
-AcDbEntity
-  8
-dims
-100
-AcDbCircle
- 10
-0.0
- 20
-34.99999999999999
- 30
-0.0
- 40
-4.125
-  0
-LWPOLYLINE
-  5
 5CD
 102
 {ACAD_REACTORS
@@ -11342,26 +11320,6 @@ AcDbAlignedDimension
 90.0
 100
 AcDbRotatedDimension
-  0
-CIRCLE
-  5
-5F4
-330
-1F
-100
-AcDbEntity
-  8
-dims
-100
-AcDbCircle
- 10
-15.15216086701254
- 20
-15.1811776343258
- 30
-0.0
- 40
-1.0
   0
 LWPOLYLINE
   5
@@ -12041,7 +11999,7 @@ ACAD_VISUALSTYLE
   3
 ACDB_RECOMPOSE_DATA
 350
-78E
+7B4
   3
 AcDbVariableDictionary
 350
@@ -12101,7 +12059,7 @@ ACAD_LAYERSTATES
   3
 ACLYDICTIONARY
 360
-610
+7AC
   0
 DICTIONARY
   5
@@ -12683,7 +12641,7 @@ X-Ray
   0
 XRECORD
   5
-78E
+7B4
 102
 {ACAD_REACTORS
 330
@@ -12771,7 +12729,7 @@ AcDbDictionary
   0
 DICTIONARY
   5
-610
+7AC
 102
 {ACAD_REACTORS
 330
@@ -14605,7 +14563,7 @@ TABLESTYLE
 102
 {ACAD_XDICTIONARY
 360
-78C
+7B2
 102
 }
 330
@@ -21699,7 +21657,7 @@ DictionaryVariables
   0
 DICTIONARY
   5
-78C
+7B2
 330
 3C
 100
@@ -21711,19 +21669,19 @@ AcDbDictionary
   3
 ACAD_ROUNDTRIP_2008_TABLESTYLE_CELLSTYLEMAP
 360
-78D
+7B3
   0
 CELLSTYLEMAP
   5
-78D
+7B3
 102
 {ACAD_REACTORS
 330
-78C
+7B2
 102
 }
 330
-78C
+7B2
 100
 AcDbCellStyleMap
  90
