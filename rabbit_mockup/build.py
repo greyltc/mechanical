@@ -500,14 +500,14 @@ def main():
         gas_hole_diameter = 4.2
         # side_depth = extents[0] / 2 + 4
         side_depth = 40
-        side_vent_depth = 35
+        side_vent_depth = 25
         top_cyl_length = 18
         wp = wp.faces(">X").workplane(**u.cobb).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
         wp = wp.faces(">X").workplane(**u.cobb).rarray(vent_hole_spacing * 2, 1, 2, 1).circle(gas_hole_diameter / 2).cutBlind(-side_vent_depth)
         # cut the angle gas hole
         # cyl = wp.faces("<Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, -45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
         # wp = wp.cut(cyl)
-        # wp = wp.faces("<Z[-2]").workplane(**u.cobb).center(x=vent_hole_spacing, y=0).rarray(1, 2 * vent_hole_spacing, 1, 2).circle(gas_hole_diameter / 2).cutThruAll()  # cut the vertical vent holes
+        wp = wp.faces("<Z[-2]").workplane(**u.cobb).center(x=vent_hole_spacing, y=0).rarray(1, 2 * vent_hole_spacing, 1, 2).circle(gas_hole_diameter / 2).cutThruAll()  # cut the vertical vent holes
 
         # cut the side slot
         side_slot_cutter_d = 2
@@ -518,8 +518,8 @@ def main():
         # wp = wp.faces("<X").workplane(**u.cobb).center(0, -height / 2 + underpocket_airgap - pcb_thickness / 2).circle(side_slot_cutter_d / 2).cutBlind(-1 * (extents[0] - inner[0]) / 2)
 
         # cut the stopper holes
-        small_pin_top_layer_name = "small_pin_top_clear"  # using slots
-        # small_pin_top_layer_name = "small_pin_top_clear_individual"
+        # small_pin_top_layer_name = "small_pin_top_clear"  # using slots
+        small_pin_top_layer_name = "small_pin_top_clear_individual"
         stopper_holes = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=[small_pin_top_layer_name]).wires().toPending().extrude(height).translate((0, 0, pin_stopper_drilldown))
         wp = wp.cut(stopper_holes)
 
