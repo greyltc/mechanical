@@ -13,6 +13,10 @@ import cq_warehouse.extensions  # this does something even though it's not direc
 import math
 import itertools
 
+# fitting notes:
+# quantity 2 of RS Stock No.:176-1299
+#
+
 
 def main():
     # set working directory
@@ -143,7 +147,11 @@ def main():
         outer_fillet: float,
     ):
         """the thermal base"""
-        plate_name = "thermal_towers_base_plate"
+        enable_towers = True
+        if enable_towers:
+            plate_name = "thermal_towers_base_plate"
+        else:
+            plate_name = "no_towers_base_plate"
         # vac_name = "vacuum_chuck"
         color = cadquery.Color("GOLD")
         fillet_inner = 10
@@ -176,7 +184,7 @@ def main():
         wb_mount_offset_from_edge = 7.25
         wb_y = wall_extents[1]
         wb_mount_offset_y = wb_y / 2 - wb_mount_offset_from_edge
-        wb_x = wall_extents[0] + wb_mount_offset_from_edge * 4
+        wb_x = wall_extents[0] + wb_mount_offset_from_edge * 4 + 2 * 36
         wb_mount_offset_x = wb_x / 2 - wb_mount_offset_from_edge
         waterblock_mount_nut = HexNutWithFlange(size="M6-1", fastener_type="din1665", simple=no_threads)  # HFFN-M6-A2
         wb_mount_points = [
@@ -192,11 +200,16 @@ def main():
         wp = wp.finalize().extrude(thickness)
         wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
 
-        # cut for waterblock mnt ears
         ear_square = 2 * wb_mount_offset_from_edge
-        wp = wp.faces("-X").workplane(**u.cobb).rect(xLen=wb_y - 2 * ear_square, yLen=thickness, centered=True).cutBlind(-ear_square)
-        wp = wp.faces("+X").workplane(**u.cobb).rect(xLen=wb_y - 2 * ear_square, yLen=thickness, centered=True).cutBlind(-ear_square)
-        wp = wp.edges("|Z exc (<<X or >>X)").fillet(fillet_inner)
+        if enable_towers:
+            # cut for waterblock mnt ears
+            wp = wp.faces("-X").workplane(**u.cobb).rect(xLen=wb_y - 2 * ear_square, yLen=thickness, centered=True).cutBlind(-ear_square)
+            wp = wp.faces("+X").workplane(**u.cobb).rect(xLen=wb_y - 2 * ear_square, yLen=thickness, centered=True).cutBlind(-ear_square)
+            wp = wp.edges("|Z exc (<<X or >>X)").fillet(fillet_inner)
+        else:
+            wp = wp.faces("-X").workplane(**u.cobb).rect(xLen=wb_y, yLen=thickness, centered=True).cutBlind(-ear_square)
+            wp = wp.faces("+X").workplane(**u.cobb).rect(xLen=wb_y, yLen=thickness, centered=True).cutBlind(-ear_square)
+
         wp = wp.edges("|Z and (<<X or >>X)").fillet(outer_fillet)
 
         # pedistal
@@ -214,7 +227,8 @@ def main():
         # wp = wp.faces(">Z").workplane(**u.copo).pushPoints(dowelpts).hole(dowel_nominal_d + dowel3_delta_press, depth=pedistal_height)
 
         # waterblock mounting
-        wp = wp.faces(">Z").workplane(**u.copo).pushPoints(wb_mount_points).clearanceHole(fastener=waterblock_mount_nut, counterSunk=False, fit="Loose", baseAssembly=hardware)
+        if enable_towers:
+            wp = wp.faces(">Z").workplane(**u.copo).pushPoints(wb_mount_points).clearanceHole(fastener=waterblock_mount_nut, counterSunk=False, fit="Loose", baseAssembly=hardware)
 
         # vac chuck stuff
         # split
@@ -364,23 +378,27 @@ def main():
         # wp7 = wp7.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
         # wp7_base = wp7.finalize().extrude(5)
 
-        # extrude towers
-        twrs = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["towers"]).wires().toPending().extrude(tower_height)
+        wp = wp.faces(">Z").edges("not %CIRCLE").chamfer(chamfer)
+        wp = wp.faces("<Z").edges("not %CIRCLE").chamfer(chamfer)
 
-        # make tmp measurement widget mounting
-        widget_mount_hole_d = 2.3
-        widget_length = 4.83
-        tower_square = 7
-        offset_from_top = widget_mount_hole_d / 2 + 0.5
-        depth = tower_square / 2 + widget_length / 2
-        wire_channel_depth = 1.5
-        wire_channel_length = 20
-        # cut the mounting hole
-        twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, tower_height / 2 - offset_from_top).circle(widget_mount_hole_d / 2).cutBlind(-depth)
-        # cut the wire slot
-        twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, tower_height / 2 - offset_from_top - wire_channel_length / 2).slot2D(wire_channel_length + widget_mount_hole_d, widget_mount_hole_d, angle=90).cutBlind(-wire_channel_depth)
+        if enable_towers:
+            # extrude towers
+            twrs = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["towers"]).wires().toPending().extrude(tower_height)
 
-        wp = wp.union(twrs)
+            # make tmp measurement widget mounting
+            widget_mount_hole_d = 2.3
+            widget_length = 4.83
+            tower_square = 7
+            offset_from_top = widget_mount_hole_d / 2 + 0.5
+            depth = tower_square / 2 + widget_length / 2
+            wire_channel_depth = 1.5
+            wire_channel_length = 20
+            # cut the mounting hole
+            twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, tower_height / 2 - offset_from_top).circle(widget_mount_hole_d / 2).cutBlind(-depth)
+            # cut the wire slot
+            twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, tower_height / 2 - offset_from_top - wire_channel_length / 2).slot2D(wire_channel_length + widget_mount_hole_d, widget_mount_hole_d, angle=90).cutBlind(-wire_channel_depth)
+
+            wp = wp.union(twrs)
 
         # aso.add(twr_part, name="towers", color=cadquery.Color("goldenrod"))  # add the towers bulk
 
@@ -473,10 +491,6 @@ def main():
 
         wall_hardware = cq.Assembly(None, name="wall_hardware")
 
-        # corner holes (with nuts and nut pockets)
-        wp = wp.faces(">Z").workplane(**u.copo, offset=-nut.nut_thickness).pushPoints(hps).clearanceHole(fastener=nut, fit="Close", counterSunk=False, baseAssembly=wall_hardware)
-        wp = wp.faces(">Z").workplane(**u.copo).sketch().push(hps[0:4:3]).rect(flat_to_flat, nut.nut_diameter, angle=45).reset().push(hps[1:3]).rect(flat_to_flat, nut.nut_diameter, angle=-45).reset().vertices().fillet(nut.nut_diameter / 4).finalize().cutBlind(-nut.nut_thickness)
-
         # cut the top gas hole
         gas_hole_diameter = 4.2
         # side_depth = extents[0] / 2 - 10
@@ -527,6 +541,13 @@ def main():
         substrate_pockets = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["slot_plate_inner_small"]).wires().toPending().extrude(height).translate((0, 0, pocket_depth_drilldown))
         wp = wp.cut(substrate_pockets)
 
+        wp = wp.faces(">Z").edges("not %CIRCLE").chamfer(chamfer)
+        wp = wp.faces("<Z").edges("not %CIRCLE").chamfer(chamfer)
+
+        # corner holes (with nuts and nut pockets)
+        wp = wp.faces(">Z").workplane(**u.cobb, offset=-nut.nut_thickness).pushPoints(hps).clearanceHole(fastener=nut, fit="Close", counterSunk=False, baseAssembly=wall_hardware)
+        wp = wp.faces(">Z").workplane(**u.cobb).sketch().push(hps[0:4:3]).rect(flat_to_flat, nut.nut_diameter, angle=45).reset().push(hps[1:3]).rect(flat_to_flat, nut.nut_diameter, angle=-45).reset().vertices().fillet(nut.nut_diameter / 4).finalize().cutBlind(-nut.nut_thickness)
+
         # cyl = wp.faces("<Z[-2]").workplane(**u.copo, origin=cq.Vector(0,0,0)).transformed(rotate=cq.Vector(0,-45,0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter/2,  centered=(True,True,True), combine=False)
         # cyl = wp.faces("<Z[-3]").workplane(**u.copo).transformed(rotate=cq.Vector(0,-45,0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter/2,  centered=(True,True,True), combine=False)
         # wp = wp.cut(cyl)
@@ -540,17 +561,6 @@ def main():
         # wp = wp.faces("<X").workplane(**u.cobb).center(back_holes_shift, 0).sketch().rect(2 * gas_fitting_diameter / 2 + back_holes_spacing, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)  # unify the back holes
         # wp = wp.faces(">X").workplane(**u.cobb).rarray(front_holes_spacing, 1, 2, 1).hole(diameter=gas_fitting_hole_diameter, depth=thickness)
         # wp = wp.faces(">X").workplane(**u.cobb).sketch().rarray(front_holes_spacing, 1, 2, 1).rect(gas_fitting_diameter, gas_fitting_flat_to_flat).reset().vertices().fillet(gas_fitting_diameter / 4).finalize().cutBlind(-gas_fitting_recess)
-
-        # # that's part number polymax 230X2N70
-        o_ring_thickness = 3
-        o_ring_inner_diameter = 115
-        ooffset = 17  # two times the o-ring path's center offset from the outer edge of the walls
-
-        # cut the lid o-ring groove
-        wp = wp.faces(">Z").workplane(**u.cobb).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=extents[0] - ooffset, gland_y=extents[1] - ooffset, hardware=wall_hardware)
-
-        # # cut the base o-ring groove
-        wp = wp.faces("<Z").workplane(**u.cobb).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=extents[0] - ooffset, gland_y=extents[1] - ooffset, hardware=wall_hardware)
 
         # cut_side = cadquery.importers.importDXF("drawings/2d.dxf", include=["pcb"]).wires().toPending().extrude(pcb_thickness)
         # wp = wp.cut(cut_side.translate((0, 0, 6.2)))
@@ -642,6 +652,16 @@ def main():
         # nwp = wp.faces(">X").workplane(**u.cobb, invert=True, offset=thickness + fitting_step_xy[0]).center(vac_fitting_wall_offset, 0)
         # vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-rotation_angle), name="inner_wall_vac_fitting")
         # aso.add(vac_chuck_fitting, loc=nwp.plane.location, name="vac chuck fitting (wall inner)")
+
+        # # that's part number polymax 230X2N70
+        o_ring_thickness = 3
+        o_ring_inner_diameter = 115
+        ooffset = 17  # two times the o-ring path's center offset from the outer edge of the walls
+        # cut the lid o-ring groove
+        wp = wp.faces(">Z").workplane(**u.cobb).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=extents[0] - ooffset, gland_y=extents[1] - ooffset, hardware=wall_hardware)
+
+        # # cut the base o-ring groove
+        wp = wp.faces("<Z").workplane(**u.cobb).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=extents[0] - ooffset, gland_y=extents[1] - ooffset, hardware=wall_hardware)
 
         aso.add(wp, name=name, color=color)  # add the walls bulk
 
