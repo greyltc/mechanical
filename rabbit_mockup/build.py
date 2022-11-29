@@ -182,9 +182,11 @@ def main():
 
         # waterblock nuts and holes
         wb_mount_offset_from_edge = 7.25
+        # extension_for_cooler = 2*36
+        extension_for_cooler = 0
         wb_y = wall_extents[1]
         wb_mount_offset_y = wb_y / 2 - wb_mount_offset_from_edge
-        wb_x = wall_extents[0] + wb_mount_offset_from_edge * 4 + 2 * 36
+        wb_x = wall_extents[0] + wb_mount_offset_from_edge * 4 + extension_for_cooler
         wb_mount_offset_x = wb_x / 2 - wb_mount_offset_from_edge
         waterblock_mount_nut = HexNutWithFlange(size="M6-1", fastener_type="din1665", simple=no_threads)  # HFFN-M6-A2
         wb_mount_points = [
@@ -604,8 +606,6 @@ def main():
         # bonded_washer_asy.loc = wpbw.plane.location
         # wall_hardware.add(bonded_washer_asy, name="rear_left_bonded_washer")
 
-        aso.add(wall_hardware.toCompound(), name="wall_hardware", color=cadquery.Color(hardware_color))
-
         # # passthrough details
         # pcb_scr_head_d_safe = 6
         # n_header_pins = 50
@@ -663,6 +663,7 @@ def main():
         # # cut the base o-ring groove
         wp = wp.faces("<Z").workplane(**u.cobb).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=extents[0] - ooffset, gland_y=extents[1] - ooffset, hardware=wall_hardware)
 
+        aso.add(wall_hardware.toCompound(), name="wall_hardware", color=cadquery.Color(hardware_color))
         aso.add(wp, name=name, color=color)  # add the walls bulk
 
     mkwalls(wrk_dir, asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, 0, outer_fillet)
