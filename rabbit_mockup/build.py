@@ -182,8 +182,8 @@ def main():
 
         # waterblock nuts and holes
         wb_mount_offset_from_edge = 7.25
-        # extension_for_cooler = 2*36
-        extension_for_cooler = 0
+        extension_for_cooler = 2 * 36
+        # extension_for_cooler = 0
         wb_y = wall_extents[1]
         wb_mount_offset_y = wb_y / 2 - wb_mount_offset_from_edge
         wb_x = wall_extents[0] + wb_mount_offset_from_edge * 4 + extension_for_cooler
@@ -495,34 +495,35 @@ def main():
 
         # cut the top gas hole
         gas_hole_diameter = 4.2
-        # side_depth = extents[0] / 2 - 10
-        side_depth = 40
+        side_depth = extents[0] / 2 - 10
+        # side_depth = 40
         top_cyl_length = 36
         wp = wp.faces("<X").workplane(**u.cobb).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
 
         # cut the angle gas hole
-        # cyl = wp.faces(">Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, 45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
-        # wp = wp.cut(cyl)
+        cyl = wp.faces(">Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, 45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
+        wp = wp.cut(cyl)
 
         # pusher-downer secureer
         wp = wp.faces(">Z[-2]").workplane(**u.cobb, offset=-nut.nut_thickness * 2).pushPoints([(0, 35), (0, -35)]).clearanceHole(fastener=nut, fit="Close", counterSunk=False, baseAssembly=wall_hardware)
         wp = wp.faces(">Z[-2]").workplane(**u.cobb).sketch().push([(0, 35), (0, -35)]).rect(flat_to_flat, nut.nut_diameter, angle=90).reset().vertices().fillet(nut.nut_diameter / 4).finalize().cutBlind(-nut.nut_thickness * 2)
 
-        wp = wp.faces("<Z[-2]").workplane(**u.cobb).pushPoints([(0, 35), (0, -35)]).clearanceHole(fastener=corner_screw, fit="Close", baseAssembly=wall_hardware, counterSunk=False)
+        secure_screws = CheeseHeadScrew(size="M5-0.8", fastener_type="iso14580", length=20, simple=no_threads)  # SHC-M5-45-A2
+        wp = wp.faces("<Z[-2]").workplane(**u.cobb).pushPoints([(0, 35), (0, -35)]).clearanceHole(fastener=secure_screws, fit="Close", baseAssembly=wall_hardware, counterSunk=False)
         # wp = wp.faces("<Z[-2]").wires().toPending().extrude(corner_screw_depth, combine="cut")  # make sure the recessed screw is not buried
 
         # cut the bottom gas hole and the vent holes
         vent_hole_spacing = 35
         gas_hole_diameter = 4.2
-        # side_depth = extents[0] / 2 + 4
-        side_depth = 40
+        side_depth = extents[0] / 2 - 2
+        # side_depth = 40
         side_vent_depth = 25
         top_cyl_length = 18
         wp = wp.faces(">X").workplane(**u.cobb).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
         wp = wp.faces(">X").workplane(**u.cobb).rarray(vent_hole_spacing * 2, 1, 2, 1).circle(gas_hole_diameter / 2).cutBlind(-side_vent_depth)
         # cut the angle gas hole
-        # cyl = wp.faces("<Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, -45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
-        # wp = wp.cut(cyl)
+        cyl = wp.faces("<Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, -45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
+        wp = wp.cut(cyl)
         wp = wp.faces("<Z[-2]").workplane(**u.cobb).center(x=vent_hole_spacing, y=0).rarray(1, 2 * vent_hole_spacing, 1, 2).circle(gas_hole_diameter / 2).cutThruAll()  # cut the vertical vent holes
 
         # cut the side slot
