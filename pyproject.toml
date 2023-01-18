@@ -1,7 +1,7 @@
 [build-system]
 requires = [
   "hatchling >=1.11.0,<2",
-  "hatch-vcs >=0.2.0",
+  "hatch-vcs >=0.3.0",
 ]
 build-backend = "hatchling.build"
 
@@ -37,16 +37,18 @@ Source = "https://github.com/greyltc/mechanical.git"
 [tool.hatch.version]
 source = "vcs"
 
-[tool.hatch.build]
-ignore-vcs = true
-include = [
-  "src/*.py",
-  "src/geometrics/*.py",
-]
+#[tool.hatch.build]
+#ignore-vcs = true
+#include = [
+#  "src/geometrics/*.py",
+#]
 
-[tool.hatch.build.targets.wheel]
-only-include = ["src"]
-sources = ["src"]
+[tool.hatch.build.hooks.vcs]
+version-file = "src/geometrics/__about__.py"
+
+#[tool.hatch.build.targets.wheel]
+#only-include = ["src"]
+#sources = ["src"]
 
 [tool.black]
 line-length = 999999
