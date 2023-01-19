@@ -81,35 +81,63 @@ class TwoDToThreeD(object):
             for stack_layer in instructions["layers"]:
                 t = stack_layer["thickness"]
                 boundary_layer_name = stack_layer["drawing_layer_names"][0]  # boundary layer must always be the first one listed
-                layer_comp = cadquery.Compound.makeCompound(layers[boundary_layer_name])
 
                 if "array" in stack_layer:
                     array_points = stack_layer["array"]
                 else:
                     array_points = [(0, 0, 0)]
 
-                if len(stack_layer["drawing_layer_names"]) == 1:
-                    wp = CQ().sketch().push(array_points).face(layer_comp, mode="a", ignore_selection=False)
-                else:
-                    wp = CQ().sketch().face(layer_comp, mode="a", ignore_selection=False)
+                wp = CQ()
+                for fc in layers[boundary_layer_name]:
+                    sld = CQ(fc).wires().toPending().extrude(t).findSolid()
+                    if sld:
+                        wp = wp.union(sld)
+                ext = wp
 
-                wp = wp.finalize().extrude(t)  # the workpiece base is now made
                 if len(stack_layer["drawing_layer_names"]) > 1:
-                    wp = wp.faces(">Z").workplane(centerOption="ProjectedOrigin").sketch()
-
+                    subwp = CQ()
                     for drawing_layer_name in stack_layer["drawing_layer_names"][1:]:
-                        layer_comp = cadquery.Compound.makeCompound(layers[drawing_layer_name])
-                        wp = wp.push(array_points).face(layer_comp, mode="a", ignore_selection=False)
+                        for point in array_points:
+                            for fc in layers[drawing_layer_name]:
+                                # if "edm" in drawing_layer_name:
+                                if "high_res" in drawing_layer_name:
+                                    v = 0.57735  # for 30 deg
+                                    trans = 0.2
+                                    bar = CQ()
+                                    for fc2 in layers[boundary_layer_name]:
+                                        sld = CQ(fc2).wires().toPending().extrude(t + trans).findSolid()
+                                        if sld:
+                                            bar = bar.union(sld)
 
-                    wp = wp.faces()
+                                    neg = bar.cut(CQ(fc).wires().toPending().extrude(t + trans).findSolid()).faces(">Z").edges("(not <X) and (not >X) and (not <Y) and (not >Y)").chamfer(v, t)
+                                    twp = ext.cut(neg.translate((0, 0, -trans)))
+                                    sld = twp.findSolid()
+                                else:
+                                    sld = CQ(fc.located(cadquery.Location(point))).wires().toPending().extrude(t).findSolid()
+                                if sld:
+                                    # wp = wp.cut(sld)
+                                    subwp = subwp.add(sld)
+                                # subos.append(sld)
+                    last = subwp.last()
+                    if last:
+                        subwp = subwp.union(last)
+                        wp = wp.cut(subwp)
+                    # if subwp.findSolid():
+                    #    wp = wp.cut(subwp)
+                    #    subocmpd = cadquery.Compound.makeCompound(subos)
+                    #    wp = wp.cut(subocmpd)
+                    # for subo in subos:
+
                     if "edge_case" in stack_layer:
-                        edge_layer_name = stack_layer["edge_case"]
-                        layer_comp = cadquery.Compound.makeCompound(layers[edge_layer_name])
-                        es = CQ().sketch().face(layer_comp)
-                        wp = wp.face(es.faces(), mode="i")
-                        wp = wp.clean()
-                    # wp = wp.finalize().cutThruAll()  # this is a fail, but should work. if it's not a fail is slower than the below line
-                    wp = wp.finalize().extrude(-t, combine="cut")
+                        edge_bits = []
+                        for fc in layers[stack_layer["edge_case"]]:
+                            sld = CQ(fc).wires().toPending().extrude(t).findSolid()
+                            if sld:
+                                edge_bits.append(sld)
+                        if edge_bits:
+                            edgecmpd = cadquery.Compound.makeCompound(edge_bits)
+                            edge = ext.cut(edgecmpd)
+                            wp = wp.union(edge)
 
                 # give option to override calculated z_base
                 if "z_base" in stack_layer:
