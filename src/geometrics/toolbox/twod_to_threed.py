@@ -1,10 +1,11 @@
 import cadquery
 from cadquery import CQ, cq
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, cast
 import ezdxf
 import concurrent.futures
 from geometrics.toolbox.cq_serialize import register as register_cq_helper
+import time
 
 
 class TwoDToThreeD(object):
@@ -24,9 +25,16 @@ class TwoDToThreeD(object):
         for stack_instructions in self.stacks:
             if stack_instructions["name"] in stacks_to_build:
                 for stack_layer in stack_instructions["layers"]:
-                    drawing_layers_needed += stack_layer["drawing_layer_names"]
+                    for layer in stack_layer["drawing_layer_names"]:
+                        if isinstance(layer, tuple):
+                            for subl in layer:
+                                drawing_layers_needed.append(subl)
+                        else:
+                            drawing_layers_needed.append(layer)
                     if "edge_case" in stack_layer:
                         drawing_layers_needed.append(stack_layer["edge_case"])
+                    if "edm_dent" in stack_layer:
+                        drawing_layers_needed.append(stack_layer["edm_dent"])
         drawing_layers_needed_unique = list(set(drawing_layers_needed))
 
         # all the faces we'll need here
@@ -79,6 +87,10 @@ class TwoDToThreeD(object):
             z_base = 0
 
             for stack_layer in instructions["layers"]:
+                if ("edm_dent" in stack_layer) and ("edm_dent_depth" in stack_layer):
+                    dent_size = stack_layer["edm_dent_depth"]
+                else:
+                    dent_size = 0
                 t = stack_layer["thickness"]
                 boundary_layer_name = stack_layer["drawing_layer_names"][0]  # boundary layer must always be the first one listed
 
@@ -89,55 +101,68 @@ class TwoDToThreeD(object):
 
                 wp = CQ()
                 for fc in layers[boundary_layer_name]:
-                    sld = CQ(fc).wires().toPending().extrude(t).findSolid()
+                    sld = CQ(fc).wires().toPending().extrude(t + dent_size).findSolid()
                     if sld:
                         wp = wp.union(sld)
                 ext = wp
 
                 if len(stack_layer["drawing_layer_names"]) > 1:
-                    subwp = CQ()
+                    negs: List[cadquery.Solid | cadquery.Compound] = []
+                    loft_wires = {}
                     for drawing_layer_name in stack_layer["drawing_layer_names"][1:]:
-                        for point in array_points:
-                            for fc in layers[drawing_layer_name]:
-                                # if "edm" in drawing_layer_name:
-                                if "high_res" in drawing_layer_name:
-                                    v = 0.57735  # for 30 deg
-                                    trans = 0.2
-                                    bar = CQ()
-                                    for fc2 in layers[boundary_layer_name]:
-                                        sld = CQ(fc2).wires().toPending().extrude(t + trans).findSolid()
-                                        if sld:
-                                            bar = bar.union(sld)
+                        if isinstance(drawing_layer_name, tuple):
+                            loft_a = drawing_layer_name[0]
+                            loft_b = drawing_layer_name[1]
+                            loft = True
+                        else:
+                            loft = False
+                            loft_a = ""
+                            loft_b = ""
 
-                                    neg = bar.cut(CQ(fc).wires().toPending().extrude(t + trans).findSolid()).faces(">Z").edges("(not <X) and (not >X) and (not <Y) and (not >Y)").chamfer(v, t)
-                                    twp = ext.cut(neg.translate((0, 0, -trans)))
-                                    sld = twp.findSolid()
-                                else:
-                                    sld = CQ(fc.located(cadquery.Location(point))).wires().toPending().extrude(t).findSolid()
+                        if loft:
+                            feature_name = loft_a
+                            if not feature_name in loft_wires:
+                                loft_wires[feature_name] = {"a": [], "b": []}
+                            for fc in layers[loft_a]:
+                                loft_wires[feature_name]["a"] += fc.moved(cadquery.Location((0, 0, 2 * dent_size))).Wires()
+                            for fc in layers[loft_b]:
+                                loft_wires[feature_name]["b"] += fc.moved(cadquery.Location((0, 0, t + 2 * dent_size))).Wires()
+                        else:
+                            for fc in layers[drawing_layer_name]:
+                                sld = CQ(fc).wires().toPending().extrude(t + dent_size).findSolid()
                                 if sld:
-                                    # wp = wp.cut(sld)
-                                    subwp = subwp.add(sld)
-                                # subos.append(sld)
-                    last = subwp.last()
-                    if last:
-                        subwp = subwp.union(last)
-                        wp = wp.cut(subwp)
-                    # if subwp.findSolid():
-                    #    wp = wp.cut(subwp)
-                    #    subocmpd = cadquery.Compound.makeCompound(subos)
-                    #    wp = wp.cut(subocmpd)
-                    # for subo in subos:
+                                    negs.append(sld)
+
+                    for feature_name, d in loft_wires.items():
+                        loft_sld = cadquery.Solid.makeLoft(d["a"] + d["b"])
+                        negs.append(loft_sld)
+
+                    moved_negs = []
+                    neg_fuse = negs.pop().fuse(*negs)
+                    print(f"{len(array_points)=}")
+                    print(f"{len(negs)=}")
+                    for point in array_points:
+                        moved_negs.append(neg_fuse.located(cadquery.Location(point)))
+                    mncmpd = cadquery.Compound.makeCompound(moved_negs)
+                    wp = wp.cut(mncmpd)
+
+                    if dent_size:
+                        dent_layer = stack_layer["edm_dent"]
+                        if layers[dent_layer]:
+                            dent_faces = layers[dent_layer]
+                            for feature_name in loft_wires.keys():
+                                dent_faces += layers[feature_name]
+                            dntcmpd = cadquery.Compound.makeCompound(dent_faces)
+                            dents = CQ().sketch().push(array_points).face(dntcmpd).finalize().extrude(t + 2 * dent_size)
+                            dents = ext.union(dents)
+                            wp = wp.cut(dents.translate((0, 0, -t))).translate((0, 0, -dent_size))
 
                     if "edge_case" in stack_layer:
-                        edge_bits = []
-                        for fc in layers[stack_layer["edge_case"]]:
-                            sld = CQ(fc).wires().toPending().extrude(t).findSolid()
-                            if sld:
-                                edge_bits.append(sld)
-                        if edge_bits:
-                            edgecmpd = cadquery.Compound.makeCompound(edge_bits)
-                            edge = ext.cut(edgecmpd)
-                            wp = wp.union(edge)
+                        bdface_cmpd = cadquery.Compound.makeCompound(layers[boundary_layer_name])
+                        edg = CQ().sketch().face(bdface_cmpd)
+                        edgc_cmpd = cadquery.Compound.makeCompound(layers[stack_layer["edge_case"]])
+                        edg = edg.face(edgc_cmpd, mode="s").finalize().extrude(t)
+                        wp = wp.union(edg)
 
                 # give option to override calculated z_base
                 if "z_base" in stack_layer:
