@@ -107,11 +107,9 @@ class TwoDToThreeD(object):
                     sld = CQ(fc).wires().toPending().extrude(t).findSolid()
                     if sld:
                         wp = wp.union(sld)
-                ext = wp.findSolid()
 
                 if len(stack_layer["drawing_layer_names"]) > 1:
                     negs: List[cadquery.Shape] = []
-                    loft_wires = {}
                     for i, drawing_layer_name in enumerate(stack_layer["drawing_layer_names"][1:]):
                         loft = False
                         if isinstance(drawing_layer_name, tuple):
