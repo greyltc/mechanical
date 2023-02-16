@@ -1,7 +1,7 @@
 import cadquery
 from cadquery import CQ, cq
 from pathlib import Path
-from typing import List, Dict, cast
+from typing import List, Dict, cast, Tuple
 import ezdxf
 import concurrent.futures
 from geometrics.toolbox.cq_serialize import register as register_cq_helper
@@ -53,11 +53,19 @@ class TwoDToThreeD(object):
 
         register_cq_helper()  # register picklers
 
+        # filter the build instructions
+        build_instructions = []
+        for sname in stacks_to_build:
+            for instruction in self.stacks:
+                if sname == instruction["name"]:
+                    build_instructions.append(instruction)
+
         with concurrent.futures.ProcessPoolExecutor(max_workers=nparallel) as executor:
-            fs = [executor.submit(self.do_stack, stack_instructions, stacks_to_build, layers) for stack_instructions in self.stacks]
+            fs = [executor.submit(self.do_stack, instruction, layers) for instruction in build_instructions]
+            #fs = [executor.submit(self.do_stack, stack_instructions, stacks_to_build, layers) for stack_instructions in self.stacks]
             for future in concurrent.futures.as_completed(fs):
                 try:
-                    stack_done = future.result()
+                    stack_done, snegs, lanegs = future.result()
                 except Exception as e:
                     print(repr(e))
                 else:
@@ -78,110 +86,124 @@ class TwoDToThreeD(object):
         # asy.save(str(Path(__file__).parent / "output" / f"{stack_instructions['name']}.step"))
         # cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(Path(__file__).parent / "output" / "badger.brep"))
 
-    def do_stack(self, instructions, stacks_to_build, layers):
+    def do_stack(self, instructions, layers) -> Tuple[Dict, List, List]:
 
         # asy = cadquery.Assembly()
         stack = {}
+        loft_angle_negs_moved: List[cadquery.Shape] = []
+        straight_negs_moved: List[cadquery.Shape] = []
         # asy = None
-        if instructions["name"] in stacks_to_build:
-            stack["name"] = instructions["name"]
-            stack["layers"] = []
-            # asy.name = instructions["name"]
-            z_base = 0
+        stack["name"] = instructions["name"]
+        stack["layers"] = []
+        # asy.name = instructions["name"]
+        z_base = 0
 
-            for stack_layer in instructions["layers"]:
-                if ("edm_dent" in stack_layer) and ("edm_dent_depth" in stack_layer):
-                    dent_size = stack_layer["edm_dent_depth"]
-                else:
-                    dent_size = 0
-                t = stack_layer["thickness"]
-                boundary_layer_name = stack_layer["drawing_layer_names"][0]  # boundary layer must always be the first one listed
+        for stack_layer in instructions["layers"]:
+            if ("edm_dent" in stack_layer) and ("edm_dent_depth" in stack_layer):
+                dent_size = stack_layer["edm_dent_depth"]
+            else:
+                dent_size = 0
+            t = stack_layer["thickness"]
+            boundary_layer_name = stack_layer["drawing_layer_names"][0]  # boundary layer must always be the first one listed
 
-                if "array" in stack_layer:
-                    array_points = stack_layer["array"]
-                else:
-                    array_points = [(0, 0, 0)]
+            if "array" in stack_layer:
+                array_points = stack_layer["array"]
+            else:
+                array_points = [(0, 0, 0)]
 
-                wp = CQ()
-                for fc in layers[boundary_layer_name]:
-                    sld = CQ(fc).wires().toPending().extrude(t).findSolid()
-                    if sld:
-                        wp = wp.union(sld)
+            wp = CQ()
+            for fc in layers[boundary_layer_name]:
+                sld = CQ(fc).wires().toPending().extrude(t).findSolid()
+                if sld:
+                    wp = wp.union(sld)
 
-                if len(stack_layer["drawing_layer_names"]) > 1:
-                    negs: List[cadquery.Shape] = []
-                    for i, drawing_layer_name in enumerate(stack_layer["drawing_layer_names"][1:]):
-                        loft = False
-                        if isinstance(drawing_layer_name, tuple):
-                            ldln = (drawing_layer_name[0], drawing_layer_name[1])
-                            if type(ldln[1]) is str:
-                                loft = True
-                        else:
-                            ldln = (drawing_layer_name, 0)
+            if len(stack_layer["drawing_layer_names"]) > 1:
+                negs: List[cadquery.Shape] = []
+                loft_angle_negs: List[cadquery.Shape] = []
+                straight_negs: List[cadquery.Shape] = []
+                for i, drawing_layer_name in enumerate(stack_layer["drawing_layer_names"][1:]):
+                    loft = False
+                    if isinstance(drawing_layer_name, tuple):
+                        ldln = (drawing_layer_name[0], drawing_layer_name[1])
+                        if type(ldln[1]) is str:
+                            loft = True
+                    else:
+                        ldln = (drawing_layer_name, 0)
 
+                    if loft:
+                        angle = 0
+                    else:
+                        angle = float(ldln[1])
+
+                    for fc in layers[ldln[0]]:
+                        sld = cadquery.Solid.extrudeLinear(fc, cadquery.Vector(0, 0, t))
                         if loft:
-                            angle = 0
+                            bf = fc.moved(cadquery.Location((0, 0, dent_size)))
+                            tf = layers[ldln[1]][0].moved(cadquery.Location((0, 0, t + dent_size)))
+                            bw = bf.Wires()[0]
+                            tw = tf.Wires()[0]
+                            lsld = cadquery.Solid.makeLoft([bw, tw])
+                            sld = sld.fuse(lsld).clean()
+                            negs.append(sld)
+                            loft_angle_negs.append(sld)
+                            break  # loft only supports layers with one face
+                        elif angle:
+                            alongz = t - dent_size
+                            along = alongz / math.cos(math.radians(angle))
+                            # these faces can't be polylines...(explode them to make this work!)
+                            asld = cadquery.Solid.extrudeLinear(fc.moved(cadquery.Location((0, 0, dent_size))), cadquery.Vector(0, 0, along), angle)
+                            sld = sld.fuse(asld).clean()
+                            negs.append(sld)
+                            loft_angle_negs.append(sld)
                         else:
-                            angle = float(ldln[1])
+                            negs.append(sld)
+                            straight_negs.append(sld)
 
-                        for fc in layers[ldln[0]]:
-                            sld = cadquery.Solid.extrudeLinear(fc, cadquery.Vector(0, 0, t))
-                            if loft:
-                                bf = fc.moved(cadquery.Location((0, 0, dent_size)))
-                                tf = layers[ldln[1]][0].moved(cadquery.Location((0, 0, t + dent_size)))
-                                bw = bf.Wires()[0]
-                                tw = tf.Wires()[0]
-                                lsld = cadquery.Solid.makeLoft([bw, tw])
-                                sld = sld.fuse(lsld).clean()
-                                negs.append(sld)
-                                break  # loft only supports layers with one face
-                            elif angle:
-                                alongz = t - dent_size
-                                along = alongz / math.cos(math.radians(angle))
-                                # these faces can't be polylines...(explode them to make this work!)
-                                asld = cadquery.Solid.extrudeLinear(fc.moved(cadquery.Location((0, 0, dent_size))), cadquery.Vector(0, 0, along), angle)
-                                sld = sld.fuse(asld).clean()
-                                negs.append(sld)
-                            else:
-                                negs.append(sld)
+                if dent_size:
+                    dent_layer = stack_layer["edm_dent"]
+                    if layers[dent_layer]:
+                        for fc in layers[dent_layer]:
+                            sld = cadquery.Solid.extrudeLinear(fc, cadquery.Vector(0, 0, dent_size))
+                            negs.append(sld)
 
-                    if dent_size:
-                        dent_layer = stack_layer["edm_dent"]
-                        if layers[dent_layer]:
-                            for fc in layers[dent_layer]:
-                                sld = cadquery.Solid.extrudeLinear(fc, cadquery.Vector(0, 0, dent_size))
-                                negs.append(sld)
-
-                    moved_negs = []
+                moved_negs = []
+                if len(negs) == 1:
+                    neg_fuse = negs[0]
+                else:
                     neg_fuse = negs.pop().fuse(*negs).clean()
-                    # for s in neg_fuse.Solids():  # testing
-                    #     cadquery.exporters.export(s, f"/tmp/{s}.step")  # testing
-                    for point in array_points:
-                        moved_negs.append(neg_fuse.located(cadquery.Location(point)))
-                    mncmpd = cadquery.Compound.makeCompound(moved_negs)
-                    wp = wp.cut(mncmpd)
+                # for s in neg_fuse.Solids():  # testing
+                #     cadquery.exporters.export(s, f"/tmp/{s}.step")  # testing
+                for point in array_points:
+                    moved_negs.append(neg_fuse.located(cadquery.Location(point)))
+                    for straight_neg in straight_negs:
+                        straight_negs_moved.append(straight_neg.located(cadquery.Location(point)))
+                    for loft_angle_neg in loft_angle_negs:
+                        loft_angle_negs_moved.append(loft_angle_neg.located(cadquery.Location(point)))
 
-                    if "edge_case" in stack_layer:
-                        bdface_cmpd = cadquery.Compound.makeCompound(layers[boundary_layer_name])
-                        edg = CQ().sketch().face(bdface_cmpd)
-                        edgc_cmpd = cadquery.Compound.makeCompound(layers[stack_layer["edge_case"]])
-                        edg = edg.face(edgc_cmpd, mode="s").finalize().extrude(t)
-                        wp = wp.union(edg)
 
-                # give option to override calculated z_base
-                if "z_base" in stack_layer:
-                    z_base = stack_layer["z_base"]
+                mncmpd = cadquery.Compound.makeCompound(moved_negs)
+                wp = wp.cut(mncmpd)
 
-                new = wp.translate([0, 0, z_base])
-                new_layer = {"name": stack_layer["name"], "color": stack_layer["color"], "solid": new.findSolid()}
-                stack["layers"].append(new_layer)
-                # asy.add(new, name=stack_layer["name"], color=cadquery.Color(stack_layer["color"]))
-                z_base = z_base + t
-            # return (instructions["name"], asy)
-            return stack
-        return None
+                if "edge_case" in stack_layer:
+                    bdface_cmpd = cadquery.Compound.makeCompound(layers[boundary_layer_name])
+                    edg = CQ().sketch().face(bdface_cmpd)
+                    edgc_cmpd = cadquery.Compound.makeCompound(layers[stack_layer["edge_case"]])
+                    edg = edg.face(edgc_cmpd, mode="s").finalize().extrude(t)
+                    wp = wp.union(edg)
 
-    def get_layers(self, dxf_filepaths: List[Path], layer_names: List[str] = []) -> List[cq.Workplane]:
+            # give option to override calculated z_base
+            if "z_base" in stack_layer:
+                z_base = stack_layer["z_base"]
+
+            new = wp.translate((0, 0, z_base))
+            new_layer = {"name": stack_layer["name"], "color": stack_layer["color"], "solid": new.findSolid()}
+            stack["layers"].append(new_layer)
+            # asy.add(new, name=stack_layer["name"], color=cadquery.Color(stack_layer["color"]))
+            z_base = z_base + t
+        # return (instructions["name"], asy)
+        return stack, straight_negs_moved, loft_angle_negs_moved
+
+    def get_layers(self, dxf_filepaths: List[Path], layer_names: List[str] = []) -> Dict[str, cq.Workplane]:
         """returns the requested layers from dxfs"""
         # list of of all layers in the dxf
         layer_sets = []
