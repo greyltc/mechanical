@@ -1,13 +1,12 @@
 import cadquery
 from cadquery import CQ, cq
 from pathlib import Path
-from typing import List, Dict, cast, Tuple
-import ezdxf
+from typing import List, Dict, Tuple
+import ezdxf.filemanagement
 import concurrent.futures
 from geometrics.toolbox.cq_serialize import register as register_cq_helper
-import time
 import math
-import sys
+import shutil
 
 
 class TwoDToThreeD(object):
@@ -62,10 +61,10 @@ class TwoDToThreeD(object):
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=nparallel) as executor:
             fs = [executor.submit(self.do_stack, instruction, layers) for instruction in build_instructions]
-            #fs = [executor.submit(self.do_stack, stack_instructions, stacks_to_build, layers) for stack_instructions in self.stacks]
+            # fs = [executor.submit(self.do_stack, stack_instructions, stacks_to_build, layers) for stack_instructions in self.stacks]
             for future in concurrent.futures.as_completed(fs):
                 try:
-                    stack_done, snegs, lanegs = future.result()
+                    stack_done, vcuts, bwire, twire, recess = future.result()
                 except Exception as e:
                     print(repr(e))
                 else:
@@ -77,7 +76,7 @@ class TwoDToThreeD(object):
                             # wp.add(layer["solid"])
                             # asy.add(wp, name=layer["name"], color=cadquery.Color(layer["color"]))
                             asy.add(layer["solid"], name=layer["name"], color=cadquery.Color(layer["color"]))
-                        stacks[stack_done["name"]] = asy
+                        stacks[stack_done["name"]] = {"assembly": asy, "vcuts": vcuts, "bwire": bwire, "twire": twire, "recess": recess}
                         # stacks.append(stack_done)
                         # key, val = stack_done
                         # stacks[key] = val
@@ -86,12 +85,15 @@ class TwoDToThreeD(object):
         # asy.save(str(Path(__file__).parent / "output" / f"{stack_instructions['name']}.step"))
         # cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(Path(__file__).parent / "output" / "badger.brep"))
 
-    def do_stack(self, instructions, layers) -> Tuple[Dict, List, List]:
+    def do_stack(self, instructions, layers) -> Tuple[Dict, List, List, List, List]:
 
         # asy = cadquery.Assembly()
         stack = {}
-        loft_angle_negs_moved: List[cadquery.Shape] = []
-        straight_negs_moved: List[cadquery.Shape] = []
+        vcut_faces = []
+        b_wire_faces = []
+        t_wire_faces = []
+        recess_faces = []
+
         # asy = None
         stack["name"] = instructions["name"]
         stack["layers"] = []
@@ -119,8 +121,8 @@ class TwoDToThreeD(object):
 
             if len(stack_layer["drawing_layer_names"]) > 1:
                 negs: List[cadquery.Shape] = []
-                loft_angle_negs: List[cadquery.Shape] = []
-                straight_negs: List[cadquery.Shape] = []
+                loft_angle_negs: List[cadquery.Shape] = []  # just the loft shapes
+                loft_angle_plus_negs: List[cadquery.Shape] = []  # the loft shapes unioned with their straights
                 for i, drawing_layer_name in enumerate(stack_layer["drawing_layer_names"][1:]):
                     loft = False
                     if isinstance(drawing_layer_name, tuple):
@@ -144,8 +146,9 @@ class TwoDToThreeD(object):
                             tw = tf.Wires()[0]
                             lsld = cadquery.Solid.makeLoft([bw, tw])
                             sld = sld.fuse(lsld).clean()
-                            negs.append(sld)
-                            loft_angle_negs.append(sld)
+                            # negs.append(sld)
+                            loft_angle_negs.append(lsld)
+                            loft_angle_plus_negs.append(sld)
                             break  # loft only supports layers with one face
                         elif angle:
                             alongz = t - dent_size
@@ -153,43 +156,85 @@ class TwoDToThreeD(object):
                             # these faces can't be polylines...(explode them to make this work!)
                             asld = cadquery.Solid.extrudeLinear(fc.moved(cadquery.Location((0, 0, dent_size))), cadquery.Vector(0, 0, along), angle)
                             sld = sld.fuse(asld).clean()
-                            negs.append(sld)
-                            loft_angle_negs.append(sld)
+                            # negs.append(sld)
+                            loft_angle_negs.append(asld)
+                            loft_angle_plus_negs.append(sld)
                         else:
                             negs.append(sld)
-                            straight_negs.append(sld)
 
                 if dent_size:
                     dent_layer = stack_layer["edm_dent"]
                     if layers[dent_layer]:
+                        recess_faces.append(dent_size)
                         for fc in layers[dent_layer]:
                             sld = cadquery.Solid.extrudeLinear(fc, cadquery.Vector(0, 0, dent_size))
                             negs.append(sld)
 
                 moved_negs = []
-                if len(negs) == 1:
+                loft_angle_negs_moved = []
+                loft_angle_plus_negs_moved = []
+
+                nofthem = len(negs)
+                if nofthem > 1:
+                    neg_fuse = negs.pop().fuse(*negs).clean()
+                elif nofthem == 1:
                     neg_fuse = negs[0]
                 else:
-                    neg_fuse = negs.pop().fuse(*negs).clean()
+                    neg_fuse = None
+
+                nofthem = len(loft_angle_plus_negs)
+                if nofthem > 1:
+                    loft_angle_plus_neg_fuse = loft_angle_plus_negs.pop().fuse(*loft_angle_plus_negs).clean()
+                elif nofthem == 1:
+                    loft_angle_plus_neg_fuse = loft_angle_plus_negs[0]
+                else:
+                    loft_angle_plus_neg_fuse = None
+
                 # for s in neg_fuse.Solids():  # testing
                 #     cadquery.exporters.export(s, f"/tmp/{s}.step")  # testing
                 for point in array_points:
-                    moved_negs.append(neg_fuse.located(cadquery.Location(point)))
-                    for straight_neg in straight_negs:
-                        straight_negs_moved.append(straight_neg.located(cadquery.Location(point)))
+                    if neg_fuse:
+                        moved_negs.append(neg_fuse.located(cadquery.Location(point)))
+                    if loft_angle_plus_neg_fuse:
+                        loft_angle_plus_negs_moved.append(loft_angle_plus_neg_fuse.located(cadquery.Location(point)))
                     for loft_angle_neg in loft_angle_negs:
                         loft_angle_negs_moved.append(loft_angle_neg.located(cadquery.Location(point)))
-
+                    if dent_size:
+                        if layers[stack_layer["edm_dent"]]:
+                            for dface in layers[stack_layer["edm_dent"]]:
+                                recess_faces.append(dface.located(cadquery.Location(point)))
 
                 mncmpd = cadquery.Compound.makeCompound(moved_negs)
-                wp = wp.cut(mncmpd)
+                mnldmpd = cadquery.Compound.makeCompound(loft_angle_plus_negs_moved)
+                wp = wp.cut(mncmpd)  # this just cuts the straights
 
                 if "edge_case" in stack_layer:
                     bdface_cmpd = cadquery.Compound.makeCompound(layers[boundary_layer_name])
                     edg = CQ().sketch().face(bdface_cmpd)
                     edgc_cmpd = cadquery.Compound.makeCompound(layers[stack_layer["edge_case"]])
                     edg = edg.face(edgc_cmpd, mode="s").finalize().extrude(t)
+                    edge = True
+                else:
+                    edgc_cmpd = []
+                    edg = CQ()
+                    edge = False
+
+                if edge:
                     wp = wp.union(edg)
+                vcut_faces = wp.faces(">Z").vals()
+
+                wp = wp.cut(mnldmpd)  # this cuts the lofts and angles
+                if edge:
+                    wp = wp.union(edg)
+
+                # extract the faces for wire paths
+                if loft_angle_negs_moved:
+                    wfwp = CQ().add(loft_angle_negs_moved)
+                    if "edge_case" in stack_layer:
+                        inside_edge = CQ().sketch().face(edgc_cmpd).finalize().extrude(t + dent_size)
+                        wfwp = wfwp.intersect(inside_edge)
+                    t_wire_faces = wfwp.faces(">Z").vals()
+                    b_wire_faces = wfwp.faces("<Z").vals()
 
             # give option to override calculated z_base
             if "z_base" in stack_layer:
@@ -201,7 +246,7 @@ class TwoDToThreeD(object):
             # asy.add(new, name=stack_layer["name"], color=cadquery.Color(stack_layer["color"]))
             z_base = z_base + t
         # return (instructions["name"], asy)
-        return stack, straight_negs_moved, loft_angle_negs_moved
+        return stack, vcut_faces, b_wire_faces, t_wire_faces, recess_faces
 
     def get_layers(self, dxf_filepaths: List[Path], layer_names: List[str] = []) -> Dict[str, cq.Workplane]:
         """returns the requested layers from dxfs"""
@@ -209,7 +254,7 @@ class TwoDToThreeD(object):
         layer_sets = []
         for filepath in dxf_filepaths:
             file_path_str = str(filepath)
-            dxf = ezdxf.readfile(file_path_str)
+            dxf = ezdxf.filemanagement.readfile(file_path_str)
             layer_sets.append(set(dxf.modelspace().groupby(dxfattrib="layer").keys()))
 
         if len(layer_sets) > 1:
@@ -243,18 +288,18 @@ class TwoDToThreeD(object):
         all_faces.save(str(wrk_dir / "output" / "faces" / f"all_faces.step"))
 
     @classmethod
-    def outputter(cls, asys, wrk_dir, save_dxfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, nparallel=1):
+    def outputter(cls, built, wrk_dir, save_dxfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, edm_outputs=True, nparallel=1):
         """do output tasks on a dictionary of assemblies"""
-        for stack_name, asy in asys.items():
+        for stack_name, result in built.items():
             if "show_object" in globals():  # we're in cq-editor
                 assembly_mode = True  # at the moment, when true we can't select/deselect subassembly parts
                 if assembly_mode:
-                    show_object(asy)
+                    show_object(result["assembly"])
                 else:
-                    for key, val in asy.traverse():
+                    for key, val in result["assembly"].traverse():
                         shapes = val.shapes
                         if shapes != []:
-                            c = cq.Compound.makeCompound(shapes)
+                            c = cadquery.Compound.makeCompound(shapes)
                             odict = {}
                             if val.color is not None:
                                 co = val.color.wrapped.GetRGB()
@@ -265,12 +310,35 @@ class TwoDToThreeD(object):
                 Path.mkdir(wrk_dir / "output", exist_ok=True)
 
                 # save assembly
-                asy.save(str(wrk_dir / "output" / f"{stack_name}.step"))
-                # asy.save(str(wrk_dir / "output" / f"{stack_name}.brep"))
-                asy.save(str(wrk_dir / "output" / f"{stack_name}.xml"), "XML")
-                # asy.save(str(wrk_dir / "output" / f"{stack_name}.vtkjs"), "VTKJS")
-                asy.save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
-                asy.save(str(wrk_dir / "output" / f"{stack_name}.stl"), "STL")
+                stepfile = str(wrk_dir / "output" / f"{stack_name}.step")
+                result["assembly"].save(stepfile)
+                # result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.brep"))
+                result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.xml"), "XML")
+                # result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.vtkjs"), "VTKJS")
+                result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
+                result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.stl"), "STL")
+
+                if edm_outputs:
+                    edm_subdir = f"{stack_name}_edm"
+                    Path.mkdir(wrk_dir / "output" / edm_subdir, exist_ok=True)
+                    shutil.copy(stepfile, str(wrk_dir / "output" / edm_subdir / f"expected_result_shape.step"))
+                    if result["vcuts"]:
+                        cadquery.exporters.export(CQ().add(result["vcuts"]), str(wrk_dir / "output" / edm_subdir / f"vertical_wire_paths.dxf"))
+                    if result["twire"]:
+                        t_wire_faces = result["twire"]
+                        first_face = t_wire_faces[0]
+                        ffbb = first_face.BoundingBox()
+                        h = round(ffbb.zmax, 6)
+                        cadquery.exporters.export(CQ().add(t_wire_faces), str(wrk_dir / "output" / edm_subdir / f"angled_wire_paths_z={h}mm.dxf"))
+                    if result["bwire"]:
+                        b_wire_faces = result["bwire"]
+                        first_face = b_wire_faces[0]
+                        ffbb = first_face.BoundingBox()
+                        h = round(ffbb.zmin, 6)
+                        cadquery.exporters.export(CQ().add(b_wire_faces), str(wrk_dir / "output" / edm_subdir / f"angled_wire_paths_z={h}mm.dxf"))
+                    if result["recess"]:
+                        depth = result["recess"][0]
+                        cadquery.exporters.export(CQ().add(result["recess"][1:]), str(wrk_dir / "output" / edm_subdir / f"recess_from_z=0_to_z={depth}mm.dxf"))
 
                 # # stupid workaround for gltf export bug: https://github.com/CadQuery/cadquery/issues/993
                 # asy2 = None
@@ -287,16 +355,16 @@ class TwoDToThreeD(object):
                 # cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(wrk_dir / "output" / f"{stack_name}.brep"))
 
                 # save each shape individually
-                for key, val in asy.traverse():
+                for key, val in result["assembly"].traverse():
                     shapes = val.shapes
                     if shapes != []:
-                        c = cq.Compound.makeCompound(shapes)
+                        c = cadquery.Compound.makeCompound(shapes)
                         if save_stls == True:
                             cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.stl"), cadquery.exporters.ExportTypes.STL)
                         if save_steps == True:
                             cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.step"), cadquery.exporters.ExportTypes.STEP)
                         if save_breps == True:
-                            cq.Shape.exportBrep(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.brep"))
+                            cadquery.Shape.exportBrep(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.brep"))
                         if save_vrmls == True:
                             cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.wrl"), cadquery.exporters.ExportTypes.VRML)
                         if save_dxfs == True:
