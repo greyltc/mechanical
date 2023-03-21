@@ -86,7 +86,6 @@ class TwoDToThreeD(object):
         # cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(Path(__file__).parent / "output" / "badger.brep"))
 
     def do_stack(self, instructions, layers) -> Tuple[Dict, List, List, List, List]:
-
         # asy = cadquery.Assembly()
         stack = {}
         vcut_faces = []
@@ -322,21 +321,21 @@ class TwoDToThreeD(object):
                     edm_subdir = f"{stack_name}_edm"
                     Path.mkdir(wrk_dir / "output" / edm_subdir, exist_ok=True)
                     shutil.copy(stepfile, str(wrk_dir / "output" / edm_subdir / f"expected_result_shape.step"))
-                    if result["vcuts"]:
+                    if "vcuts" in result and result["vcuts"]:
                         cadquery.exporters.export(CQ().add(result["vcuts"]), str(wrk_dir / "output" / edm_subdir / f"vertical_wire_paths.dxf"))
-                    if result["twire"]:
+                    if "twire" in result and result["twire"]:
                         t_wire_faces = result["twire"]
                         first_face = t_wire_faces[0]
                         ffbb = first_face.BoundingBox()
                         h = round(ffbb.zmax, 6)
                         cadquery.exporters.export(CQ().add(t_wire_faces), str(wrk_dir / "output" / edm_subdir / f"angled_wire_paths_z={h}mm.dxf"))
-                    if result["bwire"]:
+                    if "bwire" in result and result["bwire"]:
                         b_wire_faces = result["bwire"]
                         first_face = b_wire_faces[0]
                         ffbb = first_face.BoundingBox()
                         h = round(ffbb.zmin, 6)
                         cadquery.exporters.export(CQ().add(b_wire_faces), str(wrk_dir / "output" / edm_subdir / f"angled_wire_paths_z={h}mm.dxf"))
-                    if result["recess"]:
+                    if "recess" in result and result["recess"]:
                         depth = result["recess"][0]
                         cadquery.exporters.export(CQ().add(result["recess"][1:]), str(wrk_dir / "output" / edm_subdir / f"recess_from_z=0_to_z={depth}mm.dxf"))
 
