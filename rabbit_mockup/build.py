@@ -408,7 +408,7 @@ def main():
         # aso.add(top_piece, name=vac_name, color=color)
         aso.add(hardware.toCompound(), name="hardware", color=cadquery.Color(hardware_color))
 
-    mkbase(wrk_dir, asys[as_name], copper_thickness, center_shift, wall_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero, substrate_raise, outer_fillet)
+    mkbase(wrk_dir, asys[as_name]["assembly"], copper_thickness, center_shift, wall_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero, substrate_raise, outer_fillet)
 
     def mkwalls(
         wrk_dir: Path,
@@ -667,7 +667,7 @@ def main():
         aso.add(wall_hardware.toCompound(), name="wall_hardware", color=cadquery.Color(hardware_color))
         aso.add(wp, name=name, color=color)  # add the walls bulk
 
-    mkwalls(wrk_dir, asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, 0, outer_fillet)
+    mkwalls(wrk_dir, asys[as_name]["assembly"], wall_height, center_shift, wall_outer, corner_hole_points, 0, outer_fillet)
 
     # add in big detailed PCB
     # big_pcb = u.import_step(wrk_dir.joinpath("components", "pcb.step"))
