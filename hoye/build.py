@@ -25,12 +25,12 @@ def main():
 
     no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
     flange_base_height = 0
-    flange_bit_thickness = 10
+    flange_bit_thickness = 20
 
-    hardware = cq.Assembly(None)  # a place to keep the harware
-
-    def mk_flange_bit(drawings: dict[str, Path], components_dir: Path, hardware: cadquery.Assembly, flange_base_height: float, thickness: float) -> cadquery.Solid | cadquery.Compound:
+    def mk_flange_bit(drawings: dict[str, Path], components_dir: Path, flange_base_height: float, thickness: float) -> tuple[cadquery.Solid | cadquery.Compound, cadquery.Assembly]:
         """build the flange bit"""
+        hardware = cadquery.Assembly()  # this being empty causes a warning on output
+
         flange_corner_screw_spacing = 17.8
         flange_corner_points = [
             (-flange_corner_screw_spacing / 2, -flange_corner_screw_spacing / 2),
@@ -38,21 +38,36 @@ def main():
             (+flange_corner_screw_spacing / 2, -flange_corner_screw_spacing / 2),
             (+flange_corner_screw_spacing / 2, +flange_corner_screw_spacing / 2),
         ]
-        flange_screw_length = 45
-        flange_screw = CheeseHeadScrew(size="M3-0.5", fastener_type="iso14580", length=flange_screw_length, simple=no_threads)  # TODO: insert accu pn
 
         base = cadquery.importers.importDXF(str(drawings["2d"]), include=["flange_bit", "flange_hole"]).wires().toPending().extrude(thickness)
 
         wp = cadquery.Workplane().add(base.translate((0, 0, -thickness - flange_base_height)))
 
-        fiber_adapter = u.import_step(components_dir / "SM05SMA-Step.step").findSolid().rotate((0, 0, 0), (0, 1, 0), 90).translate((7.1746, 10.8567, 29.16169))
-        hardware.add(cadquery.Assembly(fiber_adapter))
         flange = u.import_step(components_dir / "SM05F1-Step.step").findSolid().translate((0, 0, 10.0076))
-        hardware.add(cadquery.Assembly(flange))
-        ring = u.import_step(components_dir / "SM05RR-Step.step").findSolid().translate((0, 0, 0.82550 + 3.175))
-        hardware.add(cadquery.Assembly(ring))
+        flange_screw_space = 0.9144
+        hardware.add(flange, name="flange")
 
-        return wp.findSolid()
+        adapter_shift = 10.0076 - 3.175  # shift the hardware to the top of the flange
+        fiber_adapter = u.import_step(components_dir / "SM05SMA-Step.step").findSolid().rotate((0, 0, 0), (0, 1, 0), 90).translate((7.1746, 10.8567, 29.16169 + adapter_shift))
+        hardware.add(cadquery.Assembly(fiber_adapter), name="adapter")
+
+        ring_shift = 5.18  # put ring under adapter
+        ring = u.import_step(components_dir / "SM05RR-Step.step").findSolid().rotate((0, 0, 0), (0, 1, 0), 180).translate((0, 0, 0.82550 + ring_shift))
+        hardware.add(cadquery.Assembly(ring), name="lockring")
+
+        flange_screw_length = thickness
+        flange_screw = CheeseHeadScrew(size="M3-0.5", fastener_type="iso14580", length=flange_screw_length, simple=no_threads)  # TODO: insert accu pn
+
+        # flange screws
+        wp = wp.faces(">Z").workplane(**u.cobb, offset=flange_screw_space).pushPoints(flange_corner_points).clearanceHole(fastener=flange_screw, fit="Close", baseAssembly=hardware, counterSunk=False)
+
+        # flange nuts with pockets
+        flange_nut = HexNut(size="M3-0.5", fastener_type="iso4032")  # TODO: insert accu pn
+        flat_to_flat = math.sin(60 * math.pi / 180) * flange_nut.nut_diameter + 0.25
+        wp = wp.faces("<Z").workplane(**u.cobb, offset=-flange_nut.nut_thickness - flange_screw_space).pushPoints(flange_corner_points).clearanceHole(fastener=flange_nut, fit="Close", counterSunk=False, baseAssembly=hardware)
+        wp = wp.faces("<Z").workplane(**u.cobb).sketch().push(flange_corner_points[0:4:3]).rect(flat_to_flat, flange_nut.nut_diameter, angle=45).reset().push(flange_corner_points[1:3]).rect(flat_to_flat, flange_nut.nut_diameter, angle=-45).reset().vertices().fillet(flange_nut.nut_diameter / 4).finalize().cutBlind(-flange_nut.nut_thickness - flange_screw_space)
+
+        return (wp.findSolid(), hardware)
 
         # enable_towers = True
         # if enable_towers:
@@ -315,13 +330,78 @@ def main():
         # # aso.add(top_piece, name=vac_name, color=color)
         # aso.add(hardware.toCompound(), name="hardware", color=cadquery.Color(hardware_color))
 
-    flange_bit = mk_flange_bit(
-        drawings=drawings,
-        components_dir=wrk_dir / "components",
-        hardware=hardware,
-        flange_base_height=flange_base_height,
-        thickness=flange_bit_thickness,
-    )
+    def mk_single_holder(drawings, components_dir=wrk_dir / "components") -> tuple[cadquery.Solid | cadquery.Compound, cadquery.Solid | cadquery.Compound, cadquery.Solid | cadquery.Compound, cadquery.Assembly]:
+        hardware = cadquery.Assembly()  # this being empty causes a warning on output
+
+        subs_xy = 30
+        subs_tol = 0.2  # substrate and mask pocket is this much bigger than nominal substrate xy dims
+
+        subs_t = 2.2  # worst case glass thickness
+        subs = CQ().box(subs_xy, subs_xy, subs_t, centered=(True, True, False)).findSolid()
+        hardware.add(subs, name="substrate")
+
+        mask_t = 0.3  # worst case mask thickness
+        mask = CQ().box(subs_xy, subs_xy, mask_t, centered=(True, True, False)).findSolid()
+        hardware.add(mask.translate((0, 0, subs_t)), name="mask")
+
+        pin_travel = 4.2
+        head_length = 2
+        pin_nominal_frac = 2 / 3  # fraction of total travel for nominal deflection
+        head_diameter = 1.8
+        pin = u.import_step(components_dir / "S25-022+P25-4023.step").findSolid().rotate((0, 0, 0), (1, 0, 0), 90)
+        pin_nom_offset = head_length + (1 - pin_nominal_frac) * pin_travel
+        pin = pin.translate((0, 0, -pin_nom_offset))
+        hardware.add(pin, name="springpin")
+        void_head_offset = 0.2  # make the pin void diameter this much larger than that of the pin head
+        pin_void = cadquery.Solid.makeCylinder((head_diameter + void_head_offset) / 2, head_length + pin_travel).move(cq.Location((0, 0, -pin_nom_offset)))
+
+        void_depth = subs_t + mask_t + pin_nominal_frac * pin_travel
+
+        pusher_screw_len = 20
+        pusher_screw = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=pusher_screw_len, simple=no_threads)  # TODO: add pn
+
+        pusher_t = 5
+        pusher_mount_spacing = subs_xy + 14
+        pusher_w = subs_xy + 2 * 14
+        pusher = CQ().workplane(offset=void_depth + subs_t + mask_t).box(walls_xy, pusher_w, pusher_t, centered=(True, True, False))
+        # pusher = pusher.rarray(1, pusher_mount_spacing, 1, 2).circle(6 / 2).cutThruAll()
+        pusher = pusher.faces(">Z").workplane().rarray(1, pusher_mount_spacing, 1, 2).clearanceHole(pusher_screw, fit="Close", baseAssembly=hardware)
+
+
+        holder_base_height = 30
+        walls_thickness = 5
+        walls_x = subs_xy + subs_tol + 2 * walls_thickness
+        walls_y = 
+        holder = CQ().box(walls_xy, walls_xy, holder_base_height, centered=(True, True, False)).translate((0, 0, -holder_base_height))
+        void_part = CQ().box(walls_xy, walls_xy, void_depth, centered=(True, True, False)).rect(subs_xy + subs_tol, subs_xy + subs_tol).cutThruAll().findSolid()
+        holder = holder.union(void_part)
+        holder = holder.cut(pin_void)
+
+        # holder = holder.cut(top_pocket_void)
+
+        return (holder.findSolid(), holder.findSolid(), pusher.findSolid(), hardware)
+
+    # make the pieces
+    flange_bit, flange_hardware = mk_flange_bit(drawings=drawings, components_dir=wrk_dir / "components", flange_base_height=flange_base_height, thickness=flange_bit_thickness)
+    holder, pin_holder, pusher, holder_hw = mk_single_holder(drawings=drawings, components_dir=wrk_dir / "components")
+
+    # assemble the pieces for 2x1
+    hardware = cadquery.Assembly(name="all_hardware")  # this being empty causes a warning on output
+
+    flange_z_shift = -5
+    hardware.add(flange_hardware, loc=cq.Location((0, 0, flange_z_shift)), name="flange_hardware")
+    flange_bit = flange_bit.translate((0, 0, flange_z_shift))
+    # hardware.add(flange_hardware._copy().translate((0, 0, flange_z_shift)))
+    holder_shift = flange_bit.BoundingBox().xmax + holder.BoundingBox().xmax
+    wp_2x1 = CQ(flange_bit)
+    wp_2x1 = wp_2x1.union(holder.translate((+holder_shift, 0, 0)))
+    wp_2x1 = wp_2x1.union(holder.translate((-holder_shift, 0, 0)))
+    hardware.add(holder_hw, loc=cq.Location((+holder_shift, 0, 0)), name="holder_a_hardware")
+    hardware.add(holder_hw, loc=cq.Location((-holder_shift, 0, 0)), name="holder_b_hardware")
+    pusher_2x1 = cadquery.Assembly()
+    pusher_2x1.add(pusher, loc=cq.Location((+holder_shift, 0, 0)), name="holder_a_pusher")
+    pusher_2x1.add(pusher, loc=cq.Location((-holder_shift, 0, 0)), name="holder_b_pusher")
+
     # mkbase(wrk_dir, asys[as_name]["assembly"], copper_thickness, center_shift, wall_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero, substrate_raise, outer_fillet)
 
     # def mkwalls(
@@ -587,12 +667,13 @@ def main():
     # # big_pcb = u.import_step(wrk_dir.joinpath("components", "pcb.step"))
     # # asys["squirrel"].add(big_pcb, name="big pcb")
 
-    hoye_2x1 = cq.Assembly(flange_bit)
-    hoye_2x1.add(hardware)
+    hoye_2x1 = cq.Assembly(wp_2x1.findSolid(), name="holder")
+    hoye_2x1.add(pusher_2x1, name="pushers")
+    hoye_2x1.add(hardware, name="hardware")
 
     asys = {"hoye_2x1": {"assembly": hoye_2x1}}
 
-    TwoDToThreeD.outputter(asys, wrk_dir, save_steps=True, save_stls=False)
+    TwoDToThreeD.outputter(asys, wrk_dir, save_steps=False, save_stls=False)
 
 
 # temp is what we get when run via cq-editor
