@@ -1,7 +1,7 @@
 import cadquery
 from cadquery import CQ, cq
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Callable
 import ezdxf.filemanagement
 import concurrent.futures
 from geometrics.toolbox.cq_serialize import register as register_cq_helper
@@ -287,10 +287,10 @@ class TwoDToThreeD(object):
         all_faces.save(str(wrk_dir / "output" / "faces" / f"all_faces.step"))
 
     @classmethod
-    def outputter(cls, built, wrk_dir, save_dxfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, edm_outputs=True, nparallel=1):
+    def outputter(cls, built, wrk_dir, save_dxfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, edm_outputs=True, nparallel=1, show_object: Callable | None = None):
         """do output tasks on a dictionary of assemblies"""
         for stack_name, result in built.items():
-            if "show_object" in globals():  # we're in cq-editor
+            if show_object:  # we're in cq-editor
                 assembly_mode = True  # at the moment, when true we can't select/deselect subassembly parts
                 if assembly_mode:
                     show_object(result["assembly"])

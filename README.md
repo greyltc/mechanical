@@ -1,40 +1,28 @@
 # src/geometrics
 A python module with some helpful tools for 3d design
 
-## Prepare
-```
-Make sure you have the latest versions of:
-  - https://github.com/pypa/build
-  - https://github.com/pypa/installer
-  - https://github.com/pypa/hatch
-  and
-  - all the dependencies listed in pyproject.toml 
-```
+## Development workflow
+1) Use git to clone this repo and cd into its folder
+1) Install dependancies system-wide using your favorite python package manager. View those like this:
+    ```bash
+    $ hatch project metadata | jq -r '.dependencies | .[]'
+    ```
+1) Setup a virtual environment for development/testing
+    ```bash
+    $ python -m venv --without-pip --system-site-packages --clear .direnv/default
+    ```
+1) Activate the venv (this step is os/shell-dependant, see [1] for non-linux/bash)
+    ```bash
+    $ source .direnv/default/bin/activate
+    ```
+1) Install the package in editable mode into the venv
+    ```bash
+    (default) $ python tools/venv_dev_install.py
+    ```
+1) Develop! When you're finished with it, you can deactivate the virtual environment with `deactivate`
 
-## Build
-From the root of this repo
-```
-rm -rf buildout && python -m build --wheel --no-isolation --outdir buildout
-```
+[1]: https://docs.python.org/3/library/venv.html#how-venvs-work
 
-## Install
-choose one of:
-### Install in a venv (recommended)
-These instructions are for Linux, but working with virtual environments should be very similar on all platforms. See https://docs.python.org/3/library/venv.html#creating-virtual-environments
-```
-python -m venv ~/venvs/geometrics --clear --system-site-packages --without-pip
-source ~/venvs/geometrics/bin/activate
-python -m installer buildout/*.whl
-rm -r buildout
-
-deactivate  # when you're done with the venv
-```
-### Install without a venv
-See https://docs.python.org/3/library/sysconfig.html?highlight=installation%20scheme#installation-paths for valid schemas and pick one that's appropriate for your use case
-```
-python -m uninstaller --scheme posix_user geometrics
-python -m installer --scheme posix_user buildout/*.whl
-```
 
 ## Some folders
 ### chamber_ng/
