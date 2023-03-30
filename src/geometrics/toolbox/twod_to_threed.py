@@ -7,6 +7,8 @@ import concurrent.futures
 from geometrics.toolbox.cq_serialize import register as register_cq_helper
 import math
 import shutil
+import subprocess
+import zipfile
 
 
 class TwoDToThreeD(object):
@@ -286,8 +288,23 @@ class TwoDToThreeD(object):
                 cadquery.exporters.export(face, str(wrk_dir / "output" / "faces" / f"{layer_name}-{i}.step"), cadquery.exporters.ExportTypes.STEP)
         all_faces.save(str(wrk_dir / "output" / "faces" / f"all_faces.step"))
 
+    @staticmethod
+    def ensmall(filename: str):
+        # attempt to stepreduce it
+        cmd = "stepreduce"
+        try:
+            rslt = subprocess.run([cmd, filename, filename], stdout=subprocess.PIPE)
+            print(rslt.stdout.decode())
+        except Exception as e:
+            rslt = None
+            print(f"External call(s) failed to run: f{e}")
+
+        # compress it
+        with zipfile.ZipFile(filename.replace(".step", ".stpZ"), mode="w", compression=zipfile.ZIP_DEFLATED) as myzip:
+            myzip.write(filename)
+
     @classmethod
-    def outputter(cls, built, wrk_dir, save_dxfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, edm_outputs=True, nparallel=1, show_object: Callable | None = None):
+    def outputter(cls, built: dict[str, dict[str, cadquery.Assembly]], wrk_dir: Path, save_dxfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, edm_outputs=True, nparallel=1, show_object: Callable | None = None):
         """do output tasks on a dictionary of assemblies"""
         for stack_name, result in built.items():
             if show_object:  # we're in cq-editor
@@ -311,6 +328,8 @@ class TwoDToThreeD(object):
                 # save assembly
                 stepfile = str(wrk_dir / "output" / f"{stack_name}.step")
                 result["assembly"].save(stepfile)
+                TwoDToThreeD.ensmall(stepfile)
+
                 # result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.brep"))
                 result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.xml"), "XML")
                 # result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.vtkjs"), "VTKJS")
@@ -361,7 +380,9 @@ class TwoDToThreeD(object):
                         if save_stls == True:
                             cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.stl"), cadquery.exporters.ExportTypes.STL)
                         if save_steps == True:
-                            cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.step"), cadquery.exporters.ExportTypes.STEP)
+                            stepfile = str(wrk_dir / "output" / f"{stack_name}-{val.name}.step")
+                            cadquery.exporters.export(c.locate(val.loc), stepfile, cadquery.exporters.ExportTypes.STEP)
+                            TwoDToThreeD.ensmall(stepfile)
                         if save_breps == True:
                             cadquery.Shape.exportBrep(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.brep"))
                         if save_vrmls == True:
