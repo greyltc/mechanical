@@ -19,7 +19,7 @@ copo = {"centerOption": "ProjectedOrigin"}
 cobb = {"centerOption": "CenterOfBoundBox"}
 
 
-def undercutRelief2D(self, length, width, diameter, angle=0, kind="C", corner_tol=0) -> cq.Workplane:
+def undercutRelief2D(self: cq.Workplane, length: float, width: float, diameter: float, angle: float = 0, kind: str = "C", corner_tol: float = 0) -> cq.Workplane:
     """
     Creates a relief undercut shape for each point on the stack.
 

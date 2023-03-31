@@ -13,6 +13,9 @@ import cq_warehouse.extensions  # this does something even though it's not direc
 import math
 import itertools
 
+# CQ.undercutRelief2D =
+setattr(cadquery.Workplane, "undercutRelief2D", u.undercutRelief2D)
+
 
 def main():
     # set working directory
@@ -26,6 +29,9 @@ def main():
     no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
     flange_base_height = 0
     flange_bit_thickness = 16.9
+    fil_major = 5
+    chamf_major = 1
+    chamf_minor = 0.5
 
     def mk_flange_bit(drawings: dict[str, Path], components_dir: Path, flange_base_height: float, thickness: float) -> tuple[cadquery.Solid | cadquery.Compound, cadquery.Assembly]:
         """build the flange bit"""
@@ -344,7 +350,7 @@ def main():
         subs = CQ().box(subs_xy, subs_xy, subs_t, centered=(True, True, False)).findSolid()
         hardware.add(subs, name="substrate")
 
-        mask_t = 0.3  # worst case mask thickness
+        mask_t = 0.2  # worst case mask thickness
         mask = CQ().box(subs_xy, subs_xy, mask_t, centered=(True, True, False)).findSolid()
         hardware.add(mask.translate((0, 0, subs_t)), name="mask")
 
@@ -359,7 +365,7 @@ def main():
         pin = u.import_step(components_dir / "S25-022+P25-4023.step").findSolid().rotate((0, 0, 0), (1, 0, 0), 90)
         pin_nom_offset = head_length + (1 - pin_nominal_frac) * pin_travel
         pin = pin.translate((0, 0, -pin_nom_offset))
-        hardware.add(pin, name="springpin")
+        # hardware.add(pin, name="springpin")  # demo pin
         void_head_offset = 0.2  # make the pin void diameter this much larger than that of the pin head
         upper_pin_void = cadquery.Solid.makeCylinder((head_diameter + void_head_offset) / 2, head_length + pin_travel + retaining_ring_offset).move(cq.Location((0, 0, -pin_nom_offset - retaining_ring_offset)))
         lower_pin_void = cadquery.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length).move(cq.Location((0, 0, -total_sleeve_length)))
@@ -369,7 +375,6 @@ def main():
 
         pusher_screw_len = 15
         pusher_screw = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=pusher_screw_len, simple=no_threads)  # TODO: add pn
-        pusher_screw_insert_diameter = 9.4
 
         holder_base_height = sleeve_length + pin_nom_offset
         walls_thickness = 5
@@ -378,33 +383,78 @@ def main():
         pusher_t = 5
         pusher_mount_spacing = subs_xy + 14
         pusher_w = subs_xy + 2 * 14
-        pusher = CQ().workplane(offset=void_depth + subs_t + mask_t).box(walls_x, pusher_w, pusher_t, centered=(True, True, False))
-        # pusher = pusher.rarray(1, pusher_mount_spacing, 1, 2).circle(6 / 2).cutThruAll()
+        light_aperature_x = subs_xy + subs_tol
+        light_aperature_y = subs_xy + subs_tol - 6
+        pusher_height = void_depth - 2.2  # the length of the push downer bits, this should be void_depth to accept 0 thickness substrates, but can be less to allow wider acceptance angle
+        pusher = CQ().workplane(offset=pusher_height + subs_t + mask_t).box(walls_x, pusher_w, pusher_t, centered=(True, True, False))
+        pusher = pusher.faces("<Z").workplane().rect(subs_xy, subs_xy).extrude(pusher_height)
+        pusher = pusher.sketch().rect(light_aperature_x, light_aperature_y).vertices().fillet(5).finalize().cutThruAll()
+        pusher: CQ
+        pusher = pusher.faces("<Z").workplane().rect(light_aperature_x, light_aperature_y).cutBlind(-pusher_height)
+        pusher = pusher.edges("|Z and (<X or >X)").fillet(fil_major)
+        pusher = pusher.faces(">Z[1]").edges("<X").chamfer(chamf_major)
+        pusher = pusher.faces(">Z").edges("<<X[2]").chamfer(4)
+        pusher = pusher.faces(">Z").edges("<X").chamfer(chamf_minor)
+        # pusher = pusher.faces("<Z").chamfer(chamf_minor)  # don't chamfer the ends of the pusher, they might need to register masks
         pusher = pusher.faces(">Z").workplane().rarray(1, pusher_mount_spacing, 1, 2).clearanceHole(pusher_screw, fit="Close", baseAssembly=hardware)
-        pusher_insert_diameter = 9.4
 
         walls_y = pusher_w
         holder = CQ().box(walls_x, walls_y, holder_base_height, centered=(True, True, False)).translate((0, 0, -holder_base_height))
-        void_part = CQ().box(walls_x, walls_y, void_depth, centered=(True, True, False)).rect(subs_xy + subs_tol, subs_xy + subs_tol).cutThruAll().findSolid()
+        void_part = CQ().box(walls_x, walls_y, void_depth, centered=(True, True, False)).undercutRelief2D(subs_xy + subs_tol, subs_xy + subs_tol, 10).cutThruAll()
         holder = holder.union(void_part)
-        holder = holder.cut(pin_void)
+        # holder = holder.cut(pin_void)  # this hole is a demo
+        dev_pocket_d = 2  # pocket below devices
+        holder = holder.faces(">Z").workplane().undercutRelief2D(light_aperature_x + subs_tol, light_aperature_y + subs_tol, 10).cutBlind(-void_depth - dev_pocket_d)
+
+        # pin array parameters
+        pmajor_x = 5.08
+        pminor_x = 2.5
+        py = 24
+
+        def pvf(loc: cq.Location):
+            """returns a pin void shape for the cutEach function (ignore z movement)"""
+            pos = loc.position()
+            return pin_void.translate((pos.x, pos.y, 0))
+
+        def addpin(vec: cq.Vector):
+            """adds a located pin to the hardware, (ignore z movement)"""
+            hardware.add(pin.translate((vec.x, vec.y, 0)))
+
+        # cut the pin array holes
+        holder = holder.workplane(origin=(0, 0)).center(-pminor_x / 2, 0).rarray(pmajor_x, py, 5, 2).cutEach(pvf)
+        holder = holder.workplane(origin=(0, 0)).center(+pminor_x / 2, 0).rarray(pmajor_x, py, 5, 2).cutEach(pvf)
+
+        pin_spotsA = CQ().center(-pminor_x / 2, 0).rarray(pmajor_x, py, 5, 2).vals()
+        pin_spotsB = CQ().center(+pminor_x / 2, 0).rarray(pmajor_x, py, 5, 2).vals()
+
+        if not no_threads:
+            for pin_spot in pin_spotsA + pin_spotsB:
+                addpin(pin_spot)
+
+        # bottom PCB through hole clearance void
+        pcb_bot_void_d = 5
+        pcbvx = 25
+        pcbvy = 20
+        pcbvr = 5
+        holder = holder.faces("<Z").workplane(origin=(0, 0)).sketch().rect(pcbvx, pcbvy).vertices().fillet(pcbvr).finalize().cutBlind(-pcb_bot_void_d)
 
         # pusher screw interface stuff here
-        bot_screw_len = 10
+        bot_screw_len = 15
         bot_screw = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=bot_screw_len, simple=no_threads)  # TODO: add pn
 
         c_flat_to_flat = 10
+        c_flat_to_flat = c_flat_to_flat + 0.4  # add fudge factor so it can slide in
         c_diameter = c_flat_to_flat / (math.cos(math.tanh(1 / math.sqrt(3))))
         coupler_len = 20
         coupler = u.import_step(components_dir / "Download_STEP_970200611 (rev1).stp").findSolid().translate((0, 0, -10))
 
-        holder = holder.faces(">Z").workplane().sketch().rarray(1, pusher_mount_spacing, 1, 2).rect(c_diameter, c_flat_to_flat).reset().vertices().fillet(c_diameter / 4).finalize().cutBlind(-coupler_len)
+        holder = holder.faces(">Z").workplane(origin=(0, 0)).sketch().rarray(1, pusher_mount_spacing, 1, 2).rect(c_diameter, c_flat_to_flat).reset().vertices().fillet(c_diameter / 4).finalize().cutBlind(-coupler_len)
         holder: cadquery.Workplane
-        mount_points = holder.faces(">Z").workplane().rarray(1, pusher_mount_spacing, 1, 2).vals()
+        mount_points = holder.faces(">Z").workplane(origin=(0, 0)).rarray(1, pusher_mount_spacing, 1, 2).vals()
         for mount_point in mount_points:
             hardware.add(coupler.located(cadquery.Location(mount_point.toTuple())))
 
-        holder = holder.faces("<Z").workplane().rarray(1, pusher_mount_spacing, 1, 2).clearanceHole(bot_screw, fit="Close", baseAssembly=hardware)
+        holder = holder.faces("<Z").workplane(origin=(0, 0)).rarray(1, pusher_mount_spacing, 1, 2).clearanceHole(bot_screw, fit="Close", baseAssembly=hardware)
 
         return (holder.findSolid(), holder.findSolid(), pusher.findSolid(), hardware)
 
@@ -426,10 +476,12 @@ def main():
     hardware.add(holder_hw, loc=cq.Location((+holder_shift, 0, 0)), name="holder_a_hardware")
     hardware.add(holder_hw, loc=cq.Location((-holder_shift, 0, 0)), name="holder_b_hardware")
 
-    # make fillets
-    fil_major = 5
-    wp_2x1 = wp_2x1.edges("|Z and (<X or >X) ").fillet(fil_major)
-    pusher = CQ(pusher).edges("|Z and (<X or >X) ").fillet(fil_major).findSolid()
+    # make fillets and chamfers on the big piece
+    wp_2x1 = wp_2x1.edges("|Z and (<X or >X)").fillet(fil_major)
+    wp_2x1 = wp_2x1.faces(">Z").edges("<X").chamfer(chamf_major)
+    wp_2x1 = wp_2x1.faces(">Z").edges(">X").chamfer(chamf_major)
+
+    # pusher = CQ(pusher).edges("|Z and (<X or >X)").fillet(fil_major).findSolid()
 
     pusher_2x1 = cadquery.Assembly()
     pusher_2x1.add(pusher, loc=cq.Location((+holder_shift, 0, 0)), name="holder_a_pusher")
