@@ -205,8 +205,8 @@ class TwoDToThreeD(object):
                             for dface in layers[stack_layer["edm_dent"]]:
                                 recess_faces.append(dface.located(cadquery.Location(point)))
 
-                mncmpd = cadquery.Compound.makeCompound(moved_negs)
-                mnldmpd = cadquery.Compound.makeCompound(loft_angle_plus_negs_moved)
+                mncmpd = cadquery.Compound.makeCompound(moved_negs).mirror("XY", (0, 0, t / 2))
+                mnldmpd = cadquery.Compound.makeCompound(loft_angle_plus_negs_moved).mirror("XY", (0, 0, t / 2))
                 wp = wp.cut(mncmpd)  # this just cuts the straights
 
                 if "edge_case" in stack_layer:
