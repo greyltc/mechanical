@@ -530,8 +530,8 @@ def main():
     side_screw_len = 45
     side_screw_max_head_d = 9
     side_screw_start_depth = 26
-    side_screw = CounterSunkScrew(size="M4-0.7", fastener_type="iso14581", length=side_screw_len, simple=no_threads)  # TODO: add pn
-    wp_1x1 = wp_1x1.faces("<X").workplane(offset=-side_screw_start_depth, **u.cobb).clearanceHole(side_screw, fit="Close", baseAssembly=hardware1x1)
+    side_screw = CheeseHeadScrew(size="M4-0.7", fastener_type="iso14580", length=side_screw_len, simple=no_threads)  # TODO: add pn
+    wp_1x1 = wp_1x1.faces("<X").workplane(offset=-side_screw_start_depth, **u.cobb).clearanceHole(side_screw, fit="Close", baseAssembly=hardware1x1, counterSunk=False)
     wp_1x1 = cast(CQ, wp_1x1)  # workaround for sketch.clearanceHole() not returning the correct type
     wp_1x1 = wp_1x1.faces("<X").workplane(**u.cobb).circle(side_screw_max_head_d / 2).cutBlind(-side_screw_start_depth)
 
