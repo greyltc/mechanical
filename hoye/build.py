@@ -25,7 +25,7 @@ def main():
     print(f"Working directory is {wrk_dir}")
     drawings = {"2d": wrk_dir / "drawings" / "2d.dxf"}
 
-    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
     flange_base_height = 0
     flange_bit_thickness = 16.9
     fil_major = 5
@@ -404,7 +404,7 @@ def main():
         holder = holder.union(void_part)
         # holder = holder.cut(pin_void)  # this hole is a demo
         dev_pocket_d = 2  # pocket below devices
-        holder = holder.faces(">Z").workplane().undercutRelief2D(light_aperature_x + subs_tol, light_aperature_y + subs_tol, 10)
+        holder = holder.faces(">Z").workplane().undercutRelief2D(light_aperature_x, light_aperature_y, 10)
         holder = cast(CQ, holder)  # workaround for undercutRelief2D() not returning the correct type
         holder = holder.cutBlind(-void_depth - dev_pocket_d)
 
@@ -497,6 +497,8 @@ def main():
     pcb = holder_parts["pcb"]
     holder_hw = holder_parts["hardware"]
 
+    only_holder = CQ(holder)
+
     # mod the 1x1 holder with bottom shrouds
     shroud_width = 4
     shroud_height = 25
@@ -564,6 +566,10 @@ def main():
     # wp_1x1 = wp_1x1.edges("|Z and (<X or >X)").fillet(fil_major)
     wp_1x1 = wp_1x1.faces(">Z").edges("<X").chamfer(chamf_major)
     wp_1x1 = wp_1x1.faces(">Z").edges(">X").chamfer(chamf_major)
+
+    # make the fillets for the only holder
+    only_holder = only_holder.edges("|Z and (<X or >X)").fillet(fil_major)
+    only_holder = only_holder.faces(">Z").edges("<X").chamfer(chamf_major)
 
     # pusher = CQ(pusher).edges("|Z and (<X or >X)").fillet(fil_major).findSolid()
 
@@ -846,6 +852,7 @@ def main():
 
     hoye_2x1 = cq.Assembly(wp_2x1.findSolid(), name="holder")
     hoye_1x1 = cq.Assembly(wp_1x1.findSolid(), name="holder")
+    only_holder_asy = cq.Assembly(only_holder.findSolid(), name="holder")
     hoye_2x1.add(pusher_2x1, name="pushers")
     hoye_1x1.add(pusher_1x1, name="pushers")
     hoye_2x1.add(pcb2x1, name="pcbs")
@@ -855,6 +862,7 @@ def main():
 
     asys = {"hoye_2x1": {"assembly": hoye_2x1}}
     asys["hoye_1x1"] = {"assembly": hoye_1x1}
+    asys["just_holder"] = {"assembly": only_holder_asy}
 
     if "show_object" in globals():  # we're in cq-editor
 
