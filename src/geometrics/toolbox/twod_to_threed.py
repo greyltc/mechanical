@@ -226,7 +226,11 @@ class TwoDToThreeD(object):
 
                 wp = wp.cut(mnldmpd)  # this cuts the lofts and angles
                 if edge:
-                    wp = wp.union(edg)
+                    wp = edg.union(wp)
+                    #wp = wp.union(edg, tol=0.0001)
+                    # to_fuse = edg.solids().vals() + wp.solids().vals()
+                    # edg_fuse = to_fuse.pop().fuse(*to_fuse, glue=True).clean()
+                    # wp = CQ(edg_fuse)
 
                 # extract the faces for wire paths
                 if loft_angle_negs_moved:
