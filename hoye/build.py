@@ -25,7 +25,7 @@ def main():
     print(f"Working directory is {wrk_dir}")
     drawings = {"2d": wrk_dir / "drawings" / "2d.dxf"}
 
-    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
     flange_base_height = 0
     flange_bit_thickness = 16.9
     fil_major = 5
@@ -78,271 +78,10 @@ def main():
 
         return (wp.findSolid(), hardware)
 
-        # enable_towers = True
-        # if enable_towers:
-        #     plate_name = "thermal_towers_base_plate"
-        # else:
-        #     plate_name = "no_towers_base_plate"
-        # # vac_name = "vacuum_chuck"
-        # color = cq.Color("GOLD")
-        # fillet_inner = 10
-        # chamfer = 1
-        # corner_screw_depth = 3
-
-        # # pedistal_xy = (161, 152)
-        # # pedistal_fillet = 10
-
-        # # dowelpts = [(-73, -66), (73, 66)]
-        # # dowel_nominal_d = 3  # marked on drawing for pressfit with ⌀3K7
-
-        # # # vac chuck clamp screws
-        # # vacscrew_length = 20
-        # # vacscrew = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=vacscrew_length, simple=no_threads)  # SHK-M6-20-V2-A4
-        # # vacclamppts = [(-73, -54.75), (-73, 54.75), (73, -54.75), (73, 54.75)]
-
-        # # slot plate clamp screws
-        # spscrew_length = 8
-        # spscrew = CounterSunkScrew(size="M3-0.5", fastener_type="iso14581", length=spscrew_length, simple=no_threads)  # SHK-M3-8-V2-A4
-
-        # # setscrew clamping stuff
-        # # setscrew_len = 30
-        # # screw_well_depth = 3
-        # # setscrew_recess = pedistal_height + screw_well_depth
-        # # setscrew = SetScrew(size="M6-1", fastener_type="iso4026", length=setscrew_len, simple=no_threads)  # SSU-M6-30-A2
-        # # setscrewpts = [(-73, -43.5), (73, 43.5)]
-
-        # # waterblock nuts and holes
-        # wb_mount_offset_from_edge = 7.25
-        # extension_for_cooler = 2 * 36
-        # # extension_for_cooler = 0
-        # wb_y = wall_extents[1]
-        # wb_mount_offset_y = wb_y / 2 - wb_mount_offset_from_edge
-        # wb_x = wall_extents[0] + wb_mount_offset_from_edge * 4 + extension_for_cooler
-        # wb_mount_offset_x = wb_x / 2 - wb_mount_offset_from_edge
-        # waterblock_mount_nut = HexNutWithFlange(size="M6-1", fastener_type="din1665", simple=no_threads)  # HFFN-M6-A2
-        # wb_mount_points = [
-        #     (wb_mount_offset_x, wb_mount_offset_y),
-        #     (wb_mount_offset_x, -wb_mount_offset_y),
-        #     (-wb_mount_offset_x, wb_mount_offset_y),
-        #     (-wb_mount_offset_x, -wb_mount_offset_y),
-        # ]
-
-        # # make the base chunk
-        # wp = CQ().workplane(**u.copo, offset=zbase).sketch()
-        # wp = wp.push([cshift]).rect(wb_x, wb_y, mode="a")
-        # wp = wp.finalize().extrude(thickness)
-        # wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
-
-        # ear_square = 2 * wb_mount_offset_from_edge
-        # if enable_towers:
-        #     # cut for waterblock mnt ears
-        #     wp = wp.faces("-X").workplane(**u.cobb).rect(xLen=wb_y - 2 * ear_square, yLen=thickness, centered=True).cutBlind(-ear_square)
-        #     wp = wp.faces("+X").workplane(**u.cobb).rect(xLen=wb_y - 2 * ear_square, yLen=thickness, centered=True).cutBlind(-ear_square)
-        #     wp = wp.edges("|Z exc (<<X or >>X)").fillet(fillet_inner)
-        # else:
-        #     wp = wp.faces("-X").workplane(**u.cobb).rect(xLen=wb_y, yLen=thickness, centered=True).cutBlind(-ear_square)
-        #     wp = wp.faces("+X").workplane(**u.cobb).rect(xLen=wb_y, yLen=thickness, centered=True).cutBlind(-ear_square)
-
-        # wp = wp.edges("|Z and (<<X or >>X)").fillet(outer_fillet)
-
-        # # pedistal
-        # # wp = wp.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).sketch().rect(*pedistal_xy).reset().vertices().fillet(pedistal_fillet)
-        # # wp = wp.finalize().extrude(pedistal_height)
-
-        # hardware = cq.Assembly(None)  # a place to keep the harware
-
-        # # corner screws
-        # # wp = wp.faces("-Z").workplane(**u.cobb).circle(3).extrude(1)
-        # wp = wp.faces("<Z").workplane(**u.cobb, offset=-corner_screw_depth).pushPoints(hps).clearanceHole(fastener=screw, fit="Close", baseAssembly=hardware)
-        # wp = wp.faces("<Z[-2]").wires().toPending().extrude(corner_screw_depth, combine="cut")  # make sure the recessed screw is not buried
-
-        # # dowel holes
-        # # wp = wp.faces(">Z").workplane(**u.copo).pushPoints(dowelpts).hole(dowel_nominal_d + dowel3_delta_press, depth=pedistal_height)
-
-        # # waterblock mounting
-        # if enable_towers:
-        #     wp = wp.faces(">Z").workplane(**u.copo).pushPoints(wb_mount_points).clearanceHole(fastener=waterblock_mount_nut, counterSunk=False, fit="Loose", baseAssembly=hardware)
-
-        # # vac chuck stuff
-        # # split
-        # # wp = wp.faces(">Z[-2]").workplane(**u.copo).split(keepTop=True, keepBottom=True).clean()
-        # # btm_piece = wp.solids("<Z").first().edges("not %CIRCLE").chamfer(chamfer)
-        # # top_piece = wp.solids(">Z").first().edges("not %CIRCLE").chamfer(chamfer)
-
-        # # # hole array
-        # # n_array_x = 4
-        # # n_array_y = 5
-        # # x_spacing = 35
-        # # y_spacing = 29
-        # # x_start = (n_array_x - 1) / 2
-        # # y_start = (n_array_y - 1) / 2
-
-        # # n_sub_array_x = 8
-        # # n_sub_array_y = 2
-        # # x_spacing_sub = 3
-        # # y_spacing_sub = 10
-        # # x_start_sub = (n_sub_array_x - 1) / 2
-        # # y_start_sub = (n_sub_array_y - 1) / 2
-
-        # # hole_d = 1
-        # # hole_cskd = 1.1
-        # # csk_ang = 45
-
-        # # # compute all the vac chuck vent hole points
-        # # vac_hole_pts = []  # where the vac holes are drilled
-        # # street_centers = []  # the distribution street y values
-        # # for i in range(n_array_x):
-        # #     for j in range(n_array_y):
-        # #         for k in range(n_sub_array_x):
-        # #             for l in range(n_sub_array_y):
-        # #                 ctrx = (i - x_start) * x_spacing
-        # #                 ctry = (j - y_start) * y_spacing
-        # #                 offx = (k - x_start_sub) * x_spacing_sub
-        # #                 offy = (l - y_start_sub) * y_spacing_sub
-        # #                 vac_hole_pts.append((ctrx + offx, ctry + offy))
-        # #                 street_centers.append((0, ctry + offy))
-        # # street_centers = list(set(street_centers))  # prune duplicates
-
-        # # # boost substrates up so they can't slip under
-        # # raise_square = (25, 25)
-        # # raise_fillet = 1
-        # # top_piece = CQ(top_piece.findSolid()).faces(">Z").workplane(**u.copo).sketch().rarray(x_spacing, y_spacing, n_array_x, n_array_y).rect(*raise_square).reset().vertices().fillet(raise_fillet).finalize().extrude(subs_boost)
-
-        # # # drill all the vac holes
-        # # top_piece = top_piece.faces(">Z").workplane(**u.copo).pushPoints(vac_hole_pts).cskHole(diameter=hole_d, cskDiameter=hole_cskd, cskAngle=csk_ang)
-
-        # # # clamping setscrew threaded holes
-        # # top_piece = top_piece.faces(">Z").workplane().pushPoints(setscrewpts).tapHole(setscrew, depth=setscrew_recess, baseAssembly=hardware)  # bug prevents this from working correctly, workaround below
-        # # # clamping setscrew downbumps in the thermal plate
-        # # btm_piece = CQ(btm_piece.findSolid()).faces(">Z").workplane(**u.copo).pushPoints(setscrewpts).circle(vacscrew.clearance_hole_diameters["Close"] / 2).cutBlind(-screw_well_depth)
-
-        # # # vac chuck clamping screws
-        # # top_piece = top_piece.faces(">Z[-2]").workplane(**u.copo, origin=(0, 0, 0)).pushPoints(vacclamppts).clearanceHole(vacscrew, fit="Close", baseAssembly=hardware)
-        # # # next line is a hack to make absolutely sure the screws are recessed
-        # # top_piece = top_piece.faces(">Z[-2]").workplane(**u.copo, origin=(0, 0, 0)).pushPoints(vacclamppts).cskHole(vacscrew.clearance_hole_diameters["Close"], cskDiameter=vacscrew.head_diameter + 1, cskAngle=vacscrew.screw_data["a"])
-        # # btm_piece = btm_piece.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).pushPoints(vacclamppts).tapHole(setscrew, depth=vacscrew_length - pedistal_height + 1)  # threaded holes to attach to
-
-        # # # mod the slot plate to include csk screws for clamping
-        # # for name, part in asys["squirrel"].traverse():
-        # #     if name == "slot_plate":
-        # #         sp_clamp_pts = [(p[0], p[1] + 5) for p in vacclamppts]
-        # #         sp = cq.Workplane().add(part.shapes)
-        # #         kh_shift_y = -37
-        # #         vch_shift_x = 3
-        # #         sp = sp.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).rarray(vacclamppts[3][0] * 2 + vch_shift_x, vacclamppts[3][1] * 2 + vch_shift_y, 2, 2).clearanceHole(spscrew, fit="Close", baseAssembly=hardware)
-        # #         # next line is a hack to make absolutely sure the screws are recessed
-        # #         sp = sp.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).rarray(vacclamppts[3][0] * 2 + vch_shift_x, vacclamppts[3][1] * 2 + vch_shift_y, 2, 2).cskHole(spscrew.clearance_hole_diameters["Close"], cskDiameter=spscrew.head_diameter + 1, cskAngle=spscrew.screw_data["a"])
-        # #         part.obj = sp
-
-        # #         # make threaded holes to attach to, TODO: mark these as M3x0.5 threaded holes in engineering drawing
-        # #         top_piece = top_piece.faces(">Z[-2]").workplane(**u.copo, origin=(0, 0, 0)).rarray(vacclamppts[3][0] * 2 + vch_shift_x, vacclamppts[3][1] * 2 + vch_shift_y, 2, 2).tapHole(spscrew, depth=spscrew_length - 1, counterSunk=False)
-
-        # # # compute the hole array extents for o-ring path finding
-        # # sub_x_length = (n_sub_array_x - 1) * x_spacing_sub + hole_d
-        # # array_x_length = (n_array_x - 1) * x_spacing + sub_x_length
-
-        # # sub_y_length = (n_sub_array_y - 1) * y_spacing_sub + hole_d
-        # # array_y_length = (n_array_y - 1) * y_spacing + sub_y_length
-
-        # # # for the vac chuck fitting
-        # # vac_fitting_chuck_offset = -0.5 * y_spacing
-        # # fitting_tap_depth = 20
-        # # top_piece = top_piece.faces(">X").workplane(**u.cobb).center(vac_fitting_chuck_offset, 0).tapHole(vac_fitting_screw, depth=fitting_tap_depth)
-        # # vac_chuck_fitting = cadquery.Assembly(a_vac_fitting.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=-5), name="chuck_vac_fitting")
-        # # hardware.add(vac_chuck_fitting, loc=top_piece.plane.location, name="vac chuck fitting")
-
-        # # # handle the valve, part number 435-8101
-        # # a_valve = u.import_step(wrk_dir.joinpath("components", "VHK2-04F-04F.step"))
-        # # # a_valve = a_valve.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90).translate((0, 7.5, 9))
-        # # a_valve = a_valve.translate((0, 7.5, 9))
-        # # valve_mnt_spacing = 16.5
-        # # valve_mnt_screw_length = 30
-        # # valve_body_width = 18
-        # # valve_mnt_hole_depth = 15
-        # # valve_mnt_screw = PanHeadScrew(size="M4-0.7", fastener_type="iso14583", length=valve_mnt_screw_length)  # SHP-M4-30-V2-A4
-        # # btm_piece = btm_piece.faces(">X[-2]").workplane(**u.cobb).rarray(valve_mnt_spacing, 1, 2, 1).tapHole(valve_mnt_screw, depth=valve_mnt_hole_depth, counterSunk=False)  # cut threaded holes
-        # # btm_piece = btm_piece.faces(">X[-2]").workplane(**u.cobb).rarray(valve_mnt_spacing, 1, 2, 1).tapHole(valve_mnt_screw, depth=valve_mnt_screw_length - valve_body_width, counterSunk=False, baseAssembly=aso)  # add screws
-        # # aso.add(a_valve, loc=btm_piece.plane.location, name="valve")
-
-        # # # handle the elbow, part number 306-5993
-        # # an_elbow = u.import_step(wrk_dir.joinpath("components", "3182_04_00.step"))
-        # # an_elbow = an_elbow.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=-90).rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=90)  # rotate the elbow
-        # # btm_pln = btm_piece.faces(">X[-2]").workplane(**u.cobb, offset=valve_body_width / 2).center(-26.65, 7.5)  # position the elbow
-        # # aso.add(an_elbow, loc=btm_pln.plane.location, name="elbow")
-
-        # # # vac distribution network
-        # # zdrill_loc = (pedistal_xy[0] / 2 - fitting_tap_depth, 0.5 * y_spacing)
-        # # zdrill_r = 3
-        # # zdrill_depth = -pedistal_height / 2 - 2.5
-        # # top_piece = top_piece.faces("<Z").workplane(**u.cobb).pushPoints([zdrill_loc]).circle(zdrill_r).cutBlind(zdrill_depth)
-
-        # # highway_depth = 3
-        # # highway_width = 6
-        # # street_depth = 2
-        # # street_width = 1
-        # # top_piece = top_piece.faces("<Z").workplane(**u.cobb).sketch().push([(zdrill_loc[0] / 2, zdrill_loc[1])]).slot(w=zdrill_loc[0], h=highway_width).finalize().cutBlind(-highway_depth)
-        # # top_piece = top_piece.faces("<Z").workplane(**u.cobb).sketch().slot(w=pedistal_xy[0] - 2 * fitting_tap_depth, h=highway_width, angle=90).finalize().cutBlind(-highway_depth)  # cut center highway
-        # # top_piece = top_piece.faces("<Z").workplane(**u.cobb).sketch().push(street_centers).slot(w=array_x_length - hole_d, h=street_width).finalize().cutBlind(-street_depth)  # cut streets
-
-        # # # padding to keep the oring groove from bothering the vac holes
-        # # groove_x_pad = 8
-        # # groove_y_pad = 16
-
-        # # # that's part number 196-4941
-        # # o_ring_thickness = 2
-        # # o_ring_inner_diameter = 170
-
-        # # # cut the o-ring groove
-        # # top_piece = top_piece.faces("<Z").workplane(**u.cobb).mk_groove(ring_cs=o_ring_thickness, follow_pending_wires=False, ring_id=o_ring_inner_diameter, gland_x=array_x_length + groove_x_pad, gland_y=array_y_length + groove_y_pad, hardware=hardware)
-
-        # # # cut the electrical contact screw mount holes
-        # # vc_e_screw_spacing = 15
-        # # vc_e_screw_center_offset = 10
-        # # vc_e_screw_hole_depth = 12
-        # # vc_e_screw_screw_length = 8
-        # # vc_e_srew_type = "M3-0.5"
-        # # e_dummy = SetScrew(vc_e_srew_type, fastener_type="iso4026", length=vc_e_screw_screw_length, simple=no_threads)
-
-        # # # mark these chuck electrical connection screw holes in engineering drawing as M3x0.5
-        # # top_piece = top_piece.faces("<X").workplane(**u.cobb).center(vc_e_screw_center_offset, 0).rarray(vc_e_screw_spacing, 1, 2, 1).tapHole(e_dummy, depth=vc_e_screw_hole_depth)
-
-        # # # the towers
-        # # wp7 = CQ().workplane(offset=-5).sketch()
-        # # wp7 = wp7.push([cshift]).rect(extents[0], extents[1], mode="a").reset().vertices().fillet(outer_fillet)
-        # # wp7_base = wp7.finalize().extrude(5)
-
-        # wp = wp.faces(">Z").edges("not %CIRCLE").chamfer(chamfer)
-        # wp = wp.faces("<Z").edges("not %CIRCLE").chamfer(chamfer)
-
-        # if enable_towers:
-        #     # extrude towers
-        #     twrs = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["towers"]).wires().toPending().extrude(tower_height)
-
-        #     # make tmp measurement widget mounting
-        #     widget_mount_hole_d = 2.3
-        #     widget_length = 4.83
-        #     tower_square = 7
-        #     offset_from_top = widget_mount_hole_d / 2 + 0.5
-        #     depth = tower_square / 2 + widget_length / 2
-        #     wire_channel_depth = 1.5
-        #     wire_channel_length = 20
-        #     # cut the mounting hole
-        #     twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, tower_height / 2 - offset_from_top).circle(widget_mount_hole_d / 2).cutBlind(-depth)
-        #     # cut the wire slot
-        #     twrs = twrs.faces("+Y").faces(">X").faces(">Y").workplane(**u.cobb).center(0, tower_height / 2 - offset_from_top - wire_channel_length / 2).slot2D(wire_channel_length + widget_mount_hole_d, widget_mount_hole_d, angle=90).cutBlind(-wire_channel_depth)
-
-        #     wp = wp.union(twrs)
-
-        # # aso.add(twr_part, name="towers", color=cadquery.Color("goldenrod"))  # add the towers bulk
-
-        # aso.add(wp, name=plate_name, color=color)
-        # # aso.add(top_piece, name=vac_name, color=color)
-        # aso.add(hardware.toCompound(), name="hardware", color=cadquery.Color(hardware_color))
-
     def mk_single_holder(drawings, components_dir=wrk_dir / "components") -> dict[str, cq.Assembly | cq.Solid | cq.Compound]:
         hardware = cq.Assembly()  # this being empty causes a warning on output
 
-        subs_xy = 30
+        subs_xy = 12  # v2=12, v1=30
         subs_tol = 0.2  # substrate and mask pocket is this much bigger than nominal substrate xy dims
 
         subs_t = 2.2  # worst case glass thickness
@@ -353,24 +92,45 @@ def main():
         mask = CQ().box(subs_xy, subs_xy, mask_t, centered=(True, True, False)).findSolid()
         hardware.add(mask.translate((0, 0, subs_t)), name="mask")
 
-        pin_travel = 4.2
-        head_length = 2
-        pin_nominal_frac = 2 / 3  # fraction of total travel for nominal deflection
-        head_diameter = 1.8
-        retaining_ring_offset = 5.5  # the offset from max travel of the no-splip-down ring's bottom
-        sleeve_length = 18.50  # lenght before bottom taper
-        total_sleeve_length = 23.7
-        drill_diameter = 1.75
-        pin = u.import_step(components_dir / "S25-022+P25-4023.step").findSolid().rotate((0, 0, 0), (1, 0, 0), 90)
-        pin_nom_offset = head_length + (1 - pin_nominal_frac) * pin_travel
-        pin = pin.translate((0, 0, -pin_nom_offset))
-        # hardware.add(pin, name="springpin")  # demo pin
-        void_head_offset = 0.2  # make the pin void diameter this much larger than that of the pin head
-        upper_pin_void = cq.Solid.makeCylinder((head_diameter + void_head_offset) / 2, head_length + pin_travel + retaining_ring_offset).move(cq.Location((0, 0, -pin_nom_offset - retaining_ring_offset)))
-        lower_pin_void = cq.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length).move(cq.Location((0, 0, -total_sleeve_length)))
-        pin_void = CQ(upper_pin_void).union(lower_pin_void).findSolid()
+        big_pin = False  # 2.54mm spacing pins, v2=false, v1=true
+        if big_pin:
+            pin_travel = 4.2
+            head_length = 2
+            pin_nominal_frac = 2 / 3  # fraction of total travel for nominal deflection
+            head_diameter = 1.8
+            retaining_ring_offset = 5.5  # the offset from max travel of the no-splip-down ring's bottom
+            sleeve_length = 18.50  # length before bottom taper
+            total_sleeve_length = 23.7
+            drill_diameter = 1.75
+            pin = u.import_step(components_dir / "S25-022+P25-4023.step").findSolid().rotate((0, 0, 0), (1, 0, 0), 90)
+            pin_nom_offset = head_length + (1 - pin_nominal_frac) * pin_travel
+            pin = pin.translate((0, 0, -pin_nom_offset))
+            # hardware.add(pin, name="springpin")  # demo pin
+            void_head_offset = 0.2  # make the pin void diameter this much larger than that of the pin head
+            upper_pin_void = cq.Solid.makeCylinder((head_diameter + void_head_offset) / 2, head_length + pin_travel + retaining_ring_offset).move(cq.Location((0, 0, -pin_nom_offset - retaining_ring_offset)))
+            lower_pin_void = cq.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length).move(cq.Location((0, 0, -total_sleeve_length)))
+            pin_void = CQ(upper_pin_void).union(lower_pin_void).findSolid()
 
-        void_depth = subs_t + mask_t + pin_nominal_frac * pin_travel
+            void_depth = subs_t + mask_t + pin_nominal_frac * pin_travel
+        else:  # 1.27mm spacing pins
+            pin_travel = 2.65
+            head_length = 0.9
+            pin_nominal_frac = 2 / 3  # fraction of total travel for nominal deflection
+            head_diameter = 0.9
+            retaining_ring_offset = 2.50  # the offset from max travel of the no-splip-down ring's bottom
+            sleeve_length = 12.75  # length before bottom taper
+            total_sleeve_length = 17.75
+            drill_diameter = 0.95
+            pin = u.import_step(components_dir / "P13-4023+S13-503.step").findSolid().rotate((0, 0, 0), (1, 0, 0), 90)
+            pin_nom_offset = head_length + (1 - pin_nominal_frac) * pin_travel
+            pin = pin.translate((0, 0, -pin_nom_offset))
+            # hardware.add(pin, name="springpin")  # demo pin
+            void_head_offset = 0.2  # make the pin void diameter this much larger than that of the pin head
+            upper_pin_void = cq.Solid.makeCylinder((head_diameter + void_head_offset) / 2, head_length + pin_travel + retaining_ring_offset + 10).move(cq.Location((0, 0, -pin_nom_offset - retaining_ring_offset)))
+            lower_pin_void = cq.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length).move(cq.Location((0, 0, -total_sleeve_length)))
+            pin_void = CQ(upper_pin_void).union(lower_pin_void).findSolid()
+
+            void_depth = subs_t + mask_t + pin_nominal_frac * pin_travel
 
         pusher_screw_len = 15
         pusher_screw = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=pusher_screw_len, simple=no_threads)  # TODO: add pn
@@ -382,7 +142,7 @@ def main():
         pusher_t = 4.1  # the extra 0.1 here is to give a sharp edge for mask registration
         pusher_shrink = 0.4  # shrink the x+y so that zero spaced holders don't have interfering pushers
         pusher_aperture_chamfer = 4
-        pusher_aperture_fillet = 5
+        pusher_aperture_fillet = 3  # v2=3, v1=5
         pusher_mount_spacing = subs_xy + 14
         pusher_w = subs_xy + 2 * 14
         light_aperature_x = subs_xy + subs_tol
@@ -401,20 +161,21 @@ def main():
         pusher = pusher.faces(">Z").workplane().rarray(1, pusher_mount_spacing, 1, 2).clearanceHole(pusher_screw, fit="Close", baseAssembly=hardware)
 
         walls_y = pusher_w
-        corner_round_radius = 10
+        corner_round_radius = 4  # v2=4, v1=10
         holder = CQ().box(walls_x, walls_y, holder_base_height, centered=(True, True, False)).translate((0, 0, -holder_base_height))
         void_part = CQ().box(walls_x, walls_y, void_depth, centered=(True, True, False)).undercutRelief2D(subs_xy + subs_tol, subs_xy + subs_tol, corner_round_radius).cutThruAll()
         holder = holder.union(void_part)
-        # holder = holder.cut(pin_void)  # this hole is a demo
-        dev_pocket_d = 2  # pocket below devices
-        holder = holder.faces(">Z").workplane().undercutRelief2D(light_aperature_x, light_aperature_y, corner_round_radius)
-        holder = cast(CQ, holder)  # workaround for undercutRelief2D() not returning the correct type
-        holder = holder.cutBlind(-void_depth - dev_pocket_d)
 
         # pin array parameters
-        pmajor_x = 5.08
-        pminor_x = 2.5
-        py = 24
+        pmajor_x = 3  # v2=3, v1=5.08
+        pminor_x = 1.27  # v2=1.27, v1=2.5
+        nx = 3  # v2=3, v1=5
+        py = 11.27  # v2=11.27, v1=24
+
+        dev_pocket_d = 2  # pocket below devices
+        holder = holder.faces(">Z").workplane().undercutRelief2D(light_aperature_x, py, corner_round_radius)
+        holder = cast(CQ, holder)  # workaround for undercutRelief2D() not returning the correct type
+        holder = holder.cutBlind(-void_depth - dev_pocket_d)
 
         def pvf(loc: cq.Location):
             """returns a pin void shape for the cutEach function (ignore z movement)"""
@@ -426,13 +187,15 @@ def main():
             hardware.add(pin.translate((vec.x, vec.y, 0)))
 
         # cut the pin array holes
-        pin_spotsA = CQ().center(-pminor_x / 2, 0).rarray(pmajor_x, py, 5, 2).vals()
-        pin_spotsB = CQ().center(+pminor_x / 2, 0).rarray(pmajor_x, py, 5, 2).vals()
+        pin_spotsA = CQ().center(-pminor_x / 2, 0).rarray(pmajor_x, py, nx, 2).vals()
+        pin_spotsB = CQ().center(+pminor_x / 2, 0).rarray(pmajor_x, py, nx, 2).vals()
         pin_spots = pin_spotsA + pin_spotsB
+        v2 = True  # v2=True, v1=False
+        if v2:
+            pin_spotsC = CQ().rarray(py, pminor_x, 2, 2).vals()
+            pin_spots += pin_spotsC
 
-        cut_pins = True
-        if cut_pins:
-            holder = holder.workplane(origin=(0, 0)).add(pin_spots).cutEach(pvf)
+        holder = holder.workplane(origin=(0, 0)).add(pin_spots).cutEach(pvf)
 
         if not no_threads:
             for pin_spot in pin_spots:
@@ -440,22 +203,22 @@ def main():
 
         # bottom PCB through hole clearance void
         pcb_bot_void_d = 5
-        pcbvx = 25
-        pcbvy = 20
-        pcbvr = 5
+        pcbvx = 10  # v2=10, v1=25
+        pcbvy = 6  # v2=6, v1=20
+        pcbvr = 2.5  # v2=2.5, v1=5
         holder = holder.faces("<Z").workplane(origin=(0, 0)).sketch().rect(pcbvx, pcbvy).vertices().fillet(pcbvr).finalize()
         holder = cast(CQ, holder)  # workaround for sketch.finalize() not returning the correct type
         holder = holder.cutBlind(-pcb_bot_void_d)
 
-        pcbx = 30
-        pcby = 30
+        pcbx = 12  # v2=12, v1=30
+        pcby = 12  # v2=12, v1=30
         pcbt = 1.6
-        pcbpinr = 0.8
-        pcbr = 5  # corner fillet radius
+        pcbpinr = 0.4  # v2=0.4, v1=0.8
+        pcbr = 2  # corner fillet radius, v2=2, v1=5
         pcb = holder.faces("<Z").workplane(origin=(0, 0)).sketch().rect(pcbx, pcby).vertices().fillet(pcbr).finalize()
         pcb = cast(CQ, pcb)  # workaround for sketch.finalize() not returning the correct type
         pcb = pcb.extrude(pcbt, combine=False).findSolid()
-        pcb = CQ(pcb).workplane(origin=(0, 0)).add(pin_spots).circle(pcbpinr).cutThruAll()
+        pcb = CQ(pcb).faces("<Z").workplane(origin=(0, 0)).add(pin_spots).circle(pcbpinr).extrude(pcbt + holder_base_height, combine="cut")
 
         if not no_threads:
             # add in the header and IDC connector stack
