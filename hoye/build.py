@@ -430,7 +430,9 @@ def main():
         pin_spotsB = CQ().center(+pminor_x / 2, 0).rarray(pmajor_x, py, 5, 2).vals()
         pin_spots = pin_spotsA + pin_spotsB
 
-        holder = holder.workplane(origin=(0, 0)).add(pin_spots).cutEach(pvf)
+        cut_pins = True
+        if cut_pins:
+            holder = holder.workplane(origin=(0, 0)).add(pin_spots).cutEach(pvf)
 
         if not no_threads:
             for pin_spot in pin_spots:
