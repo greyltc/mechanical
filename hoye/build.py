@@ -380,15 +380,17 @@ def main():
         walls_x = subs_xy + subs_tol + 2 * walls_thickness
 
         pusher_t = 4.1  # the extra 0.1 here is to give a sharp edge for mask registration
+        pusher_shrink = 0.4  # shrink the x+y so that zero spaced holders don't have interfering pushers
         pusher_aperture_chamfer = 4
+        pusher_aperture_fillet = 5
         pusher_mount_spacing = subs_xy + 14
         pusher_w = subs_xy + 2 * 14
         light_aperature_x = subs_xy + subs_tol
         light_aperature_y = subs_xy + subs_tol - 6
         pusher_height = void_depth - 2.2  # the length of the push downer bits, this should be void_depth to accept 0 thickness substrates, but can be less to allow wider acceptance angle
-        pusher = CQ().workplane(offset=pusher_height + subs_t + mask_t).box(walls_x, pusher_w, pusher_t, centered=(True, True, False))
+        pusher = CQ().workplane(offset=pusher_height + subs_t + mask_t).box(walls_x - pusher_shrink, pusher_w - pusher_shrink, pusher_t, centered=(True, True, False))
         pusher = pusher.faces("<Z").workplane().rect(subs_xy, subs_xy).extrude(pusher_height)
-        pusher = pusher.sketch().rect(light_aperature_x, light_aperature_y).vertices().fillet(5).finalize().cutThruAll()
+        pusher = pusher.sketch().rect(light_aperature_x, light_aperature_y).vertices().fillet(pusher_aperture_fillet).finalize().cutThruAll()
         pusher: CQ
         pusher = pusher.faces("<Z").workplane().rect(light_aperature_x, light_aperature_y).cutBlind(-pusher_height)
         pusher = pusher.edges("|Z and (<X or >X)").fillet(fil_major)
@@ -399,12 +401,13 @@ def main():
         pusher = pusher.faces(">Z").workplane().rarray(1, pusher_mount_spacing, 1, 2).clearanceHole(pusher_screw, fit="Close", baseAssembly=hardware)
 
         walls_y = pusher_w
+        corner_round_radius = 10
         holder = CQ().box(walls_x, walls_y, holder_base_height, centered=(True, True, False)).translate((0, 0, -holder_base_height))
-        void_part = CQ().box(walls_x, walls_y, void_depth, centered=(True, True, False)).undercutRelief2D(subs_xy + subs_tol, subs_xy + subs_tol, 10).cutThruAll()
+        void_part = CQ().box(walls_x, walls_y, void_depth, centered=(True, True, False)).undercutRelief2D(subs_xy + subs_tol, subs_xy + subs_tol, corner_round_radius).cutThruAll()
         holder = holder.union(void_part)
         # holder = holder.cut(pin_void)  # this hole is a demo
         dev_pocket_d = 2  # pocket below devices
-        holder = holder.faces(">Z").workplane().undercutRelief2D(light_aperature_x, light_aperature_y, 10)
+        holder = holder.faces(">Z").workplane().undercutRelief2D(light_aperature_x, light_aperature_y, corner_round_radius)
         holder = cast(CQ, holder)  # workaround for undercutRelief2D() not returning the correct type
         holder = holder.cutBlind(-void_depth - dev_pocket_d)
 
@@ -497,7 +500,7 @@ def main():
     pcb = holder_parts["pcb"]
     holder_hw = holder_parts["hardware"]
 
-    only_holder = CQ(holder)
+    wp_single = CQ(holder)
 
     # mod the 1x1 holder with bottom shrouds
     shroud_width = 4
@@ -509,9 +512,16 @@ def main():
     ylen1 = bb1x1.ylen
     holder1x1 = holder1x1.faces("<Z").workplane(origin=(0, 0)).rect(xlen1 - 2 * shroud_width, ylen1).cutBlind(-shroud_height).findSolid()
 
+    wp_2x2 = CQ(holder.translate((xlen1 / 2, ylen1 / 2, 0)))
+    wp_2x2 = wp_2x2.union(holder.translate((+xlen1 / 2, -ylen1 / 2, 0)))
+    wp_2x2 = wp_2x2.union(holder.translate((-xlen1 / 2, +ylen1 / 2, 0)))
+    wp_2x2 = wp_2x2.union(holder.translate((-xlen1 / 2, -ylen1 / 2, 0)))
+
     # assemble the pieces
+    hardware2x2 = cq.Assembly(name="all_hardware")  # this being empty causes a warning on output
     hardware2x1 = cq.Assembly(name="all_hardware")  # this being empty causes a warning on output
     hardware1x1 = cq.Assembly(name="all_hardware")  # this being empty causes a warning on output
+    hardware_single = cq.Assembly(name="all_hardware")  # this being empty causes a warning on output
 
     flange_z_shift = -5
     hardware2x1.add(flange_hardware, loc=cq.Location((0, 0, flange_z_shift)), name="flange_hardware")
@@ -524,9 +534,14 @@ def main():
     wp_2x1 = wp_2x1.union(holder.translate((+holder_shift, 0, 0)))
     wp_1x1 = wp_1x1.union(holder1x1.translate((+holder_shift, 0, 0)))
     wp_2x1 = wp_2x1.union(holder.translate((-holder_shift, 0, 0)))
+    hardware2x2.add(holder_hw, loc=cq.Location((-xlen1 / 2, -ylen1 / 2, 0)), name="holder_11_hardware")
+    hardware2x2.add(holder_hw, loc=cq.Location((+xlen1 / 2, -ylen1 / 2, 0)), name="holder_21_hardware")
+    hardware2x2.add(holder_hw, loc=cq.Location((-xlen1 / 2, +ylen1 / 2, 0)), name="holder_12_hardware")
+    hardware2x2.add(holder_hw, loc=cq.Location((+xlen1 / 2, +ylen1 / 2, 0)), name="holder_22_hardware")
     hardware2x1.add(holder_hw, loc=cq.Location((+holder_shift, 0, 0)), name="holder_a_hardware")
     hardware1x1.add(holder_hw, loc=cq.Location((+holder_shift, 0, 0)), name="holder_a_hardware")
     hardware2x1.add(holder_hw, loc=cq.Location((-holder_shift, 0, 0)), name="holder_b_hardware")
+    hardware_single.add(holder_hw, name="single_hardware")
 
     # add the mounting screw for the 1x1
     side_screw_len = 45
@@ -554,7 +569,17 @@ def main():
     ylen = bb2x1.ylen
     wp_2x1 = wp_2x1.faces("<Z").workplane(origin=(0, 0)).rect(xlen - 2 * shroud_width, ylen).cutBlind(-shroud_height)
 
-    # add the b
+    # add the bottom standoff shrouds for the 2x2
+    wp_2x2 = wp_2x2.faces("<Z").wires().toPending().extrude(-shroud_height)
+    bb2x2 = wp_2x2.findSolid().BoundingBox()
+    xlen = bb2x2.xlen
+    ylen = bb2x2.ylen
+    wp_2x2 = wp_2x2.faces("<Z").workplane(origin=(0, 0)).rect(xlen - 2 * shroud_width, ylen).cutBlind(-shroud_height)
+
+    # make fillets and chamfers on the 2x2 big piece
+    wp_2x2 = wp_2x2.edges("|Z and (<X or >X)").fillet(fil_major)
+    wp_2x2 = wp_2x2.faces(">Z").edges("<X").chamfer(chamf_major)
+    # wp_2x2 = wp_2x2.faces(">Z").edges(">X").chamfer(chamf_major)
 
     # make fillets and chamfers on the 2x1 big piece
     wp_2x1 = wp_2x1.edges("|Z and (<X or >X)").fillet(fil_major)
@@ -568,19 +593,33 @@ def main():
     wp_1x1 = wp_1x1.faces(">Z").edges(">X").chamfer(chamf_major)
 
     # make the fillets for the only holder
-    only_holder = only_holder.edges("|Z and (<X or >X)").fillet(fil_major)
-    only_holder = only_holder.faces(">Z").edges("<X").chamfer(chamf_major)
+    wp_single = wp_single.edges("|Z and (<X or >X)").fillet(fil_major)
+    wp_single = wp_single.faces(">Z").edges("<X").chamfer(chamf_major)
 
     # pusher = CQ(pusher).edges("|Z and (<X or >X)").fillet(fil_major).findSolid()
 
+    pusher_2x2 = cq.Assembly()
     pusher_2x1 = cq.Assembly()
     pusher_1x1 = cq.Assembly()
+    pusher_single = cq.Assembly()
+    pusher_single.add(pusher, name="pusher_single")
+    pusher_2x2.add(pusher, loc=cq.Location((-xlen1 / 2, -ylen1 / 2, 0)), name="holder_11_pusher")
+    pusher_2x2.add(pusher, loc=cq.Location((+xlen1 / 2, -ylen1 / 2, 0)), name="holder_21_pusher")
+    pusher_2x2.add(pusher, loc=cq.Location((-xlen1 / 2, +ylen1 / 2, 0)), name="holder_12_pusher")
+    pusher_2x2.add(pusher, loc=cq.Location((+xlen1 / 2, +ylen1 / 2, 0)), name="holder_22_pusher")
     pusher_1x1.add(pusher, loc=cq.Location((+holder_shift, 0, 0)), name="holder_a_pusher")
     pusher_2x1.add(pusher, loc=cq.Location((+holder_shift, 0, 0)), name="holder_a_pusher")
     pusher_2x1.add(pusher, loc=cq.Location((-holder_shift, 0, 0)), name="holder_b_pusher")
 
+    pcb2x2 = cq.Assembly()
     pcb2x1 = cq.Assembly()
     pcb1x1 = cq.Assembly()
+    pcb_single = cq.Assembly()
+    pcb_single.add(pcb, name="holder_pcb")
+    pcb2x2.add(pcb, loc=cq.Location((-xlen1 / 2, -ylen1 / 2, 0)), name="holder_11_pcb")
+    pcb2x2.add(pcb, loc=cq.Location((+xlen1 / 2, -ylen1 / 2, 0)), name="holder_21_pcb")
+    pcb2x2.add(pcb, loc=cq.Location((-xlen1 / 2, +ylen1 / 2, 0)), name="holder_12_pcb")
+    pcb2x2.add(pcb, loc=cq.Location((+xlen1 / 2, +ylen1 / 2, 0)), name="holder_22_pcb")
     pcb1x1.add(pcb, loc=cq.Location((+holder_shift, 0, 0)), name="holder_a_pcb")
     pcb2x1.add(pcb, loc=cq.Location((+holder_shift, 0, 0)), name="holder_a_pcb")
     pcb2x1.add(pcb, loc=cq.Location((-holder_shift, 0, 0)), name="holder_b_pcb")
@@ -850,19 +889,27 @@ def main():
     # # big_pcb = u.import_step(wrk_dir.joinpath("components", "pcb.step"))
     # # asys["squirrel"].add(big_pcb, name="big pcb")
 
+    twox2 = cq.Assembly(wp_2x2.findSolid(), name="holder")
     hoye_2x1 = cq.Assembly(wp_2x1.findSolid(), name="holder")
     hoye_1x1 = cq.Assembly(wp_1x1.findSolid(), name="holder")
-    only_holder_asy = cq.Assembly(only_holder.findSolid(), name="holder")
+    onex1 = cq.Assembly(wp_single.findSolid(), name="holder")
+    onex1.add(pusher_single, name="pusher")
+    twox2.add(pusher_2x2, name="pushers")
     hoye_2x1.add(pusher_2x1, name="pushers")
-    hoye_1x1.add(pusher_1x1, name="pushers")
+    hoye_1x1.add(pusher_1x1, name="pusher")
     hoye_2x1.add(pcb2x1, name="pcbs")
     hoye_1x1.add(pcb1x1, name="pcbs")
+    onex1.add(pcb_single, name="pcb")
+    twox2.add(pcb2x2, name="pcbs")
     hoye_2x1.add(hardware2x1, name="hardware")
     hoye_1x1.add(hardware1x1, name="hardware")
+    onex1.add(hardware_single, name="hardware")
+    twox2.add(hardware2x2, name="hardware")
 
     asys = {"hoye_2x1": {"assembly": hoye_2x1}}
     asys["hoye_1x1"] = {"assembly": hoye_1x1}
-    asys["just_holder"] = {"assembly": only_holder_asy}
+    asys["1x1"] = {"assembly": onex1}
+    asys["2x2"] = {"assembly": twox2}
 
     if "show_object" in globals():  # we're in cq-editor
 
