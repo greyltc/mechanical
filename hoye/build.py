@@ -212,7 +212,7 @@ def main():
         pcb_bot_void_d = 5
         pcbvx = 10  # v2=10, v1=25
         pcbvy = 10  # v2=10, v1=20
-        pcbvr = 2.5  # v2=2.5, v1=5
+        pcbvr = 2  # v2=2, v1=5
         holder = holder.faces("<Z").workplane(origin=(0, 0)).sketch().rect(pcbvx, pcbvy).vertices().fillet(pcbvr).finalize()
         holder = cast(CQ, holder)  # workaround for sketch.finalize() not returning the correct type
         holder = holder.cutBlind(-pcb_bot_void_d)
@@ -228,18 +228,19 @@ def main():
         pcb = CQ(pcb).faces("<Z").workplane(origin=(0, 0)).add(pin_spots).circle(pcbpinr).extrude(pcbt + holder_base_height, combine="cut")
         if v2:
             # pcb header pin holes
-            hph_dia = 0.89  # header pin hole diameter
+            hph_dia = 0.9  # header pin hole diameter
             hps = 2
             hpnx = 5
-            hpny = 4
-            # pcb = pcb.faces("<Z").workplane(origin=(0, 0)).rarray(hps, hps, hpnx, hpny).circle(hph_dia / 2).extrude(pcbt + holder_base_height, combine="cut")
-            pcb = pcb.faces("<Z").workplane(origin=(0, 0)).rarray(hps, hps, hpnx, hpny).circle(hph_dia / 2).extrude(-pcbt, combine="cut")
+            major_spacing = 4.8 + 0.3  # this accounts for the fact that the housing is 4.8 wide and the ramp sticks off an additional 0.3
+            pcb = pcb.faces("<Z").workplane(origin=(0, 0)).center(0, +major_spacing / 2).rarray(hps, hps, hpnx, 2).circle(hph_dia / 2).extrude(-pcbt, combine="cut")
+            pcb = pcb.faces("<Z").workplane(origin=(0, 0)).center(0, -major_spacing / 2).rarray(hps, hps, hpnx, 2).circle(hph_dia / 2).extrude(-pcbt, combine="cut")
 
         if not no_threads:
             if v2:
-                # add in the pin header
-                header = header_stack = u.import_step(components_dir / "TMMH-105-01-T-Q.stp").findSolid().rotate((0, 0, 0), (1, 0, 0), -90)
-                hardware.add(header.located(cq.Location((0, 0, -holder_base_height - pcbt))))
+                # add in the pin header and connector stack, for use with cable assembly part number 2185091101
+                header_stack = u.import_step(components_dir / "877581017+511101060.stp").findSolid().translate((0, 0, -1.5))
+                hardware.add(header_stack.located(cq.Location((0, +major_spacing / 2, -holder_base_height - pcbt))))
+                hardware.add(header_stack.located(cq.Location((0, -major_spacing / 2, -holder_base_height - pcbt))))
             else:
                 # add in the header and IDC connector stack
                 header_stack = u.import_step(components_dir / "SHF213+SHB11.step").findSolid().rotate((0, 0, 0), (1, 0, 0), -180)
@@ -439,7 +440,7 @@ def main():
     else:
         lshow_object = None
 
-    TwoDToThreeD.outputter(asys, wrk_dir, save_steps=True, save_stls=False, show_object=lshow_object)
+    TwoDToThreeD.outputter(asys, wrk_dir, save_steps=False, save_stls=False, show_object=lshow_object)
 
 
 # temp is what we get when run via cq-editor
