@@ -85,13 +85,14 @@ def main():
         subs_xy = 12  # v2=12, v1=30
         subs_tol = 0.2  # substrate and mask pocket is this much bigger than nominal substrate xy dims
 
-        subs_t = 2.2  # worst case glass thickness
-        subs = CQ().box(subs_xy, subs_xy, subs_t, centered=(True, True, False)).findSolid()
+        subs_t_max = 2.2  # worst case glass thickness (worst case means thinn)
+        subs_t_min = 1.1  # v2=1.1, v1=2.2
+        subs = CQ().box(subs_xy, subs_xy, subs_t_max, centered=(True, True, False)).findSolid()
         hardware.add(subs, name="substrate")
 
-        mask_t = 0.2  # worst case mask thickness
+        mask_t = 0.4  # worst case mask thickness, v2=0.4, v1=0.2
         mask = CQ().box(subs_xy, subs_xy, mask_t, centered=(True, True, False)).findSolid()
-        hardware.add(mask.translate((0, 0, subs_t)), name="mask")
+        hardware.add(mask.translate((0, 0, subs_t_max)), name="mask")
 
         big_pin = False  # 2.54mm spacing pins, v2=false, v1=true
         if big_pin:
@@ -106,13 +107,12 @@ def main():
             pin = u.import_step(components_dir / "S25-022+P25-4023.step").findSolid().rotate((0, 0, 0), (1, 0, 0), 90)
             pin_nom_offset = head_length + (1 - pin_nominal_frac) * pin_travel
             pin = pin.translate((0, 0, -pin_nom_offset))
-            # hardware.add(pin, name="springpin")  # demo pin
             void_head_offset = 0.2  # make the pin void diameter this much larger than that of the pin head
             upper_pin_void = cq.Solid.makeCylinder((head_diameter + void_head_offset) / 2, head_length + pin_travel + retaining_ring_offset).move(cq.Location((0, 0, -pin_nom_offset - retaining_ring_offset)))
             lower_pin_void = cq.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length).move(cq.Location((0, 0, -total_sleeve_length)))
             pin_void = CQ(upper_pin_void).union(lower_pin_void).findSolid()
 
-            void_depth = subs_t + mask_t + pin_nominal_frac * pin_travel
+            void_depth = subs_t_max + mask_t + pin_nominal_frac * pin_travel
         else:  # 1.27mm spacing pins
             pin_travel = 2.65
             head_length = 0.9
@@ -125,35 +125,38 @@ def main():
             pin = u.import_step(components_dir / "P13-4023+S13-503.step").findSolid().rotate((0, 0, 0), (1, 0, 0), 90)
             pin_nom_offset = head_length + (1 - pin_nominal_frac) * pin_travel
             pin = pin.translate((0, 0, -pin_nom_offset))
-            # hardware.add(pin, name="springpin")  # demo pin
             void_head_offset = 0.2  # make the pin void diameter this much larger than that of the pin head
             upper_pin_void = cq.Solid.makeCylinder((head_diameter + void_head_offset) / 2, head_length + pin_travel + retaining_ring_offset + 10).move(cq.Location((0, 0, -pin_nom_offset - retaining_ring_offset)))
             lower_pin_void = cq.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length).move(cq.Location((0, 0, -total_sleeve_length)))
             pin_void = CQ(upper_pin_void).union(lower_pin_void).findSolid()
 
-            void_depth = subs_t + mask_t + pin_nominal_frac * pin_travel
+            void_depth = subs_t_max + mask_t + pin_nominal_frac * pin_travel
 
         pusher_screw_len = 10  # v2=10, v1=15
         pusher_screw = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=pusher_screw_len, simple=no_threads)  # TODO: add pn
 
         holder_base_height = sleeve_length + pin_nom_offset
-        walls_thickness = 5
-        walls_x = subs_xy + subs_tol + 2 * walls_thickness
 
         pusher_t = 4.1  # the extra 0.1 here is to give a sharp edge for mask registration
         pusher_shrink = 0.4  # shrink the x+y so that zero spaced holders don't have interfering pushers
         pusher_aperture_chamfer = 4
-        pusher_aperture_fillet = 3  # v2=3, v1=5
-        pusher_mount_spacing = subs_xy + 14
-        pusher_w = subs_xy + 2 * 14
-        light_aperature_x = subs_xy + subs_tol
-        light_aperature_y = subs_xy + subs_tol - 6
-        pusher_height = void_depth - 2.2  # the length of the push downer bits, this should be void_depth to accept 0 thickness substrates, but can be less to allow wider acceptance angle
-        pusher = CQ().workplane(offset=pusher_height + subs_t + mask_t).box(walls_x - pusher_shrink, pusher_w - pusher_shrink, pusher_t, centered=(True, True, False))
+        pusher_aperture_fillet = 2  # v2=2, v1=5
+        pusher_screw_offset = 18  # v2=17, v1=14
+        pusher_mount_spacing = subs_xy + pusher_screw_offset
+        pusher_w = pusher_mount_spacing + 14
+        y_blocks_total = 2  # pusher_downer blocks, with of both together v2=2, v1=6
+        x_blocks_total = 2  # pusher_downer blocks, with of both together v2=2, v1=0
+        light_aperture_x = subs_xy + subs_tol - x_blocks_total
+        light_aperture_y = subs_xy + subs_tol - y_blocks_total
+        pusher_height = void_depth - subs_t_min  # the length of the push downer bits, this should be void_depth to accept 0 thickness substrates, but can be less to allow wider acceptance angle
+        walls_thickness = pusher_aperture_chamfer + 2 - x_blocks_total
+        walls_x = subs_xy + subs_tol + 2 * walls_thickness
+        pusher = CQ().workplane(offset=pusher_height + subs_t_max + mask_t).box(walls_x - pusher_shrink, pusher_w - pusher_shrink, pusher_t, centered=(True, True, False))
         pusher = pusher.faces("<Z").workplane().rect(subs_xy, subs_xy).extrude(pusher_height)
-        pusher = pusher.sketch().rect(light_aperature_x, light_aperature_y).vertices().fillet(pusher_aperture_fillet).finalize().cutThruAll()
-        pusher: CQ
-        pusher = pusher.faces("<Z").workplane().rect(light_aperature_x, light_aperature_y).cutBlind(-pusher_height)
+        pusher = pusher.sketch().rect(light_aperture_x, light_aperture_y).vertices().fillet(pusher_aperture_fillet).finalize().cutThruAll()
+        pusher = cast(CQ, pusher)  # workaround for sketch.finalize() not returning the correct type
+        if not v2:
+            pusher = pusher.faces("<Z").workplane().rect(light_aperture_x, light_aperture_y).cutBlind(-pusher_height)  # make the pusher blocks square
         pusher = pusher.edges("|Z and (<X or >X)").fillet(fil_major)
         pusher = pusher.faces(">Z[1]").edges("<X").chamfer(chamf_major)
         pusher = pusher.faces(">Z").edges("<<X[2]").chamfer(pusher_aperture_chamfer)
@@ -173,8 +176,12 @@ def main():
         nx = 3  # v2=3, v1=5
         py = 11.27  # v2=11.27, v1=24
 
-        dev_pocket_d = 2  # pocket below devices
-        holder = holder.faces(">Z").workplane().undercutRelief2D(light_aperature_x, py, corner_round_radius)
+        dev_pocket_d = head_length + 0.2  # pocket below devices
+        if v2:
+            holder = holder.faces(">Z").workplane().undercutRelief2D(py, py, corner_round_radius)
+        else:
+            holder = holder.faces(">Z").workplane().undercutRelief2D(light_aperture_x, py, corner_round_radius)
+
         holder = cast(CQ, holder)  # workaround for undercutRelief2D() not returning the correct type
         holder = holder.cutBlind(-void_depth - dev_pocket_d)
 
@@ -229,11 +236,16 @@ def main():
             pcb = pcb.faces("<Z").workplane(origin=(0, 0)).rarray(hps, hps, hpnx, hpny).circle(hph_dia / 2).extrude(-pcbt, combine="cut")
 
         if not no_threads:
-            # add in the header and IDC connector stack
-            header_stack = u.import_step(components_dir / "SHF213+SHB11.step").findSolid().rotate((0, 0, 0), (1, 0, 0), -180)
+            if v2:
+                # add in the pin header
+                header = header_stack = u.import_step(components_dir / "TMMH-105-01-T-Q.stp").findSolid().rotate((0, 0, 0), (1, 0, 0), -90)
+                hardware.add(header.located(cq.Location((0, 0, -holder_base_height - pcbt))))
+            else:
+                # add in the header and IDC connector stack
+                header_stack = u.import_step(components_dir / "SHF213+SHB11.step").findSolid().rotate((0, 0, 0), (1, 0, 0), -180)
 
-            hardware.add(header_stack.located(cq.Location((0, +2 * 2.54, -holder_base_height - pcbt))))
-            hardware.add(header_stack.located(cq.Location((0, -2 * 2.54, -holder_base_height - pcbt))))
+                hardware.add(header_stack.located(cq.Location((0, +2 * 2.54, -holder_base_height - pcbt))))
+                hardware.add(header_stack.located(cq.Location((0, -2 * 2.54, -holder_base_height - pcbt))))
 
         # pusher screw interface stuff here
         bot_screw_len = 10  # v2=10, v1=15
@@ -276,7 +288,7 @@ def main():
     wp_single = CQ(holder)
 
     # mod the 1x1 holder with bottom shrouds
-    shroud_width = 4
+    shroud_width = 3.5  # sum of both together, v2=3.5, v1=4
     shroud_height = 25
     holder1x1 = CQ(holder).faces("<Z").wires().toPending().extrude(-shroud_height)
     holder1x1 = holder1x1.edges("|Z and >X").fillet(fil_major)  # must do this now because it will crash later
@@ -427,7 +439,7 @@ def main():
     else:
         lshow_object = None
 
-    TwoDToThreeD.outputter(asys, wrk_dir, save_steps=False, save_stls=False, show_object=lshow_object)
+    TwoDToThreeD.outputter(asys, wrk_dir, save_steps=True, save_stls=False, show_object=lshow_object)
 
 
 # temp is what we get when run via cq-editor
