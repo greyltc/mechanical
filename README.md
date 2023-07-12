@@ -9,11 +9,11 @@ A python module with some helpful tools for 3d design
     ```
 1) Setup a virtual environment for development/testing
     ```bash
-    $ python -m venv --without-pip --system-site-packages --clear .direnv/default
+    $ python -m venv --without-pip --system-site-packages --clear venv
     ```
 1) Activate the venv (this step is os/shell-dependant, see [1] for non-linux/bash)
     ```bash
-    $ source .direnv/default/bin/activate
+    $ source venv/bin/activate
     ```
 1) Install the package in editable mode into the venv
     ```bash
