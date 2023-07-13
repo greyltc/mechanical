@@ -10,7 +10,6 @@ from pathlib import Path
 from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, SetScrew, CounterSunkScrew, HexNutWithFlange, CheeseHeadScrew, PanHeadScrew
 import cq_warehouse.extensions  # this does something even though it's not directly used
 import math
-import itertools
 from typing import cast
 
 setattr(cq.Workplane, "undercutRelief2D", u.undercutRelief2D)
@@ -50,17 +49,20 @@ def main():
         basey = 58
         flange_hole_d = 14.8
         base = CQ().box(basex, basey, thickness, centered=(True, True, False)).circle(flange_hole_d / 2).cutThruAll()
-        # base = cq.importers.importDXF(str(drawings["2d"]), include=["flange_bit", "flange_hole"]).wires().toPending().extrude(thickness)
 
         wp = cq.Workplane().add(base.translate((0, 0, -thickness - flange_base_height)))
 
-        flange = u.import_step(components_dir / "SM05F1-Step.step").findSolid().translate((0, 0, 10.0076))
-        flange_screw_space = 0.9144
-        hardware.add(flange, name="flange")
+        flange = u.import_step(components_dir / "SM05F1-Step.step")
+        if flange:
+            flange = flange.findSolid().translate((0, 0, 10.0076))
+            flange_screw_space = 0.9144
+            hardware.add(flange, name="flange")
 
         adapter_shift = 10.0076 - 3.175  # shift the hardware to the top of the flange
-        fiber_adapter = u.import_step(components_dir / "SM05SMA-Step.step").findSolid().rotate((0, 0, 0), (0, 1, 0), 90).translate((7.1746, 10.8567, 29.16169 + adapter_shift))
-        hardware.add(cq.Assembly(fiber_adapter), name="adapter")
+        fiber_adapter = u.import_step(components_dir / "SM05SMA-Step.step")
+        if fiber_adapter:
+            fiber_adapter = fiber_adapter.findSolid().rotate((0, 0, 0), (0, 1, 0), 90).translate((7.1746, 10.8567, 29.16169 + adapter_shift))
+            hardware.add(cq.Assembly(fiber_adapter), name="adapter")
 
         ring_shift = 5.18  # put ring under adapter
         ring = u.import_step(components_dir / "SM05RR-Step.step").findSolid().rotate((0, 0, 0), (0, 1, 0), 180).translate((0, 0, 0.82550 + ring_shift))
@@ -225,7 +227,8 @@ def main():
 
         def addpin(vec: cq.Vector):
             """adds a located pin to the hardware, (ignore z movement)"""
-            hardware.add(pin.translate((vec.x, vec.y, 0)))
+            pass
+            #hardware.add(pin.translate((vec.x, vec.y, 0)))
 
         # cut the pin array holes
         pin_spotsA = CQ().center(-pminor_x / 2, 0).rarray(pmajor_x, py, nx, 2).vals()
@@ -485,10 +488,11 @@ def main():
     onex1.add(hardware_single, name="hardware")
     twox2.add(hardware2x2, name="hardware")
 
-    asys = {"hoye_2x1": {"assembly": hoye_2x1}}
-    asys["hoye_1x1"] = {"assembly": hoye_1x1}
+    asys = cast(dict[str,dict[str, cq.Assembly]], {})
+    #asys["hoye_2x1"] = {"assembly": hoye_2x1}
+    #asys["hoye_1x1"] = {"assembly": hoye_1x1}
     asys["1x1"] = {"assembly": onex1}
-    asys["2x2"] = {"assembly": twox2}
+    #asys["2x2"] = {"assembly": twox2}
 
     if "show_object" in globals():  # we're in cq-editor
 
