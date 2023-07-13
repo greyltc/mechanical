@@ -227,8 +227,7 @@ def main():
 
         def addpin(vec: cq.Vector):
             """adds a located pin to the hardware, (ignore z movement)"""
-            pass
-            #hardware.add(pin.translate((vec.x, vec.y, 0)))
+            hardware.add(pin.translate((vec.x, vec.y, 0)))
 
         # cut the pin array holes
         pin_spotsA = CQ().center(-pminor_x / 2, 0).rarray(pmajor_x, py, nx, 2).vals()
@@ -298,7 +297,7 @@ def main():
                 hardware.add(header_stack.located(cq.Location((0, -major_spacing / 2, -holder_base_height - pcbt))))
             elif version == "hoye":
                 # add in the header and IDC connector stack
-                header_stack = u.import_step(components_dir / "SHF213+SHB11.step").findSolid().rotate((0, 0, 0), (1, 0, 0), -180)
+                header_stack = u.import_step(components_dir / "SFH213-PPPC-D06-ID-BK+HIF3FB-16DA-2.54DSA(71).step").findSolid().rotate((0, 0, 0), (1, 0, 0), -180)
 
                 hardware.add(header_stack.located(cq.Location((0, +2 * 2.54, -holder_base_height - pcbt))))
                 hardware.add(header_stack.located(cq.Location((0, -2 * 2.54, -holder_base_height - pcbt))))
