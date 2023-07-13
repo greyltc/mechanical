@@ -25,8 +25,7 @@ def main():
     drawings = {"2d": wrk_dir / "drawings" / "2d.dxf"}
 
     no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
-    version = "hoye"  # "joe" for 12x12, "hoye", for 30x30
-    rotate = False  # true rotates the lid
+    version = "yen"  # "joe" for 12x12, "yen", "hoye" , or "snaith"
     flange_base_height = 0
     flange_bit_thickness = 16.9
     fil_major = 5
@@ -86,30 +85,46 @@ def main():
         hardware = cq.Assembly()  # this being empty causes a warning on output
 
         if version == "joe":
-            subs_xy = 12  # v2=12, v1=30
-        elif version == "hoye":
-            subs_xy = 30  # v2=12, v1=30
+            subs_xy = 12
+        else:
+            subs_xy = 30
         subs_tol = 0.2  # substrate and mask pocket is this much bigger than nominal substrate xy dims
 
-        subs_t_max = 2.2  # worst case glass thickness (worst case means thin)
+        # maximum substrate thickness to handle
+        if version == "yen":
+            subs_t_max = 2.5
+        else:
+            subs_t_max = 2.2
+
+        # minimum substrate thickness to handle
         if version == "joe":
-            subs_t_min = 1.1  # v2=1.1, v1=2.2
+            subs_t_min = 1.1
         elif version == "hoye":
-            subs_t_min = 2.2  # v2=1.1, v1=2.2
-        subs = CQ().box(subs_xy, subs_xy, subs_t_max, centered=(True, True, False)).findSolid()
+            subs_t_min = 2.2
+        else:
+            subs_t_min = 0
+
+        # substrate thickness for model
+        if version == "hoye":
+            subs_t = 2.2
+        else:
+            subs_t = 1.1
+
+        subs = CQ().box(subs_xy, subs_xy, subs_t, centered=(True, True, False)).findSolid()
         hardware.add(subs, name="substrate")
 
         if version == "joe":
             mask_t = 0.4  # worst case mask thickness, v2=0.4, v1=0.2
-        elif version == "hoye":
+        else:
             mask_t = 0.2  # worst case mask thickness, v2=0.4, v1=0.2
         mask = CQ().box(subs_xy, subs_xy, mask_t, centered=(True, True, False)).findSolid()
-        hardware.add(mask.translate((0, 0, subs_t_max)), name="mask")
+        hardware.add(mask.translate((0, 0, subs_t)), name="mask")
 
         if version == "joe":
             big_pin = False  # 2.54mm spacing pins, v2=false, v1=true
-        elif version == "hoye":
+        else:
             big_pin = True  # 2.54mm spacing pins, v2=false, v1=true
+
         if big_pin:
             pin_travel = 4.2
             head_length = 2
@@ -127,7 +142,6 @@ def main():
             lower_pin_void = cq.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length).move(cq.Location((0, 0, -total_sleeve_length)))
             pin_void = CQ(upper_pin_void).union(lower_pin_void).findSolid()
 
-            void_depth = subs_t_max + mask_t + pin_nominal_frac * pin_travel
         else:  # 1.27mm spacing pins
             pin_travel = 2.65
             head_length = 0.9
@@ -145,39 +159,47 @@ def main():
             lower_pin_void = cq.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length).move(cq.Location((0, 0, -total_sleeve_length)))
             pin_void = CQ(upper_pin_void).union(lower_pin_void).findSolid()
 
-            void_depth = subs_t_max + mask_t + pin_nominal_frac * pin_travel
+        void_depth = subs_t_max + mask_t + pin_nominal_frac * pin_travel
 
         if version == "joe":
             pusher_screw_len = 10  # v2=10, v1=15
-        elif version == "hoye":
+        else:
             pusher_screw_len = 15  # v2=10, v1=15
         pusher_screw = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=pusher_screw_len, simple=no_threads)  # TODO: add pn
 
         holder_base_height = sleeve_length + pin_nom_offset
 
-        pusher_t = 4.1  # the extra 0.1 here is to give a sharp edge for mask registration
-        pusher_shrink = 0.4  # shrink the x+y so that zero spaced holders don't have interfering pushers
         pusher_aperture_chamfer = 4
+        pusher_t = pusher_aperture_chamfer + 0.1  # the extra 0.1 here is to give a sharp edge for mask registration
+        pusher_shrink = 0.4  # shrink the x+y so that zero spaced holders don't have interfering pushers
+        
         if version == "joe":
             pusher_aperture_fillet = 2  # v2=2, v1=5
-            pusher_screw_offset = 18  # v2=17/18, v1=14
-            pusher_mount_spacing = subs_xy + pusher_screw_offset
-            pusher_w = pusher_mount_spacing + 14
+            pusher_mount_offset = 7.9  # center from top edge of fillet
             y_blocks_total = 2  # pusher_downer blocks, with of both together v2=2, v1=6
             x_blocks_total = 2  # pusher_downer blocks, with of both together v2=2, v1=0
-        elif version == "hoye":
+        else:
             pusher_aperture_fillet = 5  # v2=2, v1=5
-            pusher_screw_offset = 14  # v2=17, v1=14
-            pusher_mount_spacing = subs_xy + pusher_screw_offset
-            pusher_w = pusher_mount_spacing + 14
+            pusher_mount_offset = 5.9  # center from top edge of fillet
             y_blocks_total = 6  # pusher_downer blocks, with of both together v2=2, v1=6
             x_blocks_total = 0  # pusher_downer blocks, with of both together v2=2, v1=0
         light_aperture_x = subs_xy + subs_tol - x_blocks_total
         light_aperture_y = subs_xy + subs_tol - y_blocks_total
+        if version == "yen":
+            pusher_mount_spacing = light_aperture_x + 2 * pusher_mount_offset + 2 * pusher_aperture_chamfer
+        else:
+            pusher_mount_spacing = light_aperture_y + 2 * pusher_mount_offset + 2 * pusher_aperture_chamfer
+        short_wall_thickness = 1-0.15  # wall thickness in the shorter direction, fudge by 0.15 to get on a 40mm pitch
+        if version == "yen":
+            walls_x = pusher_mount_spacing + 14
+            walls_y = subs_xy + subs_tol + 2 * pusher_aperture_chamfer + 2*short_wall_thickness - x_blocks_total
+        else:
+            walls_y = pusher_mount_spacing + 14
+            walls_x = subs_xy + subs_tol + 2 * pusher_aperture_chamfer + 2*short_wall_thickness - x_blocks_total
+        pusher_x = walls_x - pusher_shrink
+        pusher_y = walls_y - pusher_shrink
         pusher_height = void_depth - subs_t_min  # the length of the push downer bits, this should be void_depth to accept 0 thickness substrates, but can be less to allow wider acceptance angle
-        walls_thickness = pusher_aperture_chamfer + 2 - x_blocks_total
-        walls_x = subs_xy + subs_tol + 2 * walls_thickness
-        pusher = CQ().workplane(offset=pusher_height + subs_t_max + mask_t).box(walls_x - pusher_shrink, pusher_w - pusher_shrink, pusher_t, centered=(True, True, False))
+        pusher = CQ().workplane(offset=pusher_height + subs_t + mask_t).box(pusher_x, pusher_y, pusher_t, centered=(True, True, False))
         pusher = pusher.faces("<Z").workplane().rect(subs_xy, subs_xy).extrude(pusher_height)
         pusher = pusher.sketch().rect(light_aperture_x, light_aperture_y).vertices().fillet(pusher_aperture_fillet).finalize().cutThruAll()
         pusher = cast(CQ, pusher)  # workaround for sketch.finalize() not returning the correct type
@@ -188,12 +210,14 @@ def main():
         pusher = pusher.faces(">Z").edges("<<X[2]").chamfer(pusher_aperture_chamfer)
         pusher = pusher.faces(">Z").edges("<X").chamfer(chamf_minor)
         # pusher = pusher.faces("<Z").chamfer(chamf_minor)  # don't chamfer the ends of the pusher, they might need to register masks
-        pusher = pusher.faces(">Z").workplane().rarray(1, pusher_mount_spacing, 1, 2).clearanceHole(pusher_screw, fit="Close", baseAssembly=hardware)
+        if version == "yen":
+            pusher = pusher.faces(">Z").workplane().rarray(pusher_mount_spacing, 1, 2, 1).clearanceHole(pusher_screw, fit="Close", baseAssembly=hardware)
+        else:
+            pusher = pusher.faces(">Z").workplane().rarray(1, pusher_mount_spacing, 1, 2).clearanceHole(pusher_screw, fit="Close", baseAssembly=hardware)
 
-        walls_y = pusher_w
         if version == "joe":
             corner_round_radius = 4  # v2=4, v1=10
-        elif version == "hoye":
+        else:
             corner_round_radius = 10  # v2=4, v1=10
         holder = CQ().box(walls_x, walls_y, holder_base_height, centered=(True, True, False)).translate((0, 0, -holder_base_height))
         void_part = CQ().box(walls_x, walls_y, void_depth, centered=(True, True, False)).undercutRelief2D(subs_xy + subs_tol, subs_xy + subs_tol, corner_round_radius).cutThruAll()
@@ -201,20 +225,26 @@ def main():
 
         # pin array parameters
         if version == "joe":
-            pmajor_x = 3  # v2=3, v1=5.08
-            pminor_x = 1.27  # v2=1.27, v1=2.5
+            pmajor_x = 3
+            pminor_x = 1.27
             nx = 3  # v2=3, v1=5
             py = 11.27  # v2=11.27, v1=24
         else:
-            pmajor_x = 5.08  # v2=3, v1=5.08
-            pminor_x = 2.5  # v2=1.27, v1=2.5
+            pmajor_x = 5.08
+            if version == "hoye":
+                pminor_x = 2.5
+            else:
+                pminor_x = 2.54
             nx = 5  # v2=3, v1=5
             py = 24  # v2=11.27, v1=24
 
-        dev_pocket_d = head_length + 0.2  # pocket below devices
+        # pocket below devices
+        #dev_pocket_d = head_length + 0.2  
+        dev_pocket_d = pin_nom_offset
+
         if version == "joe":
             holder = holder.faces(">Z").workplane().undercutRelief2D(py, py, corner_round_radius)
-        elif version == "hoye":
+        else:
             holder = holder.faces(">Z").workplane().undercutRelief2D(light_aperture_x, py, corner_round_radius)
 
         holder = cast(CQ, holder)  # workaround for undercutRelief2D() not returning the correct type
@@ -249,7 +279,7 @@ def main():
             pcbvx = 10  # v2=10, v1=25
             pcbvy = 10  # v2=10, v1=20
             pcbvr = 2  # v2=2, v1=5
-        elif version == "hoye":
+        else:
             pcbvx = 25  # v2=10, v1=25
             pcbvy = 20  # v2=10, v1=20
             pcbvr = 5  # v2=2, v1=5
@@ -263,7 +293,7 @@ def main():
             pcbt = 1.6
             pcbpinr = 0.4  # v2=0.4, v1=0.8
             pcbr = 2  # corner fillet radius, v2=2, v1=5
-        elif version == "hoye":
+        else:
             pcbx = 30  # v2=13, v1=30
             pcby = 30  # v2=13, v1=30
             pcbt = 1.6
@@ -280,7 +310,7 @@ def main():
             hps = 2
             hpnx = 5
             major_spacing = 4.8 + 0.3  # this accounts for the fact that the housing is 4.8 wide and the ramp sticks off an additional 0.3
-        elif version == "hoye":
+        else:
             hph_dia = 1  # header pin hole diameter
             hps = 2.54
             hpnx = 6
@@ -295,7 +325,7 @@ def main():
                 header_stack = u.import_step(components_dir / "877581017+511101060.stp").findSolid().translate((0, 0, -1.5))
                 hardware.add(header_stack.located(cq.Location((0, +major_spacing / 2, -holder_base_height - pcbt))))
                 hardware.add(header_stack.located(cq.Location((0, -major_spacing / 2, -holder_base_height - pcbt))))
-            elif version == "hoye":
+            else:
                 # add in the header and IDC connector stack
                 header_stack = u.import_step(components_dir / "SFH213-PPPC-D06-ID-BK+HIF3FB-16DA-2.54DSA(71).step").findSolid().rotate((0, 0, 0), (1, 0, 0), -180)
 
@@ -304,9 +334,11 @@ def main():
 
         # pusher screw interface stuff here
         if version == "joe":
-            bot_screw_len = 10  # v2=10, v1=15
-        elif version == "hoye":
-            bot_screw_len = 15  # v2=10, v1=15
+            bot_screw_len = 10
+        #elif version == "yen":
+        #    bot_screw_len = 25
+        else:
+            bot_screw_len = 15
         bot_screw = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=bot_screw_len, simple=no_threads)  # TODO: add pn
 
         c_flat_to_flat = 10
@@ -315,17 +347,32 @@ def main():
         if version == "joe":
             coupler_len = 15
             coupler = u.import_step(components_dir / "Download_STEP_970150611 (rev1).stp").findSolid().translate((0, 0, -coupler_len / 2))
-        elif version == "hoye":
+        else:
             coupler_len = 20
             coupler = u.import_step(components_dir / "Download_STEP_970200611 (rev1).stp").findSolid().translate((0, 0, -coupler_len / 2))
 
-        holder = holder.faces(">Z").workplane(origin=(0, 0)).sketch().rarray(1, pusher_mount_spacing, 1, 2).rect(c_diameter, c_flat_to_flat).reset().vertices().fillet(c_diameter / 4).finalize().cutBlind(-coupler_len)
+        if version == "yen":
+            rarray_args = (pusher_mount_spacing, 1, 2, 1)
+            dev1 = (-pusher_mount_spacing/2, -walls_y/4)
+        else:
+            rarray_args = (1, pusher_mount_spacing, 1, 2)
+            dev1 = (-walls_x/4, -pusher_mount_spacing/2)
+        holder = holder.faces(">Z").workplane(origin=(0, 0)).sketch().rarray(*rarray_args).rect(c_diameter, c_flat_to_flat).reset().vertices().fillet(c_diameter / 4).finalize().cutBlind(-coupler_len)
         holder = cast(CQ, holder)  # workaround for sketch.finalize() not returning the correct type
-        mount_points = holder.faces(">Z").workplane(origin=(0, 0)).rarray(1, pusher_mount_spacing, 1, 2).vals()
+        mount_points = holder.faces(">Z").workplane(origin=(0, 0)).rarray(*rarray_args).vals()
         for mount_point in mount_points:
             hardware.add(coupler.located(cq.Location(mount_point.toTuple())))
 
-        holder = holder.faces("<Z").workplane(origin=(0, 0)).rarray(1, pusher_mount_spacing, 1, 2).clearanceHole(bot_screw, fit="Close", baseAssembly=hardware)
+        # this is cool, but it makes it too hard to solder the spring pins
+        #if version == "yen":
+        #    shroud_major = 9.6
+        #    holder = holder.faces("<Z").wires().toPending().extrude(-shroud_major)
+        #    holder = holder.faces("<Z").workplane(origin=(0, 0)).sketch().rect(pcbx, pcby).vertices().fillet(pcbr).offset(0.5).finalize().cutBlind(-shroud_major)
+
+        holder = holder.faces("<Z").workplane(origin=(0, 0)).rarray(*rarray_args).clearanceHole(bot_screw, fit="Close", baseAssembly=hardware)
+
+        # put in a device 1 indicator
+        holder = holder.faces(">Z").workplane(origin=dev1).circle(2).cutBlind(-0.5)
 
         out = {"holder": holder.findSolid()}
         out["pusher"] = pusher.findSolid()
@@ -348,7 +395,7 @@ def main():
     # mod the 1x1 holder with bottom shrouds
     if version == "joe":
         shroud_width = 3.5  # sum of both together, v2=3.5, v1=4
-    elif version == "hoye":
+    else:
         shroud_width = 4  # sum of both together, v2=3.5, v1=4
     shroud_height = 25
     holder1x1 = CQ(holder).faces("<Z").wires().toPending().extrude(-shroud_height)
@@ -488,10 +535,10 @@ def main():
     twox2.add(hardware2x2, name="hardware")
 
     asys = cast(dict[str,dict[str, cq.Assembly]], {})
-    #asys["hoye_2x1"] = {"assembly": hoye_2x1}
-    #asys["hoye_1x1"] = {"assembly": hoye_1x1}
+    asys["hoye_2x1"] = {"assembly": hoye_2x1}
+    asys["hoye_1x1"] = {"assembly": hoye_1x1}
     asys["1x1"] = {"assembly": onex1}
-    #asys["2x2"] = {"assembly": twox2}
+    asys["2x2"] = {"assembly": twox2}
 
     if "show_object" in globals():  # we're in cq-editor
 

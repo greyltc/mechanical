@@ -17,7 +17,7 @@ A python module with some helpful tools for 3d design
     ```
 1) Install the package in editable mode into the venv
     ```bash
-    (default) $ python tools/venv_dev_install.py
+    (venv) $ python tools/venv_dev_install.py
     ```
 1) Develop! When you're finished with it, you can deactivate the virtual environment with `deactivate`
 
