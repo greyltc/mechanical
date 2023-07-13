@@ -25,7 +25,7 @@ def main():
     drawings = {"2d": wrk_dir / "drawings" / "2d.dxf"}
 
     no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
-    version = "yen"  # "joe" for 12x12, "yen", "hoye" , or "snaith"
+    version = "snaith"  # "joe" for 12x12, "yen", "hoye" , or "snaith"
     flange_base_height = 0
     flange_bit_thickness = 16.9
     fil_major = 5
@@ -455,6 +455,16 @@ def main():
     wp_1x1 = wp_1x1.faces(">X").workplane(origin=(0, 0)).center(0, bb1x1.zmin + flange_bit_thickness / 2 + shroud_height).sketch().rect(flat_to_flat, side_nut.nut_diameter, angle=90).reset().vertices().fillet(side_nut.nut_diameter / 4).finalize().cutBlind(-side_nut.nut_thickness)
     wp_1x1 = cast(CQ, wp_1x1)  # workaround for sketch.clearanceHole() not returning the correct type
 
+    # put a side mounting m4 in the single holder for henry
+    if version == "snaith":
+        side_screw2_len = 45
+        side_screw2 = CounterSunkScrew(size="M4-0.7", fastener_type="iso14581", length=side_screw2_len, simple=no_threads)
+        wp_single = wp_single.faces("<X").workplane(**u.cobb).clearanceHole(side_screw2, fit="Close", baseAssembly=hardware_single)
+        wp_single = wp_single.faces(">X").workplane(**u.cobb, offset=-side_nut.nut_thickness).clearanceHole(fastener=side_nut, fit="Close", counterSunk=False, baseAssembly=hardware_single)
+        wp_single = cast(CQ, wp_single)  # workaround for sketch.clearanceHole() not returning the correct type
+        wp_single = wp_single.faces(">X").workplane(**u.cobb).sketch().rect(flat_to_flat, side_nut.nut_diameter, angle=90).reset().vertices().fillet(side_nut.nut_diameter / 4).finalize().cutBlind(-side_nut.nut_thickness)
+        wp_single = cast(CQ, wp_single)  # workaround for sketch.clearanceHole() not returning the correct type
+
     # add the bottom standoff shrouds for the 2x1
     wp_2x1 = wp_2x1.faces("<Z").wires().toPending().extrude(-shroud_height)
     bb2x1 = wp_2x1.findSolid().BoundingBox()
@@ -486,8 +496,8 @@ def main():
     wp_1x1 = wp_1x1.faces(">Z").edges(">X").chamfer(chamf_major)
 
     # make the fillets for the only holder
-    wp_single = wp_single.edges("|Z and (<X or >X)").fillet(fil_major)
-    wp_single = wp_single.faces(">Z").edges("<X").chamfer(chamf_major)
+    wp_single = wp_single.edges("|Z and (<Y or >Y)").fillet(fil_major)
+    wp_single = wp_single.faces(">Z").edges("<Y").chamfer(chamf_major)
 
     # pusher = CQ(pusher).edges("|Z and (<X or >X)").fillet(fil_major).findSolid()
 
