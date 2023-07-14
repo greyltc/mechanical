@@ -3,6 +3,7 @@ from cadquery import CQ, cq
 from pathlib import Path
 from typing import List, Dict, Tuple, Callable
 import ezdxf.filemanagement
+from ezdxf.addons.drawing import matplotlib
 import concurrent.futures
 from geometrics.toolbox.cq_serialize import register as register_cq_helper
 import math
@@ -308,7 +309,7 @@ class TwoDToThreeD(object):
             myzip.write(filename)
 
     @classmethod
-    def outputter(cls, built: dict[str, dict[str, cadquery.Assembly]], wrk_dir: Path, save_dxfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, edm_outputs=False, nparallel=1, show_object: Callable | None = None):
+    def outputter(cls, built: dict[str, dict[str, cadquery.Assembly]], wrk_dir: Path, save_dxfs=False, save_pdfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, edm_outputs=False, nparallel=1, show_object: Callable | None = None):
         """do output tasks on a dictionary of assemblies"""
         for stack_name, result in built.items():
             if show_object:  # we're in cq-editor
@@ -391,10 +392,16 @@ class TwoDToThreeD(object):
                             cadquery.Shape.exportBrep(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.brep"))
                         if save_vrmls == True:
                             cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.wrl"), cadquery.exporters.ExportTypes.VRML)
-                        if save_dxfs == True:
+                        if save_dxfs or save_pdfs:
                             cl = c.locate(val.loc)
                             bb = cl.BoundingBox()
                             zmid = (bb.zmin + bb.zmax) / 2
                             nwp = CQ("XY", origin=(0, 0, zmid)).add(cl)
                             dxface = nwp.section()
-                            cadquery.exporters.export(dxface, str(wrk_dir / "output" / f"{stack_name}-{val.name}.dxf"), cadquery.exporters.ExportTypes.DXF)
+                            outdxf_filepath = wrk_dir / "output" / f"{stack_name}-{val.name}.dxf"
+                            cadquery.exporters.export(dxface, str(outdxf_filepath), cadquery.exporters.ExportTypes.DXF)
+                            if save_pdfs:
+                                dxf_file = ezdxf.filemanagement.readfile(outdxf_filepath)
+                                if not save_dxfs:
+                                    outdxf_filepath.unlink()
+                                matplotlib.qsave(dxf_file.modelspace(), str(outdxf_filepath)+".pdf")
