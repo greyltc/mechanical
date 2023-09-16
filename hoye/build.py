@@ -24,7 +24,7 @@ def main():
     print(f"Working directory is {wrk_dir}")
     drawings = {"2d": wrk_dir / "drawings" / "2d.dxf"}
 
-    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
     version = "snaith"  # "joe" for 12x12, "yen", "hoye" , or "snaith"
     flange_base_height = 0
     flange_bit_thickness = 16.9
@@ -172,7 +172,7 @@ def main():
         pusher_aperture_chamfer = 4
         pusher_t = pusher_aperture_chamfer + 0.1  # the extra 0.1 here is to give a sharp edge for mask registration
         pusher_shrink = 0.4  # shrink the x+y so that zero spaced holders don't have interfering pushers
-        
+
         if version == "joe":
             pusher_aperture_fillet = 2  # v2=2, v1=5
             pusher_mount_offset = 7.9  # center from top edge of fillet
@@ -189,13 +189,14 @@ def main():
             pusher_mount_spacing = light_aperture_x + 2 * pusher_mount_offset + 2 * pusher_aperture_chamfer
         else:
             pusher_mount_spacing = light_aperture_y + 2 * pusher_mount_offset + 2 * pusher_aperture_chamfer
-        short_wall_thickness = 1-0.15  # wall thickness in the shorter direction, fudge by 0.15 to get on a 40mm pitch
+        short_wall_thickness = 1 - 0.15  # wall thickness in the shorter direction, fudge by 0.15 to get on a 40mm pitch
+        long_wall_fudge = 0.2  # fidge long wall to fit comfortably on a 58mm pitch
         if version == "yen":
-            walls_x = pusher_mount_spacing + 14
-            walls_y = subs_xy + subs_tol + 2 * pusher_aperture_chamfer + 2*short_wall_thickness - x_blocks_total
+            walls_x = pusher_mount_spacing + 14 - long_wall_fudge
+            walls_y = subs_xy + subs_tol + 2 * pusher_aperture_chamfer + 2 * short_wall_thickness - x_blocks_total
         else:
-            walls_y = pusher_mount_spacing + 14
-            walls_x = subs_xy + subs_tol + 2 * pusher_aperture_chamfer + 2*short_wall_thickness - x_blocks_total
+            walls_y = pusher_mount_spacing + 14 - long_wall_fudge
+            walls_x = subs_xy + subs_tol + 2 * pusher_aperture_chamfer + 2 * short_wall_thickness - x_blocks_total
         pusher_x = walls_x - pusher_shrink
         pusher_y = walls_y - pusher_shrink
         pusher_height = void_depth - subs_t_min  # the length of the push downer bits, this should be void_depth to accept 0 thickness substrates, but can be less to allow wider acceptance angle
@@ -239,7 +240,7 @@ def main():
             py = 24  # v2=11.27, v1=24
 
         # pocket below devices
-        #dev_pocket_d = head_length + 0.2  
+        # dev_pocket_d = head_length + 0.2
         dev_pocket_d = pin_nom_offset
 
         if version == "joe":
@@ -335,7 +336,7 @@ def main():
         # pusher screw interface stuff here
         if version == "joe":
             bot_screw_len = 10
-        #elif version == "yen":
+        # elif version == "yen":
         #    bot_screw_len = 25
         else:
             bot_screw_len = 15
@@ -353,10 +354,10 @@ def main():
 
         if version == "yen":
             rarray_args = (pusher_mount_spacing, 1, 2, 1)
-            dev1 = (-pusher_mount_spacing/2, -walls_y/4)
+            dev1 = (-pusher_mount_spacing / 2, -walls_y / 4)
         else:
             rarray_args = (1, pusher_mount_spacing, 1, 2)
-            dev1 = (-walls_x/4, -pusher_mount_spacing/2)
+            dev1 = (-walls_x / 4, -pusher_mount_spacing / 2)
         holder = holder.faces(">Z").workplane(origin=(0, 0)).sketch().rarray(*rarray_args).rect(c_diameter, c_flat_to_flat).reset().vertices().fillet(c_diameter / 4).finalize().cutBlind(-coupler_len)
         holder = cast(CQ, holder)  # workaround for sketch.finalize() not returning the correct type
         mount_points = holder.faces(">Z").workplane(origin=(0, 0)).rarray(*rarray_args).vals()
@@ -364,7 +365,7 @@ def main():
             hardware.add(coupler.located(cq.Location(mount_point.toTuple())))
 
         # this is cool, but it makes it too hard to solder the spring pins
-        #if version == "yen":
+        # if version == "yen":
         #    shroud_major = 9.6
         #    holder = holder.faces("<Z").wires().toPending().extrude(-shroud_major)
         #    holder = holder.faces("<Z").workplane(origin=(0, 0)).sketch().rect(pcbx, pcby).vertices().fillet(pcbr).offset(0.5).finalize().cutBlind(-shroud_major)
@@ -452,7 +453,7 @@ def main():
     flat_to_flat = math.sin(60 * math.pi / 180) * side_nut.nut_diameter + 0.25
     wp_1x1 = wp_1x1.faces(">X").workplane(origin=(0, 0), offset=-side_nut.nut_thickness).center(0, bb1x1.zmin + flange_bit_thickness / 2 + shroud_height).clearanceHole(fastener=side_nut, fit="Close", counterSunk=False, baseAssembly=hardware1x1)
     wp_1x1 = cast(CQ, wp_1x1)  # workaround for sketch.clearanceHole() not returning the correct type
-    wp_1x1 = wp_1x1.faces(">X").workplane(origin=(0, 0)).center(0, bb1x1.zmin + flange_bit_thickness / 2 + shroud_height).sketch().rect(flat_to_flat, side_nut.nut_diameter, angle=90).reset().vertices().fillet(side_nut.nut_diameter / 4).finalize().cutBlind(-side_nut.nut_thickness*2)
+    wp_1x1 = wp_1x1.faces(">X").workplane(origin=(0, 0)).center(0, bb1x1.zmin + flange_bit_thickness / 2 + shroud_height).sketch().rect(flat_to_flat, side_nut.nut_diameter, angle=90).reset().vertices().fillet(side_nut.nut_diameter / 4).finalize().cutBlind(-side_nut.nut_thickness * 2)
     wp_1x1 = cast(CQ, wp_1x1)  # workaround for sketch.clearanceHole() not returning the correct type
 
     # put a side mounting m4 in the single holder for henry
@@ -544,7 +545,7 @@ def main():
     onex1.add(hardware_single, name="hardware")
     twox2.add(hardware2x2, name="hardware")
 
-    asys = cast(dict[str,dict[str, cq.Assembly]], {})
+    asys = cast(dict[str, dict[str, cq.Assembly]], {})
     asys["hoye_2x1"] = {"assembly": hoye_2x1}
     asys["hoye_1x1"] = {"assembly": hoye_1x1}
     asys["1x1"] = {"assembly": onex1}
