@@ -233,16 +233,49 @@ class LidAssemblyBuilder:
 
         # --- lid o-ring ---
         self.oring_cs = tb.constants.std_orings[self.oring_size]["cs"]
-        self.oring_groove_w = tb.constants.std_orings[self.oring_size]["groove_w"]
-        self.oring_groove_h = tb.constants.std_orings[self.oring_size]["gland_depth"]
         self.oring_id = tb.constants.std_orings[self.oring_size]["id"]
 
         logger.info(f"minimum o-ring id = {((2 * self.window_ap_l + 2 * self.window_ap_w + - 8 * self.window_ap_r + np.pi * 2 * self.window_ap_r) / np.pi) + 2 * self.min_oring_edge_gap} mm")
         logger.info(f"selected o-ring id = {self.oring_id} mm")
 
+        # calculate a constant gap between the window aperture edge and the centre line of the o-ring
+        oring_gap = (math.pi * (self.oring_id + self.oring_cs) - 2 * self.window_ap_l - 2 * self.window_ap_w + (8 - 2 * math.pi) * self.window_ap_r) / (2 * math.pi)
+
+        # use it to determine the gland dimensions (these are o-ring/groove
+        # centre-to-centre along each axis, not inner edge-to-edge)
+        self.oring_gland_x = self.window_ap_l + 2 * oring_gap
+        self.oring_gland_y = self.window_ap_w + 2 * oring_gap
+
+        # check the uncompressed bend radius
+        # if the bend radius is below the minimum, set it to the minimum and recalculate the gland dimensions
+        oring_bend_r = self.window_ap_r + oring_gap - self.oring_cs / 2
+        min_oring_bend_r = self.oring_cs * (tb.constants.oring_grooves["corner_r_fraction"])
+        if oring_bend_r < min_oring_bend_r:
+            logger.warning(f"WARNING: The o-ring bend radius with a constant edge gap is too low (actual = {oring_bend_r} mm, minimum = {min_oring_bend_r} mm). Retrying with minimum bend radius.")
+
+            oring_bend_r = min_oring_bend_r
+            oring_gap = (math.pi * (self.oring_id + self.oring_cs) - 2 * self.window_ap_l - 2 * self.window_ap_w + (8 - 2 * math.pi) * (min_oring_bend_r + self.oring_cs / 2)) / 8
+
+            # changing the bend radius will cause the gap in the corners to be different to the sides
+            self.oring_gland_x = self.window_ap_l + 2 * oring_gap
+            self.oring_gland_y = self.window_ap_w + 2 * oring_gap
+
+        # report inner wall thickness between oring gland and window aperture along sides
+        oring_gland_w = tb.groovy.get_gland_width(self.oring_cs, self.compression_ratio, self.gland_fill_ratio)
+        oring_ap_edge_gap = oring_gap - oring_gland_w / 2
+        logger.info(f"o-ring inner wall thickness along sides = {oring_ap_edge_gap} mm")
+
+        # report smallest inner wall thickness between oring gland and window aperture in corners
+        oring_corner_gap = (1 - np.sqrt(2)) * (oring_bend_r + self.oring_cs / 2 - oring_gland_w / 2 - self.window_ap_r) + np.sqrt(2) * oring_ap_edge_gap
+        logger.info(f"o-ring inner wall thickness in corners = {oring_corner_gap} mm")
+
+        # check if wall thickness around groove is below minimum required
+        if (oring_ap_edge_gap < self.min_oring_edge_gap) or (oring_corner_gap < self.min_oring_edge_gap):
+            logger.warning(f"WARNING: Thin wall detected around o-ring groove (actual = {min(oring_ap_edge_gap, oring_corner_gap)} mm, minimum = {self.min_oring_edge_gap} mm).")
+
         # --- window ---
-        self.window_l = np.ceil(self.window_ap_l + 2 * self.min_oring_edge_gap + 2 * self.oring_ap_edge_gap + 2 * self.oring_groove_w)
-        self.window_w = np.ceil(self.window_ap_w + 2 * self.min_oring_edge_gap + 2 * self.oring_ap_edge_gap + 2 * self.oring_groove_w)
+        self.window_l = np.ceil(self.window_ap_l + 2 * self.min_oring_edge_gap + 2 * oring_ap_edge_gap + 2 * oring_gland_w)
+        self.window_w = np.ceil(self.window_ap_w + 2 * self.min_oring_edge_gap + 2 * oring_ap_edge_gap + 2 * oring_gland_w)
 
         logger.info(f"window length = {self.window_l} mm")
         logger.info(f"window width = {self.window_w} mm")
@@ -328,45 +361,10 @@ class LidAssemblyBuilder:
         window_recess = window_recess.translate((self.window_aperture_offset[0], self.window_aperture_offset[1], self.lid_t / 2 - self.window_t / 2))
         lid = lid.cut(window_recess)
 
-        # --- cut o-ring groove
-        # calculate a constant gap between the window aperture edge and the centre line of the o-ring
-        oring_gap = (math.pi * (self.oring_id + self.oring_cs) - 2 * self.window_ap_l - 2 * self.window_ap_w + (8 - 2 * math.pi) * self.window_ap_r) / (2 * math.pi)
-
-        # use it to determine the gland dimensions (these are o-ring/groove
-        # centre-to-centre along each axis, not inner edge-to-edge)
-        oring_gland_x = self.window_ap_l + 2 * oring_gap
-        oring_gland_y = self.window_ap_w + 2 * oring_gap
-
-        # check the uncompressed bend radius
-        # if the bend radius is below the minimum, set it to the minimum and recalculate the gland dimensions
-        oring_bend_r = self.window_ap_r + oring_gap - self.oring_cs / 2
-        min_oring_bend_r = self.oring_cs * (tb.constants.oring_grooves["corner_r_fraction"])
-        if oring_bend_r < min_oring_bend_r:
-            logger.warning(f"WARNING: The o-ring bend radius with a constant edge gap is too low (actual = {oring_bend_r} mm, minimum = {min_oring_bend_r} mm). Retrying with minimum bend radius.")
-
-            oring_bend_r = min_oring_bend_r
-            oring_gap = (math.pi * (self.oring_id + self.oring_cs) - 2 * self.window_ap_l - 2 * self.window_ap_w + (8 - 2 * math.pi) * (min_oring_bend_r + self.oring_cs / 2)) / 8
-
-            # changing the bend radius will cause the gap in the corners to be different to the sides
-            oring_gland_x = self.window_ap_l + 2 * oring_gap
-            oring_gland_y = self.window_ap_w + 2 * oring_gap
-
-        # report inner wall thickness between oring gland and window aperture along sides
-        oring_gland_w = tb.groovy.get_gland_width(self.oring_cs, self.compression_ratio, self.gland_fill_ratio)
-        oring_ap_edge_gap = oring_gap - oring_gland_w / 2
-        logger.info(f"o-ring inner wall thickness along sides = {oring_ap_edge_gap} mm")
-
-        # report smallest inner wall thickness between oring gland and window aperture in corners
-        oring_corner_gap = (1 - np.sqrt(2)) * (oring_bend_r + self.oring_cs / 2 - oring_gland_w / 2 - self.window_ap_r) + np.sqrt(2) * oring_ap_edge_gap
-        logger.info(f"o-ring inner wall thickness in corners = {oring_corner_gap} mm")
-
-        # check if wall thickness around groove is below minimum required
-        if (oring_ap_edge_gap < self.min_oring_edge_gap) or (oring_corner_gap < self.min_oring_edge_gap):
-            logger.warning(f"WARNING: Thin wall detected around o-ring groove (actual = {min(oring_ap_edge_gap, oring_corner_gap)} mm, minimum = {self.min_oring_edge_gap} mm).")
-
+        # cut o-ring groove
         cq.Workplane.mk_groove = tb.groovy.mk_groove
         lid = cq.CQ(lid.findSolid()).faces(">Z[-3]").workplane(centerOption="CenterOfBoundBox")
-        lid = lid.mk_groove(ring_cs=self.oring_cs, follow_pending_wires=False, ring_id=self.oring_id, gland_x=oring_gland_x, gland_y=oring_gland_y, compression_ratio=self.compression_ratio, gland_fill_ratio=self.gland_fill_ratio, hardware=orings)
+        lid = lid.mk_groove(ring_cs=self.oring_cs, follow_pending_wires=False, ring_id=self.oring_id, gland_x=self.oring_gland_x, gland_y=self.oring_gland_y, compression_ratio=self.compression_ratio, gland_fill_ratio=self.gland_fill_ratio, hardware=orings)
 
         return lid, chamber_nuts, orings
 
@@ -512,7 +510,7 @@ if (__name__ == "__main__") or (have_so is True):
         no_threads=no_threads,
     ).build()
 
-    # move assemlby to desired location
+    # move assembly to desired location
     assembly.loc = cq.Location(cq.Vector(-4.5, 0, 15.1))
 
     if save_step:
@@ -526,6 +524,6 @@ if (__name__ == "__main__") or (have_so is True):
         # output
         # TwoDToThreeD.outputter({"lid": {"assembly": assembly}}, wrk_dir)
         # only want step file so use original saver
-        output_dir = pathlib.Path(wrk_dir).joinpath("output")
+        output_dir = wrk_dir.joinpath("output")
         pathlib.Path.mkdir(output_dir, exist_ok=True)
         assembly.save(str(output_dir.joinpath("lid.step")))
