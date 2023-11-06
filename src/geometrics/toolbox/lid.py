@@ -4,7 +4,7 @@
 import logging
 import math
 import pathlib
-from typing import Optional
+from typing import Optional, Tuple
 
 import cadquery as cq
 import cq_warehouse.fastener as cqf
@@ -312,8 +312,18 @@ class LidAssemblyBuilder:
         # misc
         self.socket_clearance = self.socket_clearances[self.corner_bolt_size]
 
-    def _build_lid(self):
-        """Build the lid."""
+    def _build_lid(self) -> Tuple[cq.Workplane, cq.Assembly, cq.Assembly]:
+        """Build the lid.
+
+        Returns
+        -------
+        lid : cq.Workplane
+            Lid object.
+        chamber_nuts : cq.Assembly
+            Assembly of chamber nuts.
+        orings : cq.Assembly
+            Assembly of o-rings.
+        """
         # create hardware assemblies
         chamber_nuts = cq.Assembly(None)
         orings = cq.Assembly(None)
@@ -366,10 +376,18 @@ class LidAssemblyBuilder:
         lid = cq.CQ(lid.findSolid()).faces(">Z[-3]").workplane(centerOption="CenterOfBoundBox")
         lid = lid.mk_groove(ring_cs=self.oring_cs, follow_pending_wires=False, ring_id=self.oring_id, gland_x=self.oring_gland_x, gland_y=self.oring_gland_y, compression_ratio=self.compression_ratio, gland_fill_ratio=self.gland_fill_ratio, hardware=orings)
 
-        return lid, chamber_nuts, orings
+        return (lid, chamber_nuts, orings)
 
-    def _build_support(self):
-        """Build the window support."""
+    def _build_support(self) -> Tuple[cq.Workplane, cq.Assembly]:
+        """Build the window support.
+
+        Returns
+        -------
+        support : cq.Workplane
+            Window support object.
+        support_bolts : cq.Assembly
+            Assembly of support bolts.
+        """
         # create hardware assemblies
         support_bolts = cq.Assembly(None)
 
@@ -403,32 +421,38 @@ class LidAssemblyBuilder:
         # cut countersink holes for support bolts
         window_support = window_support.faces(">Z").workplane(centerOption="CenterOfBoundBox").pushPoints(self.support_bolt_xys).clearanceHole(fastener=self.support_bolt, baseAssembly=support_bolts)
 
-        return window_support, support_bolts
+        return (window_support, support_bolts)
 
-    def _build_window(self):
-        """Build the window."""
+    def _build_window(self) -> cq.Workplane:
+        """Build the window.
+
+        Returns
+        -------
+        window : cq.Workplane
+            Window object.
+        """
         window = cq.Workplane("XY").box(self.window_l, self.window_w, self.window_t)
         window = window.translate((self.window_aperture_offset[0], self.window_aperture_offset[1], self.lid_t / 2 - self.window_t / 2))
 
         return window
 
-    def _drilled_corner_cube(self, length, width, depth, radius):
+    def _drilled_corner_cube(self, length: float, width: float, depth: float, radius: float) -> cq.Workplane:
         """Create a cube with drilled out corners that can be machined.
 
         Parameters
         ----------
-        length : float or int
+        length : float
             cube length
-        width : float or int
+        width : float
             cube width
-        depth : float or int
+        depth : float
             cube depth
-        radius : float or int
+        radius : float
             drill radius for corners
 
         Returns
         -------
-        cube : Shape
+        cube : cq.Workplane
             cube with drilled corners
         """
         cube = cq.Workplane("XY").box(length, width, depth)
@@ -491,7 +515,7 @@ if (__name__ == "__main__") or (have_so is True):
     min_support_bolt_spacing = 45
 
     # build the assembly
-    assembly = LidAssemblyBuilder(
+    lid_assembly_builder = LidAssemblyBuilder(
         length=length,
         width=width,
         substrate_array_l=substrate_array_l,
@@ -508,7 +532,8 @@ if (__name__ == "__main__") or (have_so is True):
         min_support_bolt_spacing=min_support_bolt_spacing,
         include_hardware=include_hardware,
         no_threads=no_threads,
-    ).build()
+    )
+    assembly = lid_assembly_builder.build()
 
     # move assembly to desired location
     assembly.loc = cq.Location(cq.Vector(-4.5, 0, 15.1))
