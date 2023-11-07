@@ -32,36 +32,6 @@ else:
     logger.info("Probably running from a terminal")
 
 
-def oring_groove(inner_length, inner_width, groove_h, groove_w, inner_radius):
-    """Groove for o-ring in the base.
-
-    Parameters
-    ----------
-    inner_length : float or int
-        internal length
-    inner_width : float or int
-        internal width
-    groove_h : float or int
-        depth of groove
-    groove_w : float or int
-        width of groove
-    inner_radius : float or int
-        internal radius
-
-    Returns
-    -------
-    groove : Shape
-        o-ring groove
-    """
-    # define outer perimeter
-    outer = cq.Workplane("XY").box(inner_length + 2 * groove_w, inner_width + 2 * groove_w, groove_h).edges("|Z").fillet(inner_radius + groove_w)
-
-    # # define inner perimeter
-    inner = cq.Workplane("XY").box(inner_length, inner_width, groove_h).edges("|Z").fillet(inner_radius)
-
-    return outer.cut(inner)
-
-
 class LidAssemblyBuilder:
     """Build assemblies comprising chamber lid, window, and window support."""
 
