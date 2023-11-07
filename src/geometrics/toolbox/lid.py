@@ -97,8 +97,8 @@ class LidAssemblyBuilder:
     # size of bolts fastening the window support to the lid
     support_bolt_size = "M4-0.7"
 
-    # offset of support bolt centers from the edge of the window recess
-    support_bolt_recess_offset = 10
+    # clearance across the diamater of all countersinks
+    csink_clearance = 1
 
     def __init__(
         self,
@@ -294,22 +294,79 @@ class LidAssemblyBuilder:
             simple=self.no_threads,
         )
 
-        # number of support bolts along each side
-        num_support_bolts = 4
-        support_bolt_spacing = self.width / num_support_bolts
-        support_bolt_xs = [
-            -self.window_recess_l / 2 - self.support_bolt_recess_offset + self.window_aperture_offset[0],
-            self.window_recess_l / 2 + self.support_bolt_recess_offset + self.window_aperture_offset[0],
-        ]
-        support_bolt_ys = np.linspace(
-            -self.width / 2 + support_bolt_spacing / 2 + self.window_aperture_offset[1],
-            self.width / 2 - support_bolt_spacing / 2 + self.window_aperture_offset[1],
-            num_support_bolts,
-            endpoint=True,
-        )
-        self.support_bolt_xys = [(x, y) for x in support_bolt_xs for y in support_bolt_ys]
+        support_bolt_csink_diameter = self.support_bolt.screw_data["dk"]
 
-        # misc
+        # part of drilled corner in window recess protruding beyond the edge
+        recess_corner_excess = self.window_recess_r * (1 - 1 / np.sqrt(2))
+
+        # offset of support bolt centers from the edge of the window recess
+        # countersink clearance can be ignored here since recess edge is far away
+        self.support_bolt_recess_offset = support_bolt_csink_diameter / 2 + recess_corner_excess
+
+        # check if there's enough space along both axes of the window aperture to put
+        # countersink screws
+        # if either side perpendicular a given axis is too small, don't put bolts along that side
+        support_bolts_along_y = True if ((self.length - self.window_recess_l - 2 * recess_corner_excess) / 2 - np.abs(self.window_aperture_offset[0]) > support_bolt_csink_diameter + self.csink_clearance) else False
+        support_bolts_along_x = True if ((self.width - self.window_recess_w - 2 * recess_corner_excess) / 2 - np.abs(self.window_aperture_offset[1]) > support_bolt_csink_diameter + self.csink_clearance) else False
+
+        # number of support bolts along each side
+        num_support_bolts = math.floor(self.width / self.min_support_bolt_spacing)
+        support_bolt_spacing = self.width / num_support_bolts
+
+        # get bolt positions along the y-axis if required
+        support_bolt_xys_along_y = []
+        if support_bolts_along_y:
+            support_bolt_xs_along_y = [
+                -self.window_recess_l / 2 - self.support_bolt_recess_offset + self.window_aperture_offset[0],
+                self.window_recess_l / 2 + self.support_bolt_recess_offset + self.window_aperture_offset[0],
+            ]
+
+            if support_bolts_along_x:
+                support_bolt_ys_along_y = np.linspace(
+                    -self.window_recess_w / 2 - self.support_bolt_recess_offset + self.window_aperture_offset[1],
+                    self.window_recess_w / 2 + self.support_bolt_recess_offset + self.window_aperture_offset[1],
+                    num_support_bolts,
+                    endpoint=True,
+                )
+            else:
+                support_bolt_ys_along_y = np.linspace(
+                    -self.width / 2 + (support_bolt_csink_diameter + self.csink_clearance) / 2 + self.chamber_chamfer,
+                    self.width / 2 - (support_bolt_csink_diameter + self.csink_clearance) / 2 - self.chamber_chamfer,
+                    num_support_bolts,
+                    endpoint=True,
+                )
+
+            support_bolt_xys_along_y = [(x, y) for x in support_bolt_xs_along_y for y in support_bolt_ys_along_y]
+
+        # get bolt positions along the x-axis if required
+        support_bolt_xys_along_x = []
+        if support_bolts_along_x:
+            support_bolt_ys_along_x = [
+                -self.window_recess_w / 2 - self.support_bolt_recess_offset + self.window_aperture_offset[1],
+                self.window_recess_w / 2 + self.support_bolt_recess_offset + self.window_aperture_offset[1],
+            ]
+
+            if support_bolts_along_y:
+                support_bolt_xs_along_x = np.linspace(
+                    -self.window_recess_l / 2 - self.support_bolt_recess_offset + self.window_aperture_offset[0],
+                    self.window_recess_l / 2 + self.support_bolt_recess_offset + self.window_aperture_offset[0],
+                    num_support_bolts,
+                    endpoint=True,
+                )
+            else:
+                support_bolt_xs_along_x = np.linspace(
+                    -self.length / 2 + (support_bolt_csink_diameter + self.csink_clearance) / 2 + self.chamber_chamfer,
+                    self.length / 2 - (support_bolt_csink_diameter + self.csink_clearance) / 2 - self.chamber_chamfer,
+                    num_support_bolts,
+                    endpoint=True,
+                )
+
+            support_bolt_xys_along_x = [(x, y) for x in support_bolt_xs_along_x for y in support_bolt_ys_along_x]
+
+        # merge bolt position lists and pick out only those that are unique
+        self.support_bolt_xys = set(support_bolt_xys_along_y + support_bolt_xys_along_x)
+
+        # --- misc
         self.socket_clearance = self.socket_clearances[self.corner_bolt_size]
 
     def _build_lid(self) -> Tuple[cq.Workplane, cq.Assembly, cq.Assembly]:
