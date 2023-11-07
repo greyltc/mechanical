@@ -100,6 +100,15 @@ class LidAssemblyBuilder:
     # clearance across the diamater of all countersinks
     csink_clearance = 1
 
+    valid_corner_bolt_styles = ["countersink", "nut"]
+
+    # valid lengths of ISO 14581 screws according to https://www.fasteners.eu/standards/ISO/14581/
+    valid_csink_bolt_lengths = [3, 4, 5, 6, 8, 10, 12, 14, 16, 20, 25, 30, 35, 40, 45, 50, 55, 60]
+
+    # amount of excess thread sticking out below lid if countersink bolts are used in
+    # the corners to fasten the lid to the chamber
+    csink_corner_bolt_extra_thread = 5
+
     def __init__(
         self,
         length: float,
@@ -206,17 +215,37 @@ class LidAssemblyBuilder:
 
         # build parts and add them to the assembly
         lid, chamber_nuts, orings = self._build_lid()
-        support, support_bolts = self._build_support()
+        support, chamber_bolts, support_bolts = self._build_support()
         assembly.add(lid, name="lid")
         assembly.add(support, name="support")
         assembly.add(self._build_window(), name="window")
 
         if self.include_hardware:
-            assembly.add(chamber_nuts.toCompound(), name="chamber_nuts")
+            if self.corner_bolt_style == "countersink":
+                assembly.add(chamber_bolts.toCompound(), name="chamber_bolts")
+            elif self.corner_bolt_style == "nut":
+                assembly.add(chamber_nuts.toCompound(), name="chamber_nuts")
+            else:
+                pass
             assembly.add(orings.toCompound(), name="orings")
             assembly.add(support_bolts.toCompound(), name="support_bolts")
 
         return assembly
+
+    def _get_std_csink_screw_length(self, ideal_length: float) -> float:
+        """Find closest valid screw length less than or equal to the ideal required.
+
+        Paremeters
+        ----------
+        ideal_length : float
+            Ideal screw length in mm.
+
+        Returns
+        -------
+        nearest_length : float
+            Nearest valid screw legnth less than or equal to the ideal required.
+        """
+        return max([_ for _ in self.valid_csink_bolt_lengths if _ <= ideal_length])
 
     def _calculate_reusable_params(self):
         """Calculate parameters that are used by multiple parts."""
@@ -284,7 +313,8 @@ class LidAssemblyBuilder:
         self.window_recess_w = self.window_w + self.window_recess_tol
 
         # --- bolts for fastening window support to lid ---
-        support_bolt_length = self.lid_t + self.support_t - self.lid_t_under_support_screw - self.support_screw_air_gap
+        ideal_support_bolt_length = self.lid_t + self.support_t - self.lid_t_under_support_screw - self.support_screw_air_gap
+        support_bolt_length = self._get_std_csink_screw_length(ideal_support_bolt_length)
         logger.info(f"Support bolt length = {support_bolt_length} mm")
 
         self.support_bolt = cqf.CounterSunkScrew(
@@ -309,10 +339,6 @@ class LidAssemblyBuilder:
         support_bolts_along_y = True if ((self.length - self.window_recess_l - 2 * recess_corner_excess) / 2 - np.abs(self.window_aperture_offset[0]) > support_bolt_csink_diameter + self.csink_clearance) else False
         support_bolts_along_x = True if ((self.width - self.window_recess_w - 2 * recess_corner_excess) / 2 - np.abs(self.window_aperture_offset[1]) > support_bolt_csink_diameter + self.csink_clearance) else False
 
-        # number of support bolts along each side
-        num_support_bolts = math.floor(self.width / self.min_support_bolt_spacing)
-        support_bolt_spacing = self.width / num_support_bolts
-
         # get bolt positions along the y-axis if required
         support_bolt_xys_along_y = []
         if support_bolts_along_y:
@@ -322,17 +348,19 @@ class LidAssemblyBuilder:
             ]
 
             if support_bolts_along_x:
+                num_support_bolts_along_y = math.floor((self.window_recess_w + 2 * self.support_bolt_recess_offset) / self.min_support_bolt_spacing) + 1
                 support_bolt_ys_along_y = np.linspace(
                     -self.window_recess_w / 2 - self.support_bolt_recess_offset + self.window_aperture_offset[1],
                     self.window_recess_w / 2 + self.support_bolt_recess_offset + self.window_aperture_offset[1],
-                    num_support_bolts,
+                    num_support_bolts_along_y,
                     endpoint=True,
                 )
             else:
+                num_support_bolts_along_y = math.floor((self.width - support_bolt_csink_diameter - self.csink_clearance - 2 * self.chamber_chamfer) / self.min_support_bolt_spacing) + 1
                 support_bolt_ys_along_y = np.linspace(
                     -self.width / 2 + (support_bolt_csink_diameter + self.csink_clearance) / 2 + self.chamber_chamfer,
                     self.width / 2 - (support_bolt_csink_diameter + self.csink_clearance) / 2 - self.chamber_chamfer,
-                    num_support_bolts,
+                    num_support_bolts_along_y,
                     endpoint=True,
                 )
 
@@ -347,17 +375,19 @@ class LidAssemblyBuilder:
             ]
 
             if support_bolts_along_y:
+                num_support_bolts_along_x = math.floor((self.window_recess_l + 2 * self.support_bolt_recess_offset) / self.min_support_bolt_spacing) + 1
                 support_bolt_xs_along_x = np.linspace(
                     -self.window_recess_l / 2 - self.support_bolt_recess_offset + self.window_aperture_offset[0],
                     self.window_recess_l / 2 + self.support_bolt_recess_offset + self.window_aperture_offset[0],
-                    num_support_bolts,
+                    num_support_bolts_along_x,
                     endpoint=True,
                 )
             else:
+                num_support_bolts_along_x = math.floor((self.length - support_bolt_csink_diameter - self.csink_clearance - 2 * self.chamber_chamfer) / self.min_support_bolt_spacing) + 1
                 support_bolt_xs_along_x = np.linspace(
                     -self.length / 2 + (support_bolt_csink_diameter + self.csink_clearance) / 2 + self.chamber_chamfer,
                     self.length / 2 - (support_bolt_csink_diameter + self.csink_clearance) / 2 - self.chamber_chamfer,
-                    num_support_bolts,
+                    num_support_bolts_along_x,
                     endpoint=True,
                 )
 
@@ -365,6 +395,27 @@ class LidAssemblyBuilder:
 
         # merge bolt position lists and pick out only those that are unique
         self.support_bolt_xys = set(support_bolt_xys_along_y + support_bolt_xys_along_x)
+
+        # get chamber fastener
+        if self.corner_bolt_style == "nut":
+            # HFFN-M5-A2
+            self.chamber_fastener = cqf.HexNutWithFlange(
+                size=self.corner_bolt_thread,
+                fastener_type="din1665",
+                simple=self.no_threads,
+            )
+        elif self.corner_bolt_style == "countersink":
+            ideal_corner_bolt_length = self.lid_t + self.support_t + self.csink_corner_bolt_extra_thread
+            corner_bolt_length = self._get_std_csink_screw_length(ideal_corner_bolt_length)
+            self.chamber_fastener = cqf.CounterSunkScrew(
+                size=self.corner_bolt_thread,
+                fastener_type="iso14581",
+                length=corner_bolt_length,
+                simple=self.no_threads,
+            )
+            logger.info(f"Corner bolt length = {corner_bolt_length} mm")
+        else:
+            raise ValueError(f"Invalid corner bolt style: {self.corner_bolt_style}. Valid styles are: {self.valid_corner_bolt_styles}.")
 
         # --- misc
         self.socket_clearance = self.socket_clearances[self.corner_bolt_size]
@@ -385,36 +436,52 @@ class LidAssemblyBuilder:
         chamber_nuts = cq.Assembly(None)
         orings = cq.Assembly(None)
 
-        # HFFN-M5-A2
-        chamber_nut = cqf.HexNutWithFlange(
-            size=self.corner_bolt_thread,
-            fastener_type="din1665",
-            simple=self.no_threads,
-        )
-
-        bolts_sink_depth = chamber_nut.nut_thickness - self.support_t
-
         # create lid plate
         lid = cq.Workplane("XY").box(self.length, self.width, self.lid_t)
 
-        # make the socket clearance ears on the corners
-        lid = lid.faces(">Z").rect(self.length, self.width, forConstruction=True).vertices().rect(self.socket_clearance + self.corner_bolt_offset * 2, self.corner_bolt_offset * 2, centered=True).cutBlind(-bolts_sink_depth)
-        lid = lid.faces(">Z").rect(self.length, self.width, forConstruction=True).vertices().rect(self.corner_bolt_offset * 2, self.socket_clearance + self.corner_bolt_offset * 2, centered=True).cutBlind(-bolts_sink_depth)
-        lid = lid.faces(">Z").workplane().pushPoints(self.corner_bolt_xys).circle(self.socket_clearance / 2).cutBlind(-bolts_sink_depth)
+        if self.corner_bolt_style == "nut":
+            # make the socket clearance ears on the corners
+            bolts_sink_depth = self.chamber_fastener.nut_thickness - self.support_t
+            lid = lid.faces(">Z").rect(self.length, self.width, forConstruction=True).vertices().rect(self.socket_clearance + self.corner_bolt_offset * 2, self.corner_bolt_offset * 2, centered=True).cutBlind(-bolts_sink_depth)
+            lid = lid.faces(">Z").rect(self.length, self.width, forConstruction=True).vertices().rect(self.corner_bolt_offset * 2, self.socket_clearance + self.corner_bolt_offset * 2, centered=True).cutBlind(-bolts_sink_depth)
+            lid = lid.faces(">Z").workplane().pushPoints(self.corner_bolt_xys).circle(self.socket_clearance / 2).cutBlind(-bolts_sink_depth)
 
-        # make the bolt holes and put on the nuts
-        lid = lid.faces(">Z").workplane(offset=-bolts_sink_depth).pushPoints(self.corner_bolt_xys).clearanceHole(chamber_nut, counterSunk=False, baseAssembly=chamber_nuts)
+            # make the bolt holes and put on the nuts
+            lid = lid.faces(">Z").workplane(offset=-bolts_sink_depth).pushPoints(self.corner_bolt_xys).clearanceHole(fastener=self.chamber_fastener, counterSunk=False, baseAssembly=chamber_nuts)
+
+        if self.corner_bolt_style == "countersink":
+            # make clearance hole for countersink bolts accounting for any screw head
+            # height greater than the thickness of the support
+            lid = lid.faces(">Z").workplane(offset=self.support_t).pushPoints(self.corner_bolt_xys).clearanceHole(fastener=self.chamber_fastener)
 
         # cut m4 blind threaded holes for window support
-        lid = (
-            lid.faces(">Z")
-            .workplane(centerOption="CenterOfBoundBox")
-            .pushPoints(self.support_bolt_xys)
-            .hole(
-                diameter=self.support_bolt.tap_hole_diameters["Soft"],
-                depth=self.lid_t - self.lid_t_under_support_screw,
+        # cq_warehouse blind holes have a cone cut in the end that could puncture
+        # through the lid, so use standard cq holes with flat bottom
+        if self.support_t < self.support_bolt.screw_data["dk"]:
+            # need to add a countersink in lid for the screw head
+            lid = (
+                lid.faces(">Z")
+                .workplane(centerOption="CenterOfBoundBox")
+                .pushPoints(self.support_bolt_xys)
+                .cskHole(
+                    diameter=self.support_bolt.tap_hole_diameters["Soft"],
+                    depth=self.lid_t - self.lid_t_under_support_screw,
+                    cskDiameter=self.support_bolt.screw_data["dk"] - 2 * (self.support_t * np.tan((self.support_bolt.screw_data["a"] / 2) * np.pi / 180)),
+                    cskAngle=self.support_bolt.screw_data["a"],
+                )
             )
-        )
+        else:
+            lid = (
+                lid.faces(">Z")
+                .workplane(centerOption="CenterOfBoundBox")
+                .pushPoints(self.support_bolt_xys)
+                .hole(
+                    diameter=self.support_bolt.tap_hole_diameters["Soft"],
+                    depth=self.lid_t - self.lid_t_under_support_screw,
+                )
+            )
+
+        # lid = lid.faces(">Z").workplane(offset=self.support_t).pushPoints(self.support_bolt_xys).tapHole(fastener=self.support_bolt, depth=self.support_bolt.length)
 
         # fillet corner side edges
         lid = lid.edges("|Z").fillet(self.chamber_fillet)
@@ -430,23 +497,32 @@ class LidAssemblyBuilder:
 
         # cut o-ring groove
         cq.Workplane.mk_groove = tb.groovy.mk_groove
-        lid = cq.CQ(lid.findSolid()).faces(">Z[-3]").workplane(centerOption="CenterOfBoundBox")
+
+        if self.corner_bolt_style == "nut":
+            lid = cq.CQ(lid.findSolid()).faces(">Z[-3]").workplane(centerOption="CenterOfBoundBox")
+
+        if self.corner_bolt_style == "countersink":
+            lid = cq.CQ(lid.findSolid()).faces(">Z[-2]").workplane(centerOption="CenterOfBoundBox")
+
         lid = lid.mk_groove(ring_cs=self.oring_cs, follow_pending_wires=False, ring_id=self.oring_id, gland_x=self.oring_gland_x, gland_y=self.oring_gland_y, compression_ratio=self.compression_ratio, gland_fill_ratio=self.gland_fill_ratio, hardware=orings)
 
         return (lid, chamber_nuts, orings)
 
-    def _build_support(self) -> Tuple[cq.Workplane, cq.Assembly]:
+    def _build_support(self) -> Tuple[cq.Workplane, cq.Assembly, cq.Assembly]:
         """Build the window support.
 
         Returns
         -------
         support : cq.Workplane
             Window support object.
+        chamber_bolts : cq.Assembly
+            Assembly of chamber bolts.
         support_bolts : cq.Assembly
             Assembly of support bolts.
         """
         # create hardware assemblies
         support_bolts = cq.Assembly(None)
+        chamber_bolts = cq.Assembly(None)
 
         # create window support plate
         window_support = cq.Workplane("XY").box(self.length, self.width, self.support_t)
@@ -454,16 +530,17 @@ class LidAssemblyBuilder:
         # chamfer upper side edges
         window_support = window_support.edges("|X and >Z").chamfer(self.chamber_chamfer).edges("|Y and >Z").chamfer(self.chamber_chamfer)
 
-        # cut corners for lid nut clearance
-        edges = [
-            "|Z and <X and <Y",
-            "|Z and >X and <Y",
-            "|Z and <X and >Y",
-            "|Z and >X and >Y",
-        ]
-        for (x, y), e in zip(self.corner_bolt_xys, edges):
-            corner = cq.Workplane("XY").box(self.socket_clearance, self.socket_clearance, self.support_t).edges(e).fillet(self.socket_clearance / 2).translate((x, y, 0))
-            window_support = window_support.cut(corner)
+        if self.corner_bolt_style == "nut":
+            # cut corners for lid nut clearance
+            edges = [
+                "|Z and <X and <Y",
+                "|Z and >X and <Y",
+                "|Z and <X and >Y",
+                "|Z and >X and >Y",
+            ]
+            for (x, y), e in zip(self.corner_bolt_xys, edges):
+                corner = cq.Workplane("XY").box(self.socket_clearance, self.socket_clearance, self.support_t).edges(e).fillet(self.socket_clearance / 2).translate((x, y, 0))
+                window_support = window_support.cut(corner)
 
         # fillet side edges
         window_support = window_support.edges("|Z").fillet(self.chamber_fillet)
@@ -475,10 +552,14 @@ class LidAssemblyBuilder:
         # move up to sit above lid
         window_support = window_support.translate((0, 0, self.lid_t / 2 + self.support_t / 2))
 
+        if self.corner_bolt_style == "countersink":
+            # make clearance hole for countersink bolts
+            window_support = window_support.faces(">Z").workplane(centerOption="CenterOfBoundBox").pushPoints(self.corner_bolt_xys).clearanceHole(fastener=self.chamber_fastener, baseAssembly=chamber_bolts)
+
         # cut countersink holes for support bolts
         window_support = window_support.faces(">Z").workplane(centerOption="CenterOfBoundBox").pushPoints(self.support_bolt_xys).clearanceHole(fastener=self.support_bolt, baseAssembly=support_bolts)
 
-        return (window_support, support_bolts)
+        return (window_support, chamber_bolts, support_bolts)
 
     def _build_window(self) -> cq.Workplane:
         """Build the window.
@@ -550,8 +631,8 @@ if (__name__ == "__main__") or (have_so is True):
     # thread spec for bolts than fasten lid to base
     corner_bolt_thread = "M5-0.8"
 
-    # style the corner fastener as nut with recess
-    corner_bolt_style = "nut"
+    # style the corner fastener as eith "nut" with recess, or "countersink" for screw
+    corner_bolt_style = "countersink"
 
     # corner bolt center offset from nearest x and y edges
     corner_bolt_offset = 7.5
