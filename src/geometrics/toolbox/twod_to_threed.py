@@ -78,7 +78,7 @@ class TwoDToThreeD(object):
                             # wp = cq.Workplane()
                             # wp.add(layer["solid"])
                             # asy.add(wp, name=layer["name"], color=cadquery.Color(layer["color"]))
-                            asy.add(layer["solid"], name=layer["name"], color=cadquery.Color(layer["color"]))
+                            asy.add(layer["geometry"], name=layer["name"], color=cadquery.Color(layer["color"]))
                         stacks[stack_done["name"]] = {"assembly": asy, "vcuts": vcuts, "bwire": bwire, "twire": twire, "recess": recess}
                         # stacks.append(stack_done)
                         # key, val = stack_done
@@ -108,6 +108,7 @@ class TwoDToThreeD(object):
             else:
                 dent_size = 0
             t = stack_layer["thickness"]
+            faces = []
             boundary_layer_name = stack_layer["drawing_layer_names"][0]  # boundary layer must always be the first one listed
 
             if "array" in stack_layer:
@@ -117,9 +118,12 @@ class TwoDToThreeD(object):
 
             wp = CQ()
             for fc in layers[boundary_layer_name]:
-                sld = CQ(fc).wires().toPending().extrude(t).findSolid()
-                if sld:
-                    wp = wp.union(sld)
+                if t:
+                    sld = CQ(fc).wires().toPending().extrude(t).findSolid()
+                    if sld:
+                        wp = wp.union(sld)
+                else:
+                    faces.append(fc)
 
             if len(stack_layer["drawing_layer_names"]) > 1:
                 negs: List[cadquery.Shape] = []
@@ -140,29 +144,32 @@ class TwoDToThreeD(object):
                         angle = float(ldln[1])
 
                     for fc in layers[ldln[0]]:
-                        sld = cadquery.Solid.extrudeLinear(fc, cadquery.Vector(0, 0, t))
-                        if loft:
-                            bf = fc.moved(cadquery.Location((0, 0, dent_size)))
-                            tf = layers[ldln[1]][0].moved(cadquery.Location((0, 0, t + dent_size)))
-                            bw = bf.Wires()[0]
-                            tw = tf.Wires()[0]
-                            lsld = cadquery.Solid.makeLoft([bw, tw])
-                            sld = sld.fuse(lsld).clean()
-                            # negs.append(sld)
-                            loft_angle_negs.append(lsld)
-                            loft_angle_plus_negs.append(sld)
-                            break  # loft only supports layers with one face
-                        elif angle:
-                            alongz = t - dent_size
-                            along = alongz / math.cos(math.radians(angle))
-                            # these faces can't be polylines...(explode them to make this work!)
-                            asld = cadquery.Solid.extrudeLinear(fc.moved(cadquery.Location((0, 0, dent_size))), cadquery.Vector(0, 0, along), angle)
-                            sld = sld.fuse(asld).clean()
-                            # negs.append(sld)
-                            loft_angle_negs.append(asld)
-                            loft_angle_plus_negs.append(sld)
+                        if t:  # don't do 2d stuff here
+                            sld = cadquery.Solid.extrudeLinear(fc, cadquery.Vector(0, 0, t))
+                            if loft:
+                                bf = fc.moved(cadquery.Location((0, 0, dent_size)))
+                                tf = layers[ldln[1]][0].moved(cadquery.Location((0, 0, t + dent_size)))
+                                bw = bf.Wires()[0]
+                                tw = tf.Wires()[0]
+                                lsld = cadquery.Solid.makeLoft([bw, tw])
+                                sld = sld.fuse(lsld).clean()
+                                # negs.append(sld)
+                                loft_angle_negs.append(lsld)
+                                loft_angle_plus_negs.append(sld)
+                                break  # loft only supports layers with one face
+                            elif angle:
+                                alongz = t - dent_size
+                                along = alongz / math.cos(math.radians(angle))
+                                # these faces can't be polylines...(explode them to make this work!)
+                                asld = cadquery.Solid.extrudeLinear(fc.moved(cadquery.Location((0, 0, dent_size))), cadquery.Vector(0, 0, along), angle)
+                                sld = sld.fuse(asld).clean()
+                                # negs.append(sld)
+                                loft_angle_negs.append(asld)
+                                loft_angle_plus_negs.append(sld)
+                            else:
+                                negs.append(sld)
                         else:
-                            negs.append(sld)
+                            faces.append(fc)
 
                 if dent_size:
                     dent_layer = stack_layer["edm_dent"]
@@ -247,7 +254,13 @@ class TwoDToThreeD(object):
                 z_base = stack_layer["z_base"]
 
             new = wp.translate((0, 0, z_base))
-            new_layer = {"name": stack_layer["name"], "color": stack_layer["color"], "solid": new.findSolid()}
+            try:
+                solid = new.findSolid()
+                geometry = solid
+            except Exception as e:
+                print(f"{boundary_layer_name} is 2d")
+                geometry = cadquery.Compound.makeCompound(faces)
+            new_layer = {"name": stack_layer["name"], "color": stack_layer["color"], "geometry": geometry}
             stack["layers"].append(new_layer)
             # asy.add(new, name=stack_layer["name"], color=cadquery.Color(stack_layer["color"]))
             z_base = z_base + t
