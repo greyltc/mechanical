@@ -133,7 +133,7 @@ class TwoDToThreeD(object):
             else:  # 2d case
                 twod_faces = layers[boundary_layer_name]
                 if stack["dxf_scale"]:
-                    for i, fc in twod_faces:
+                    for i, fc in enumerate(twod_faces):
                         twod_faces[i] = fc.scale(stack["dxf_scale"])
 
             if len(stack_layer["drawing_layer_names"]) > 1:
@@ -246,13 +246,13 @@ class TwoDToThreeD(object):
                 if "edge_case" in stack_layer:
                     bdfaces = layers[boundary_layer_name]
                     if stack["dxf_scale"]:
-                        for i, fc in bdfaces:
+                        for i, fc in enumerate(bdfaces):
                             bdfaces[i] = fc.scale(stack["dxf_scale"])
                     bdface_cmpd = cadquery.Compound.makeCompound(bdfaces)
                     edg = CQ().sketch().face(bdface_cmpd)
                     edfaces = stack_layer["edge_case"]
                     if stack["dxf_scale"]:
-                        for i, fc in edfaces:
+                        for i, fc in enumerate(edfaces):
                             edfaces[i] = fc.scale(stack["dxf_scale"])
                     edgc_cmpd = cadquery.Compound.makeCompound(edfaces)
                     edg = edg.face(edgc_cmpd, mode="s").finalize().extrude(t)
@@ -290,6 +290,7 @@ class TwoDToThreeD(object):
             if twod_faces:
                 print(f"{boundary_layer_name} is 2d")
                 geometry = cadquery.Compound.makeCompound(twod_faces)
+                geometry = geometry.moved(cadquery.Location((0, 0, z_base)))
             else:
                 new = wp.translate((0, 0, z_base))
                 sld_prt = new.findSolid().Solids()[0]
