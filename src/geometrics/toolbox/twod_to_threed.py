@@ -68,7 +68,7 @@ class TwoDToThreeD(object):
             # fs = [executor.submit(self.do_stack, stack_instructions, stacks_to_build, layers) for stack_instructions in self.stacks]
             for future in concurrent.futures.as_completed(fs):
                 try:
-                    stack_done, vcuts, bwire, twire, recess = future.result()
+                    stack_done, vcuts, bwire, twire, recess, instruction_copy = future.result()
                 except Exception as e:
                     print(repr(e))
                 else:
@@ -80,7 +80,7 @@ class TwoDToThreeD(object):
                             # wp.add(layer["solid"])
                             # asy.add(wp, name=layer["name"], color=cadquery.Color(layer["color"]))
                             asy.add(layer["geometry"], name=layer["name"], color=cadquery.Color(layer["color"]))
-                        stacks[stack_done["name"]] = {"assembly": asy, "vcuts": vcuts, "bwire": bwire, "twire": twire, "recess": recess}
+                        stacks[stack_done["name"]] = {"assembly": asy, "vcuts": vcuts, "bwire": bwire, "twire": twire, "recess": recess, "instructions": instruction_copy}
                         # stacks.append(stack_done)
                         # key, val = stack_done
                         # stacks[key] = val
@@ -89,7 +89,7 @@ class TwoDToThreeD(object):
         # asy.save(str(Path(__file__).parent / "output" / f"{stack_instructions['name']}.step"))
         # cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(Path(__file__).parent / "output" / "badger.brep"))
 
-    def do_stack(self, instructions, layers) -> Tuple[Dict, List, List, List, List]:
+    def do_stack(self, instructions, layers) -> Tuple[Dict, List, List, List, List, Dict]:
         # asy = cadquery.Assembly()
         stack = {}
         vcut_faces = []
@@ -99,10 +99,13 @@ class TwoDToThreeD(object):
 
         # asy = None
         stack["name"] = instructions["name"]
+        if "xyscale" in instructions:
+            stack["dxf_scale"] = instructions["xyscale"]
+        else:
+            stack["dxf_scale"] = 0
         stack["layers"] = []
         # asy.name = instructions["name"]
         z_base = 0
-
         for stack_layer in instructions["layers"]:
             fuse_faces = []
             make_faces = False
@@ -122,11 +125,16 @@ class TwoDToThreeD(object):
             if t:
                 twod_faces = []
                 for fc in layers[boundary_layer_name]:
+                        if stack["dxf_scale"]:
+                            fc = fc.scale(stack["dxf_scale"])
                         sld = CQ(fc).wires().toPending().extrude(t).findSolid()
                         if sld:
                             wp = wp.union(sld)
             else:  # 2d case
                 twod_faces = layers[boundary_layer_name]
+                if stack["dxf_scale"]:
+                    for i, fc in twod_faces:
+                        twod_faces[i] = fc.scale(stack["dxf_scale"])
 
             if len(stack_layer["drawing_layer_names"]) > 1:
                 negs: List[cadquery.Shape] = []
@@ -150,6 +158,8 @@ class TwoDToThreeD(object):
                         angle = float(ldln[1])
 
                     for fc in layers[ldln[0]]:
+                        if stack["dxf_scale"]:
+                            fc = fc.scale(stack["dxf_scale"])
                         if make_faces:
                             fuse_faces.append(fc)  # these faces will be fused to the solid 
                         else:  # we're not fusing faces to the solid
@@ -158,6 +168,8 @@ class TwoDToThreeD(object):
                                 if loft:
                                     bf = fc.moved(cadquery.Location((0, 0, dent_size)))
                                     tf = layers[ldln[1]][0].moved(cadquery.Location((0, 0, t + dent_size)))
+                                    if stack["dxf_scale"]:
+                                        tf = tf.scale(stack["dxf_scale"])
                                     bw = bf.Wires()[0]
                                     tw = tf.Wires()[0]
                                     lsld = cadquery.Solid.makeLoft([bw, tw])
@@ -186,6 +198,8 @@ class TwoDToThreeD(object):
                     if layers[dent_layer]:
                         recess_faces.append(dent_size)
                         for fc in layers[dent_layer]:
+                            if stack["dxf_scale"]:
+                                fc = fc.scale(stack["dxf_scale"])
                             sld = cadquery.Solid.extrudeLinear(fc, cadquery.Vector(0, 0, dent_size))
                             negs.append(sld)
 
@@ -221,6 +235,8 @@ class TwoDToThreeD(object):
                     if dent_size:
                         if layers[stack_layer["edm_dent"]]:
                             for dface in layers[stack_layer["edm_dent"]]:
+                                if stack["dxf_scale"]:
+                                    dface = dface.scale(stack["dxf_scale"])
                                 recess_faces.append(dface.located(cadquery.Location(point)))
 
                 mncmpd = cadquery.Compound.makeCompound(moved_negs).mirror("XY", (0, 0, t / 2))
@@ -228,9 +244,17 @@ class TwoDToThreeD(object):
                 wp = wp.cut(mncmpd)  # this just cuts the straights
 
                 if "edge_case" in stack_layer:
-                    bdface_cmpd = cadquery.Compound.makeCompound(layers[boundary_layer_name])
+                    bdfaces = layers[boundary_layer_name]
+                    if stack["dxf_scale"]:
+                        for i, fc in bdfaces:
+                            bdfaces[i] = fc.scale(stack["dxf_scale"])
+                    bdface_cmpd = cadquery.Compound.makeCompound(bdfaces)
                     edg = CQ().sketch().face(bdface_cmpd)
-                    edgc_cmpd = cadquery.Compound.makeCompound(layers[stack_layer["edge_case"]])
+                    edfaces = stack_layer["edge_case"]
+                    if stack["dxf_scale"]:
+                        for i, fc in edfaces:
+                            edfaces[i] = fc.scale(stack["dxf_scale"])
+                    edgc_cmpd = cadquery.Compound.makeCompound(edfaces)
                     edg = edg.face(edgc_cmpd, mode="s").finalize().extrude(t)
                     edge = True
                 else:
@@ -287,7 +311,7 @@ class TwoDToThreeD(object):
             # asy.add(new, name=stack_layer["name"], color=cadquery.Color(stack_layer["color"]))
             z_base = z_base + t
         # return (instructions["name"], asy)
-        return stack, vcut_faces, b_wire_faces, t_wire_faces, recess_faces
+        return stack, vcut_faces, b_wire_faces, t_wire_faces, recess_faces, instructions
 
     def get_layers(self, dxf_filepaths: List[Path], layer_names: List[str] = []) -> Dict[str, cq.Workplane]:
         """returns the requested layers from dxfs"""
@@ -344,9 +368,13 @@ class TwoDToThreeD(object):
             myzip.write(filename)
 
     @classmethod
-    def outputter(cls, built: dict[str, dict[str, cadquery.Assembly]], wrk_dir: Path, save_dxfs=False, save_pdfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, edm_outputs=False, simulation_outputs=False, nparallel=1, show_object: Callable | None = None):
+    def outputter(cls, built: dict[str, dict[str, cadquery.Assembly]], wrk_dir: Path, save_dxfs=False, save_pdfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, edm_outputs=False, nparallel=1, show_object: Callable | None = None):
         """do output tasks on a dictionary of assemblies"""
         for stack_name, result in built.items():
+            if "sim_mode" in result["instructions"]:
+                simulation_outputs = result["instructions"]["sim_mode"]
+            else:
+                simulation_outputs = False
             # do some cutting for the simulations
             if simulation_outputs:
                 # collect the cutting tools
@@ -381,7 +409,11 @@ class TwoDToThreeD(object):
 
                 # save assembly
                 stepfile = str(wrk_dir / "output" / f"{stack_name}.step")
-                result["assembly"].save(stepfile)
+                if simulation_outputs:
+                    step_mode = "default"  # "fused" makes the volumes difficult to split in the simulation
+                else:
+                    step_mode = "default"
+                result["assembly"].save(stepfile, mode=step_mode)
                 TwoDToThreeD.ensmall(stepfile)
 
                 # result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.brep"))
