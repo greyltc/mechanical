@@ -375,6 +375,12 @@ class TwoDToThreeD(object):
                 simulation_outputs = result["instructions"]["sim_mode"]
             else:
                 simulation_outputs = False
+
+            if "final_scale" in result["instructions"]:
+                final_scale = result["instructions"]["final_scale"]
+            else:
+                final_scale = 0
+
             # do some cutting for the simulations
             if simulation_outputs:
                 # collect the cutting tools
@@ -388,6 +394,11 @@ class TwoDToThreeD(object):
                     if not val.children:
                         for cutter in cutters:
                             val.obj = val.obj.cut(cutter)
+
+            if final_scale:
+                for key, val in result["assembly"].traverse():
+                    if not val.children:
+                        val.obj = val.obj.scale(final_scale)
 
             if show_object:  # we're in cq-editor
                 assembly_mode = True  # at the moment, when true we can't select/deselect subassembly parts
@@ -421,69 +432,69 @@ class TwoDToThreeD(object):
                 # result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.vtkjs"), "VTKJS")
                 result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
                 result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.stl"), "STL")
+                if not simulation_outputs:
+                    if edm_outputs:
+                        edm_subdir = f"{stack_name}_edm"
+                        Path.mkdir(wrk_dir / "output" / edm_subdir, exist_ok=True)
+                        shutil.copy(stepfile, str(wrk_dir / "output" / edm_subdir / f"expected_result_shape.step"))
+                        if "vcuts" in result and result["vcuts"]:
+                            cadquery.exporters.export(CQ().add(result["vcuts"]), str(wrk_dir / "output" / edm_subdir / f"vertical_wire_paths.dxf"))
+                        if "twire" in result and result["twire"]:
+                            t_wire_faces = result["twire"]
+                            first_face = t_wire_faces[0]
+                            ffbb = first_face.BoundingBox()
+                            h = round(ffbb.zmax, 6)
+                            cadquery.exporters.export(CQ().add(t_wire_faces), str(wrk_dir / "output" / edm_subdir / f"angled_wire_paths_z={h}mm.dxf"))
+                        if "bwire" in result and result["bwire"]:
+                            b_wire_faces = result["bwire"]
+                            first_face = b_wire_faces[0]
+                            ffbb = first_face.BoundingBox()
+                            h = round(ffbb.zmin, 6)
+                            cadquery.exporters.export(CQ().add(b_wire_faces), str(wrk_dir / "output" / edm_subdir / f"angled_wire_paths_z={h}mm.dxf"))
+                        if "recess" in result and result["recess"]:
+                            depth = result["recess"][0]
+                            cadquery.exporters.export(CQ().add(result["recess"][1:]), str(wrk_dir / "output" / edm_subdir / f"recess_from_z=0_to_z={depth}mm.dxf"))
 
-                if edm_outputs:
-                    edm_subdir = f"{stack_name}_edm"
-                    Path.mkdir(wrk_dir / "output" / edm_subdir, exist_ok=True)
-                    shutil.copy(stepfile, str(wrk_dir / "output" / edm_subdir / f"expected_result_shape.step"))
-                    if "vcuts" in result and result["vcuts"]:
-                        cadquery.exporters.export(CQ().add(result["vcuts"]), str(wrk_dir / "output" / edm_subdir / f"vertical_wire_paths.dxf"))
-                    if "twire" in result and result["twire"]:
-                        t_wire_faces = result["twire"]
-                        first_face = t_wire_faces[0]
-                        ffbb = first_face.BoundingBox()
-                        h = round(ffbb.zmax, 6)
-                        cadquery.exporters.export(CQ().add(t_wire_faces), str(wrk_dir / "output" / edm_subdir / f"angled_wire_paths_z={h}mm.dxf"))
-                    if "bwire" in result and result["bwire"]:
-                        b_wire_faces = result["bwire"]
-                        first_face = b_wire_faces[0]
-                        ffbb = first_face.BoundingBox()
-                        h = round(ffbb.zmin, 6)
-                        cadquery.exporters.export(CQ().add(b_wire_faces), str(wrk_dir / "output" / edm_subdir / f"angled_wire_paths_z={h}mm.dxf"))
-                    if "recess" in result and result["recess"]:
-                        depth = result["recess"][0]
-                        cadquery.exporters.export(CQ().add(result["recess"][1:]), str(wrk_dir / "output" / edm_subdir / f"recess_from_z=0_to_z={depth}mm.dxf"))
+                    # # stupid workaround for gltf export bug: https://github.com/CadQuery/cadquery/issues/993
+                    # asy2 = None
+                    # # for path, child in asy._flatten().items():
+                    # for child in asy.children:
+                    #     # if "/" in path:
+                    #     if asy2 is None:
+                    #         asy2 = cadquery.Assembly(child.obj, name=child.name, color=child.color)
+                    #     else:
+                    #         asy2.add(child.obj, name=child.name, color=child.color)
+                    # asy2.save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
 
-                # # stupid workaround for gltf export bug: https://github.com/CadQuery/cadquery/issues/993
-                # asy2 = None
-                # # for path, child in asy._flatten().items():
-                # for child in asy.children:
-                #     # if "/" in path:
-                #     if asy2 is None:
-                #         asy2 = cadquery.Assembly(child.obj, name=child.name, color=child.color)
-                #     else:
-                #         asy2.add(child.obj, name=child.name, color=child.color)
-                # asy2.save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
+                    # cadquery.exporters.assembly.exportCAF(asy, str(wrk_dir / "output" / f"{stack_name}.std"))
+                    # cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(wrk_dir / "output" / f"{stack_name}.brep"))
 
-                # cadquery.exporters.assembly.exportCAF(asy, str(wrk_dir / "output" / f"{stack_name}.std"))
-                # cq.Shape.exportBrep(cq.Compound.makeCompound(itertools.chain.from_iterable([x[1].shapes for x in asy.traverse()])), str(wrk_dir / "output" / f"{stack_name}.brep"))
-
-                # save each shape individually
-                for key, val in result["assembly"].traverse():
-                    shapes = val.shapes
-                    if shapes != []:
-                        c = cadquery.Compound.makeCompound(shapes)
-                        if c.Volume() or c.Area():  #don't output things that aren't there
-                            if save_stls == True:
-                                cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.stl"), cadquery.exporters.ExportTypes.STL)
-                            if save_steps == True:
-                                stepfile = str(wrk_dir / "output" / f"{stack_name}-{val.name}.step")
-                                cadquery.exporters.export(c.locate(val.loc), stepfile, cadquery.exporters.ExportTypes.STEP)
-                                TwoDToThreeD.ensmall(stepfile)
-                            if save_breps == True:
-                                cadquery.Shape.exportBrep(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.brep"))
-                            if save_vrmls == True:
-                                cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.wrl"), cadquery.exporters.ExportTypes.VRML)
-                            if save_dxfs or save_pdfs:
-                                cl = c.locate(val.loc)
-                                bb = cl.BoundingBox()
-                                zmid = (bb.zmin + bb.zmax) / 2
-                                nwp = CQ("XY", origin=(0, 0, zmid)).add(cl)
-                                dxface = nwp.section()
-                                outdxf_filepath = wrk_dir / "output" / f"{stack_name}-{val.name}.dxf"
-                                cadquery.exporters.export(dxface, str(outdxf_filepath), cadquery.exporters.ExportTypes.DXF)
-                                if save_pdfs:
-                                    dxf_file = ezdxf.filemanagement.readfile(outdxf_filepath)
-                                    if not save_dxfs:
-                                        outdxf_filepath.unlink()
-                                    matplotlib.qsave(dxf_file.modelspace(), str(outdxf_filepath)+".pdf")
+                    # save each shape individually
+                    for key, val in result["assembly"].traverse():
+                        shapes = val.shapes
+                        if shapes != []:
+                            c = cadquery.Compound.makeCompound(shapes)
+                            if c.Volume() or c.Area():  #don't output things that aren't there
+                                if save_stls == True:
+                                    cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.stl"), cadquery.exporters.ExportTypes.STL)
+                                if save_steps == True:
+                                    stepfile = str(wrk_dir / "output" / f"{stack_name}-{val.name}.step")
+                                    cadquery.exporters.export(c.locate(val.loc), stepfile, cadquery.exporters.ExportTypes.STEP)
+                                    TwoDToThreeD.ensmall(stepfile)
+                                if save_breps == True:
+                                    cadquery.Shape.exportBrep(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.brep"))
+                                if save_vrmls == True:
+                                    cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.wrl"), cadquery.exporters.ExportTypes.VRML)
+                                if save_dxfs or save_pdfs:
+                                    cl = c.locate(val.loc)
+                                    bb = cl.BoundingBox()
+                                    zmid = (bb.zmin + bb.zmax) / 2
+                                    nwp = CQ("XY", origin=(0, 0, zmid)).add(cl)
+                                    dxface = nwp.section()
+                                    outdxf_filepath = wrk_dir / "output" / f"{stack_name}-{val.name}.dxf"
+                                    cadquery.exporters.export(dxface, str(outdxf_filepath), cadquery.exporters.ExportTypes.DXF)
+                                    if save_pdfs:
+                                        dxf_file = ezdxf.filemanagement.readfile(outdxf_filepath)
+                                        if not save_dxfs:
+                                            outdxf_filepath.unlink()
+                                        matplotlib.qsave(dxf_file.modelspace(), str(outdxf_filepath)+".pdf")
