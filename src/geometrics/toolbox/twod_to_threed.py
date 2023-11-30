@@ -192,96 +192,96 @@ class TwoDToThreeD(object):
                             else:
                                 twod_faces.append(fc)
                                 #print(f'Discarding {drawing_layer_name} in {stack_layer["name"]} in {stack["name"]}: 2D faces can only be defined by one drawing layer')
-
-                if dent_size:
-                    dent_layer = stack_layer["edm_dent"]
-                    if layers[dent_layer]:
-                        recess_faces.append(dent_size)
-                        for fc in layers[dent_layer]:
-                            if stack["dxf_scale"]:
-                                fc = fc.scale(stack["dxf_scale"])
-                            sld = cadquery.Solid.extrudeLinear(fc, cadquery.Vector(0, 0, dent_size))
-                            negs.append(sld)
-
-                moved_negs = []
-                loft_angle_negs_moved = []
-                loft_angle_plus_negs_moved = []
-
-                nofthem = len(negs)
-                if nofthem > 1:
-                    neg_fuse = negs.pop().fuse(*negs).clean()
-                elif nofthem == 1:
-                    neg_fuse = negs[0]
-                else:
-                    neg_fuse = None
-
-                nofthem = len(loft_angle_plus_negs)
-                if nofthem > 1:
-                    loft_angle_plus_neg_fuse = loft_angle_plus_negs.pop().fuse(*loft_angle_plus_negs).clean()
-                elif nofthem == 1:
-                    loft_angle_plus_neg_fuse = loft_angle_plus_negs[0]
-                else:
-                    loft_angle_plus_neg_fuse = None
-
-                # for s in neg_fuse.Solids():  # testing
-                #     cadquery.exporters.export(s, f"/tmp/{s}.step")  # testing
-                for point in array_points:
-                    if neg_fuse:
-                        moved_negs.append(neg_fuse.located(cadquery.Location(point)))
-                    if loft_angle_plus_neg_fuse:
-                        loft_angle_plus_negs_moved.append(loft_angle_plus_neg_fuse.located(cadquery.Location(point)))
-                    for loft_angle_neg in loft_angle_negs:
-                        loft_angle_negs_moved.append(loft_angle_neg.located(cadquery.Location(point)))
+                if t:
                     if dent_size:
-                        if layers[stack_layer["edm_dent"]]:
-                            for dface in layers[stack_layer["edm_dent"]]:
+                        dent_layer = stack_layer["edm_dent"]
+                        if layers[dent_layer]:
+                            recess_faces.append(dent_size)
+                            for fc in layers[dent_layer]:
                                 if stack["dxf_scale"]:
-                                    dface = dface.scale(stack["dxf_scale"])
-                                recess_faces.append(dface.located(cadquery.Location(point)))
+                                    fc = fc.scale(stack["dxf_scale"])
+                                sld = cadquery.Solid.extrudeLinear(fc, cadquery.Vector(0, 0, dent_size))
+                                negs.append(sld)
 
-                mncmpd = cadquery.Compound.makeCompound(moved_negs).mirror("XY", (0, 0, t / 2))
-                mnldmpd = cadquery.Compound.makeCompound(loft_angle_plus_negs_moved).mirror("XY", (0, 0, t / 2))
-                wp = wp.cut(mncmpd)  # this just cuts the straights
+                    moved_negs = []
+                    loft_angle_negs_moved = []
+                    loft_angle_plus_negs_moved = []
 
-                if "edge_case" in stack_layer:
-                    bdfaces = layers[boundary_layer_name]
-                    if stack["dxf_scale"]:
-                        for i, fc in enumerate(bdfaces):
-                            bdfaces[i] = fc.scale(stack["dxf_scale"])
-                    bdface_cmpd = cadquery.Compound.makeCompound(bdfaces)
-                    edg = CQ().sketch().face(bdface_cmpd)
-                    edfaces = stack_layer["edge_case"]
-                    if stack["dxf_scale"]:
-                        for i, fc in enumerate(edfaces):
-                            edfaces[i] = fc.scale(stack["dxf_scale"])
-                    edgc_cmpd = cadquery.Compound.makeCompound(edfaces)
-                    edg = edg.face(edgc_cmpd, mode="s").finalize().extrude(t)
-                    edge = True
-                else:
-                    edgc_cmpd = []
-                    edg = CQ()
-                    edge = False
+                    nofthem = len(negs)
+                    if nofthem > 1:
+                        neg_fuse = negs.pop().fuse(*negs).clean()
+                    elif nofthem == 1:
+                        neg_fuse = negs[0]
+                    else:
+                        neg_fuse = None
 
-                if edge:
-                    wp = wp.union(edg)
-                vcut_faces = wp.faces(">Z").vals()
+                    nofthem = len(loft_angle_plus_negs)
+                    if nofthem > 1:
+                        loft_angle_plus_neg_fuse = loft_angle_plus_negs.pop().fuse(*loft_angle_plus_negs).clean()
+                    elif nofthem == 1:
+                        loft_angle_plus_neg_fuse = loft_angle_plus_negs[0]
+                    else:
+                        loft_angle_plus_neg_fuse = None
 
-                wp = wp.cut(mnldmpd)  # this cuts the lofts and angles
-                if edge:
-                    wp = edg.union(wp)
-                    #wp = wp.union(edg, tol=0.0001)
-                    # to_fuse = edg.solids().vals() + wp.solids().vals()
-                    # edg_fuse = to_fuse.pop().fuse(*to_fuse, glue=True).clean()
-                    # wp = CQ(edg_fuse)
+                    # for s in neg_fuse.Solids():  # testing
+                    #     cadquery.exporters.export(s, f"/tmp/{s}.step")  # testing
+                    for point in array_points:
+                        if neg_fuse:
+                            moved_negs.append(neg_fuse.located(cadquery.Location(point)))
+                        if loft_angle_plus_neg_fuse:
+                            loft_angle_plus_negs_moved.append(loft_angle_plus_neg_fuse.located(cadquery.Location(point)))
+                        for loft_angle_neg in loft_angle_negs:
+                            loft_angle_negs_moved.append(loft_angle_neg.located(cadquery.Location(point)))
+                        if dent_size:
+                            if layers[stack_layer["edm_dent"]]:
+                                for dface in layers[stack_layer["edm_dent"]]:
+                                    if stack["dxf_scale"]:
+                                        dface = dface.scale(stack["dxf_scale"])
+                                    recess_faces.append(dface.located(cadquery.Location(point)))
 
-                # extract the faces for wire paths
-                if loft_angle_negs_moved:
-                    wfwp = CQ().add(loft_angle_negs_moved)
+                    mncmpd = cadquery.Compound.makeCompound(moved_negs).mirror("XY", (0, 0, t / 2))
+                    mnldmpd = cadquery.Compound.makeCompound(loft_angle_plus_negs_moved).mirror("XY", (0, 0, t / 2))
+                    wp = wp.cut(mncmpd)  # this just cuts the straights
+
                     if "edge_case" in stack_layer:
-                        inside_edge = CQ().sketch().face(edgc_cmpd).finalize().extrude(t + dent_size)
-                        wfwp = wfwp.intersect(inside_edge)
-                    t_wire_faces = wfwp.faces(">Z").vals()
-                    b_wire_faces = wfwp.faces("<Z").vals()
+                        bdfaces = layers[boundary_layer_name]
+                        if stack["dxf_scale"]:
+                            for i, fc in enumerate(bdfaces):
+                                bdfaces[i] = fc.scale(stack["dxf_scale"])
+                        bdface_cmpd = cadquery.Compound.makeCompound(bdfaces)
+                        edg = CQ().sketch().face(bdface_cmpd)
+                        edfaces = stack_layer["edge_case"]
+                        if stack["dxf_scale"]:
+                            for i, fc in enumerate(edfaces):
+                                edfaces[i] = fc.scale(stack["dxf_scale"])
+                        edgc_cmpd = cadquery.Compound.makeCompound(edfaces)
+                        edg = edg.face(edgc_cmpd, mode="s").finalize().extrude(t)
+                        edge = True
+                    else:
+                        edgc_cmpd = []
+                        edg = CQ()
+                        edge = False
+
+                    if edge:
+                        wp = wp.union(edg)
+                    vcut_faces = wp.faces(">Z").vals()
+
+                    wp = wp.cut(mnldmpd)  # this cuts the lofts and angles
+                    if edge:
+                        wp = edg.union(wp)
+                        #wp = wp.union(edg, tol=0.0001)
+                        # to_fuse = edg.solids().vals() + wp.solids().vals()
+                        # edg_fuse = to_fuse.pop().fuse(*to_fuse, glue=True).clean()
+                        # wp = CQ(edg_fuse)
+
+                    # extract the faces for wire paths
+                    if loft_angle_negs_moved:
+                        wfwp = CQ().add(loft_angle_negs_moved)
+                        if "edge_case" in stack_layer:
+                            inside_edge = CQ().sketch().face(edgc_cmpd).finalize().extrude(t + dent_size)
+                            wfwp = wfwp.intersect(inside_edge)
+                        t_wire_faces = wfwp.faces(">Z").vals()
+                        b_wire_faces = wfwp.faces("<Z").vals()
 
             # give option to override calculated z_base
             if "z_base" in stack_layer:
@@ -289,7 +289,10 @@ class TwoDToThreeD(object):
 
             if twod_faces:
                 print(f"{boundary_layer_name} is 2d")
-                geometry = cadquery.Compound.makeCompound(twod_faces)
+                if fuse_faces:
+                    geometry = cadquery.Compound.makeCompound(twod_faces + fuse_faces)
+                else:
+                    geometry = cadquery.Compound.makeCompound(twod_faces)
                 geometry = geometry.moved(cadquery.Location((0, 0, z_base)))
             else:
                 new = wp.translate((0, 0, z_base))
