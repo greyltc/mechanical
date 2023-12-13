@@ -153,7 +153,7 @@ class TwoDToThreeD(object):
                         angle = 0
                     else:
                         given_angle = float(ldln[1])
-                        if not given_angle:
+                        if isinstance(drawing_layer_name, tuple) and (not given_angle):
                             make_faces = True
                         angle = float(ldln[1])
 
@@ -375,12 +375,12 @@ class TwoDToThreeD(object):
     def outputter(cls, built: dict[str, dict[str, cadquery.Assembly]], wrk_dir: Path, save_dxfs=False, save_pdfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, edm_outputs=False, nparallel=1, show_object: Callable | None = None):
         """do output tasks on a dictionary of assemblies"""
         for stack_name, result in built.items():
-            if "sim_mode" in result["instructions"]:
+            if ("instructions" in result) and ("sim_mode" in result["instructions"]):
                 simulation_outputs = result["instructions"]["sim_mode"]
             else:
                 simulation_outputs = False
 
-            if "final_scale" in result["instructions"]:
+            if ("instructions" in result) and ("final_scale" in result["instructions"]):
                 final_scale = result["instructions"]["final_scale"]
             else:
                 final_scale = 0

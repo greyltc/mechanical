@@ -24,8 +24,8 @@ def main():
     print(f"Working directory is {wrk_dir}")
     drawings = {"2d": wrk_dir / "drawings" / "2d.dxf"}
 
-    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
-    version = "snaith"  # "joe" for 12x12, "yen", "hoye" , or "snaith"
+    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
+    version = "joe"  # "joe" for 12x12, "yen", "hoye" , or "snaith"
     flange_base_height = 0
     flange_bit_thickness = 16.9
     fil_major = 5
@@ -139,7 +139,7 @@ def main():
             pin = pin.translate((0, 0, -pin_nom_offset))
             void_head_offset = 0.2  # make the pin void diameter this much larger than that of the pin head
             upper_pin_void = cq.Solid.makeCylinder((head_diameter + void_head_offset) / 2, head_length + pin_travel + retaining_ring_offset).move(cq.Location((0, 0, -pin_nom_offset - retaining_ring_offset)))
-            lower_pin_void = cq.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length).move(cq.Location((0, 0, -total_sleeve_length)))
+            lower_pin_void = cq.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length + pin_nom_offset).move(cq.Location((0, 0, -total_sleeve_length - pin_nom_offset)))
             pin_void = CQ(upper_pin_void).union(lower_pin_void).findSolid()
 
         else:  # 1.27mm spacing pins
@@ -156,18 +156,19 @@ def main():
             pin = pin.translate((0, 0, -pin_nom_offset))
             void_head_offset = 0.2  # make the pin void diameter this much larger than that of the pin head
             upper_pin_void = cq.Solid.makeCylinder((head_diameter + void_head_offset) / 2, head_length + pin_travel + retaining_ring_offset + 10).move(cq.Location((0, 0, -pin_nom_offset - retaining_ring_offset)))
-            lower_pin_void = cq.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length).move(cq.Location((0, 0, -total_sleeve_length)))
+            lower_pin_void = cq.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length + pin_nom_offset).move(cq.Location((0, 0, -total_sleeve_length - pin_nom_offset)))
             pin_void = CQ(upper_pin_void).union(lower_pin_void).findSolid()
 
         void_depth = subs_t_max + mask_t + pin_nominal_frac * pin_travel
 
         if version == "joe":
             pusher_screw_len = 10  # v2=10, v1=15
+            holder_base_height = total_sleeve_length + pin_nom_offset - 1.6/2
         else:
             pusher_screw_len = 15  # v2=10, v1=15
+            holder_base_height = sleeve_length + pin_nom_offset
         pusher_screw = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=pusher_screw_len, simple=no_threads)  # TODO: add pn
 
-        holder_base_height = sleeve_length + pin_nom_offset
 
         pusher_aperture_chamfer = 4
         pusher_t = pusher_aperture_chamfer + 0.1  # the extra 0.1 here is to give a sharp edge for mask registration
@@ -207,8 +208,15 @@ def main():
         if not version == "joe":
             pusher = pusher.faces("<Z").workplane().rect(light_aperture_x, light_aperture_y).cutBlind(-pusher_height)  # make the pusher blocks square
         pusher = pusher.edges("|Z and (<X or >X)").fillet(fil_major)
-        pusher = pusher.faces(">Z[1]").edges("<X").chamfer(chamf_major)
         pusher = pusher.faces(">Z").edges("<<X[2]").chamfer(pusher_aperture_chamfer)
+        if version == "joe":
+            # extract the pusher windows
+            cut_size = [18.2, 18.2, 10]
+            pusher_win = pusher.intersect(CQ().box(cut_size[0], cut_size[1], cut_size[2], centered=(True, True, False))).translate((0,0,-pusher_height - subs_t - mask_t-pusher_t))
+            #pusher_win = hpc.cut(holder).translate((0,pusher_mount_spacing/2,-void_depth)).findSolid().Solids()[0]
+        else:
+            pusher_win = CQ()
+        pusher = pusher.faces(">Z[1]").edges("<X").chamfer(chamf_major)
         pusher = pusher.faces(">Z").edges("<X").chamfer(chamf_minor)
         # pusher = pusher.faces("<Z").chamfer(chamf_minor)  # don't chamfer the ends of the pusher, they might need to register masks
         if version == "yen":
@@ -220,9 +228,12 @@ def main():
             corner_round_radius = 4  # v2=4, v1=10
         else:
             corner_round_radius = 10  # v2=4, v1=10
-        holder = CQ().box(walls_x, walls_y, holder_base_height, centered=(True, True, False)).translate((0, 0, -holder_base_height))
-        void_part = CQ().box(walls_x, walls_y, void_depth, centered=(True, True, False)).undercutRelief2D(subs_xy + subs_tol, subs_xy + subs_tol, corner_round_radius).cutThruAll()
+        holder_box = CQ().box(walls_x, walls_y, holder_base_height, centered=(True, True, False)).translate((0, 0, -holder_base_height))
+        holder = holder_box
+        void_box = CQ().box(walls_x, walls_y, void_depth, centered=(True, True, False))
+        void_part = void_box.undercutRelief2D(subs_xy + subs_tol, subs_xy + subs_tol, corner_round_radius).cutThruAll()
         holder = holder.union(void_part)
+        holder_box = holder_box.union(void_box)
 
         # pin array parameters
         if version == "joe":
@@ -270,6 +281,12 @@ def main():
 
         holder = holder.workplane(origin=(0, 0)).add(pin_spots).cutEach(pvf)
 
+        if version == "joe":
+            # make a print of the central void
+            cv_print = holder_box.cut(holder).translate((0,0,-void_depth)).findSolid()
+        else:
+            cv_print = CQ()
+
         if not no_threads:
             for pin_spot in pin_spots:
                 addpin(pin_spot)
@@ -284,9 +301,11 @@ def main():
             pcbvx = 25  # v2=10, v1=25
             pcbvy = 20  # v2=10, v1=20
             pcbvr = 5  # v2=2, v1=5
-        holder = holder.faces("<Z").workplane(origin=(0, 0)).sketch().rect(pcbvx, pcbvy).vertices().fillet(pcbvr).finalize()
-        holder = cast(CQ, holder)  # workaround for sketch.finalize() not returning the correct type
-        holder = holder.cutBlind(-pcb_bot_void_d)
+
+        if version != "joe":
+            holder = holder.faces("<Z").workplane(origin=(0, 0)).sketch().rect(pcbvx, pcbvy).vertices().fillet(pcbvr).finalize()
+            holder = cast(CQ, holder)  # workaround for sketch.finalize() not returning the correct type
+            holder = holder.cutBlind(-pcb_bot_void_d)
 
         if version == "joe":
             pcbx = 13  # v2=13, v1=30
@@ -358,6 +377,7 @@ def main():
         else:
             rarray_args = (1, pusher_mount_spacing, 1, 2)
             dev1 = (-walls_x / 4, -pusher_mount_spacing / 2)
+        hpc = holder
         holder = holder.faces(">Z").workplane(origin=(0, 0)).sketch().rarray(*rarray_args).rect(c_diameter, c_flat_to_flat).reset().vertices().fillet(c_diameter / 4).finalize().cutBlind(-coupler_len)
         holder = cast(CQ, holder)  # workaround for sketch.finalize() not returning the correct type
         mount_points = holder.faces(">Z").workplane(origin=(0, 0)).rarray(*rarray_args).vals()
@@ -372,6 +392,12 @@ def main():
 
         holder = holder.faces("<Z").workplane(origin=(0, 0)).rarray(*rarray_args).clearanceHole(bot_screw, fit="Close", baseAssembly=hardware)
 
+        if version == "joe":
+            # extract the mounting hole negative
+            mount_neg = hpc.cut(holder).translate((0,pusher_mount_spacing/2,-void_depth)).findSolid().Solids()[0]
+        else:
+            mount_neg = CQ()
+
         # put in a device 1 indicator
         holder = holder.faces(">Z").workplane(origin=dev1).circle(2).cutBlind(-0.5)
 
@@ -379,6 +405,9 @@ def main():
         out["pusher"] = pusher.findSolid()
         out["pcb"] = pcb
         out["hardware"] = hardware
+        out["cv_print"] = cv_print
+        out["mnt_print"] = mount_neg
+        out["pusher_win"] = pusher_win.findSolid()
 
         return out
 
@@ -532,6 +561,9 @@ def main():
     hoye_2x1 = cq.Assembly(wp_2x1.findSolid(), name="holder")
     hoye_1x1 = cq.Assembly(wp_1x1.findSolid(), name="holder")
     onex1 = cq.Assembly(wp_single.findSolid(), name="holder")
+    cv_print = cq.Assembly(holder_parts["cv_print"], name="cv_print")
+    mnt_print = cq.Assembly(holder_parts["mnt_print"], name="mnt_print")
+    pusher_win = cq.Assembly(holder_parts["pusher_win"], name="pusher_win")
     onex1.add(pusher_single, name="pusher")
     twox2.add(pusher_2x2, name="pushers")
     hoye_2x1.add(pusher_2x1, name="pushers")
@@ -550,6 +582,9 @@ def main():
     asys["hoye_1x1"] = {"assembly": hoye_1x1}
     asys["1x1"] = {"assembly": onex1}
     asys["2x2"] = {"assembly": twox2}
+    asys["cv_print"] = {"assembly": cv_print}
+    asys["mnt_print"] = {"assembly": mnt_print}
+    asys["pusher_win"] = {"assembly": pusher_win}
 
     if "show_object" in globals():  # we're in cq-editor
 

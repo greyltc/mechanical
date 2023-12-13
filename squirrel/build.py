@@ -109,7 +109,7 @@ def main():
     )
 
     ttt = TwoDToThreeD(instructions=instructions, sources=sources)
-    to_build = [""]
+    to_build = [as_name]
     asys = ttt.build(to_build)
 
     no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
@@ -271,7 +271,7 @@ def main():
         btm_piece = btm_piece.faces(">Z").workplane(**u.copo, origin=(0, 0, 0)).pushPoints(vacclamppts).tapHole(setscrew, depth=vacscrew_length - pedistal_height + 1)  # threaded holes to attach to
 
         # mod the slot plate to include csk screws for clamping
-        for name, part in asys["squirrel"].traverse():
+        for name, part in asys["squirrel"]["assembly"].traverse():
             if name == "slot_plate":
                 sp_clamp_pts = [(p[0], p[1] + 5) for p in vacclamppts]
                 sp = cq.Workplane().add(part.shapes)
@@ -330,7 +330,7 @@ def main():
         street_width = 1
         top_piece = top_piece.faces("<Z").workplane(**u.cobb).sketch().push([(zdrill_loc[0] / 2, zdrill_loc[1])]).slot(w=zdrill_loc[0], h=highway_width).finalize().cutBlind(-highway_depth)
         top_piece = top_piece.faces("<Z").workplane(**u.cobb).sketch().slot(w=pedistal_xy[0] - 2 * fitting_tap_depth, h=highway_width, angle=90).finalize().cutBlind(-highway_depth)  # cut center highway
-        top_piece = top_piece.faces("<Z").workplane(**u.cobb).sketch().push(street_centers).slot(w=array_x_length - hole_d, h=street_width).finalize().cutBlind(-street_depth)  # cut streets
+        #top_piece = top_piece.faces("<Z").workplane(**u.cobb).sketch().push(street_centers).slot(w=array_x_length - hole_d, h=street_width).finalize().cutBlind(-street_depth)  # cut streets TODO: figure out why this line is segfaulting today...
 
         # padding to keep the oring groove from bothering the vac holes
         groove_x_pad = 8
@@ -358,7 +358,7 @@ def main():
         aso.add(top_piece, name=vac_name, color=color)
         aso.add(hardware.toCompound(), name="hardware", color=cadquery.Color(hardware_color))
 
-    mkbase(asys[as_name], copper_thickness, center_shift, base_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero, substrate_raise)
+    mkbase(asys[as_name]["assembly"], copper_thickness, center_shift, base_outer, corner_hole_points, corner_screw, thermal_pedestal_height, copper_base_zero, substrate_raise)
 
     def mkwalls(
         aso: cadquery.Assembly,
@@ -515,7 +515,7 @@ def main():
         # add in little detailed PCB
         a_little_pcb = u.import_step(wrk_dir.joinpath("components", "pt_pcb.step")).translate((0, 0, -pcb_thickness / 2))  # shift pcb to be z-centered
         little_pcb = cadquery.Assembly(a_little_pcb.rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 1, 0), angleDegrees=90).rotate(axisStartPoint=(0, 0, 0), axisEndPoint=(0, 0, 1), angleDegrees=90), name="small detailed pcb")
-        asys["squirrel"].add(little_pcb, loc=wp.plane.location, name="little pcb")
+        asys["squirrel"]["assembly"].add(little_pcb, loc=wp.plane.location, name="little pcb")  # TODO: touching a global here is very bad!
 
         # for the vac chuck fittings
         rotation_angle = -155  # degrees
@@ -530,11 +530,11 @@ def main():
 
         aso.add(wp, name=name, color=color)  # add the walls bulk
 
-    mkwalls(asys[as_name], wall_height, center_shift, wall_outer, corner_hole_points, copper_base_zero + copper_thickness)
+    mkwalls(asys[as_name]["assembly"], wall_height, center_shift, wall_outer, corner_hole_points, copper_base_zero + copper_thickness)
 
     # add in big detailed PCB
     big_pcb = u.import_step(wrk_dir.joinpath("components", "pcb.step"))
-    asys["squirrel"].add(big_pcb, name="big pcb")
+    asys["squirrel"]["assembly"].add(big_pcb, name="big pcb")
 
     TwoDToThreeD.outputter(asys, wrk_dir)
 

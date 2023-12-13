@@ -12,6 +12,7 @@ from cq_warehouse.fastener import SocketHeadCapScrew, HexNut, SetScrew, CounterS
 import cq_warehouse.extensions  # this does something even though it's not directly used
 import math
 import itertools
+from typing import cast
 
 # fitting notes:
 # quantity 2 of RS Stock No.:176-1299
@@ -40,17 +41,19 @@ def main():
     thermal_pedestal_height = 14.1
     slot_plate_thickness = 2.3 + substrate_raise
     pcb_thickness = 1.6
-    pusher_thickness = 4
-    dowel_length = slot_plate_thickness + pcb_thickness + pusher_thickness + thermal_pedestal_height + 3  # nominally 25
-    wall_height = 32
+    #pusher_thickness = 4.1
+    #dowel_length = slot_plate_thickness + pcb_thickness + pusher_thickness + thermal_pedestal_height + 3  # nominally 25
+    need_mid_thickness = 23.1
     sleeve_holder_thickness = 15.25 - pcb_thickness
     passthrough_standoff_height = 15
     pin_travel = 2.65
     no_substrate_pin_compression = 0.2
     hardware_color = "GRAY75"
     pcb_standoff_height = 5
-    pcb_base_offset = 5
-    underpocket_airgap = pcb_base_offset + pcb_thickness + pcb_standoff_height
+    underpocket_airgap = 5 + pcb_thickness
+    pcb_base_offset = underpocket_airgap - pcb_thickness
+    overpocket_airgap = 1 + 2.48 - 0.48 + 1.1 + 1.1 + 0.4
+    wall_height = need_mid_thickness + underpocket_airgap + overpocket_airgap
     pin_sleeve_end_to_stopper_len = 17.75 - 2.5
     pin_stopper_drilldown = pcb_base_offset + pin_sleeve_end_to_stopper_len
     pocket_depth_drilldown = pin_stopper_drilldown + 2.5 + 2.65 * 2 / 3
@@ -83,7 +86,7 @@ def main():
                     "name": "substrates",
                     "color": "BLUE",
                     "thickness": substrate_thickness,
-                    "z_base": pocket_depth_drilldown,
+                    "z_base": 25.333332,
                     "drawing_layer_names": [
                         "small_glasses",
                     ],
@@ -115,13 +118,14 @@ def main():
     to_build = [""]
     asys = ttt.build(to_build)
 
-    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
+    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
     center_shift = (0, 0)
     wall_outer = (119, 119)
     corner_holes_offset = 7.5
     corner_hole_points = [(x * (wall_outer[0] - 2 * corner_holes_offset) - (wall_outer[0] - 2 * corner_holes_offset) / 2 + center_shift[0], y * (wall_outer[1] - 2 * corner_holes_offset) - (wall_outer[1] - 2 * corner_holes_offset) / 2 + center_shift[1]) for x, y in itertools.product(range(0, 2), range(0, 2))]
-    assembly_screw_length = 45
-    corner_screw = CheeseHeadScrew(size="M5-0.8", fastener_type="iso14580", length=assembly_screw_length, simple=no_threads)  # SHC-M5-45-A2
+    assembly_screw_length = 55
+    corner_screw = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=assembly_screw_length, simple=no_threads)
+    pusher_screw = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=10, simple=no_threads)
 
     # base_outer = (wall_outer[0] + 40, wall_outer[1])
 
@@ -147,7 +151,7 @@ def main():
         outer_fillet: float,
     ):
         """the thermal base"""
-        enable_towers = True
+        enable_towers = False
         if enable_towers:
             plate_name = "thermal_towers_base_plate"
         else:
@@ -156,7 +160,7 @@ def main():
         color = cadquery.Color("GOLD")
         fillet_inner = 10
         chamfer = 1
-        corner_screw_depth = 3
+        corner_screw_depth = 0
 
         # pedistal_xy = (161, 152)
         # pedistal_fillet = 10
@@ -186,7 +190,8 @@ def main():
         # extension_for_cooler = 0
         wb_y = wall_extents[1]
         wb_mount_offset_y = wb_y / 2 - wb_mount_offset_from_edge
-        wb_x = wall_extents[0] + wb_mount_offset_from_edge * 4 + extension_for_cooler
+        #wb_x = wall_extents[0] + wb_mount_offset_from_edge * 4 + extension_for_cooler
+        wb_x = wall_extents[0]
         wb_mount_offset_x = wb_x / 2 - wb_mount_offset_from_edge
         waterblock_mount_nut = HexNutWithFlange(size="M6-1", fastener_type="din1665", simple=no_threads)  # HFFN-M6-A2
         wb_mount_points = [
@@ -203,14 +208,14 @@ def main():
         wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
 
         ear_square = 2 * wb_mount_offset_from_edge
-        if enable_towers:
-            # cut for waterblock mnt ears
-            wp = wp.faces("-X").workplane(**u.cobb).rect(xLen=wb_y - 2 * ear_square, yLen=thickness, centered=True).cutBlind(-ear_square)
-            wp = wp.faces("+X").workplane(**u.cobb).rect(xLen=wb_y - 2 * ear_square, yLen=thickness, centered=True).cutBlind(-ear_square)
-            wp = wp.edges("|Z exc (<<X or >>X)").fillet(fillet_inner)
-        else:
-            wp = wp.faces("-X").workplane(**u.cobb).rect(xLen=wb_y, yLen=thickness, centered=True).cutBlind(-ear_square)
-            wp = wp.faces("+X").workplane(**u.cobb).rect(xLen=wb_y, yLen=thickness, centered=True).cutBlind(-ear_square)
+        # if enable_towers:
+        #     # cut for waterblock mnt ears
+        #     wp = wp.faces("-X").workplane(**u.cobb).rect(xLen=wb_y - 2 * ear_square, yLen=thickness, centered=True).cutBlind(-ear_square)
+        #     wp = wp.faces("+X").workplane(**u.cobb).rect(xLen=wb_y - 2 * ear_square, yLen=thickness, centered=True).cutBlind(-ear_square)
+        #     wp = wp.edges("|Z exc (<<X or >>X)").fillet(fillet_inner)
+        # else:
+        #     wp = wp.faces("-X").workplane(**u.cobb).rect(xLen=wb_y, yLen=thickness, centered=True).cutBlind(-ear_square)
+        #     wp = wp.faces("+X").workplane(**u.cobb).rect(xLen=wb_y, yLen=thickness, centered=True).cutBlind(-ear_square)
 
         wp = wp.edges("|Z and (<<X or >>X)").fillet(outer_fillet)
 
@@ -222,8 +227,8 @@ def main():
 
         # corner screws
         # wp = wp.faces("-Z").workplane(**u.cobb).circle(3).extrude(1)
-        wp = wp.faces("<Z").workplane(**u.cobb, offset=-corner_screw_depth).pushPoints(hps).clearanceHole(fastener=screw, fit="Close", baseAssembly=hardware)
-        wp = wp.faces("<Z[-2]").wires().toPending().extrude(corner_screw_depth, combine="cut")  # make sure the recessed screw is not buried
+        wp = wp.faces("<Z").workplane(**u.cobb).pushPoints(hps).clearanceHole(fastener=screw, fit="Close", baseAssembly=hardware)
+        #wp = wp.faces("<Z[-2]").wires().toPending().extrude(corner_screw_depth, combine="cut")  # make sure the recessed screw is not buried
 
         # dowel holes
         # wp = wp.faces(">Z").workplane(**u.copo).pushPoints(dowelpts).hole(dowel_nominal_d + dowel3_delta_press, depth=pedistal_height)
@@ -428,8 +433,9 @@ def main():
         inner_shift = cshift
         inner_fillet = 6
         chamfer = 0.75
+        
 
-        nut = HexNut(size="M5-0.8", fastener_type="iso4033")  # HNN-M5-A2
+        nut = HexNut(size="M6-1", fastener_type="iso4033")  # HNN-M5-A2
         flat_to_flat = math.sin(60 * math.pi / 180) * nut.nut_diameter + 0.25
 
         # gas_fitting_hole_diameter = 20.6375  # 13/16"
@@ -459,7 +465,7 @@ def main():
         wp = wp.cut(up)
 
         # overpocket
-        overpocket_airgap = 1 + 2.48
+        
         wp = wp.faces(">Z").workplane(**u.cobb).sketch()
         wp = wp.push([inner_shift]).rect(inner[0], inner[1], mode="a").reset()
         wp = wp.finalize().cutBlind(-overpocket_airgap)
@@ -474,9 +480,40 @@ def main():
 
         # cut thru_stuff
         # layers_to_cut = ["small_tower_holes", "small_pin_holes_force"]
-        layers_to_cut = ["small_tower_holes", "small_pin_holes_force", "small_pin_holes_sense"]
-        cut_thru = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=layers_to_cut).wires().toPending().extrude(height)
-        wp = wp.cut(cut_thru)
+        #layers_to_cut = ["small_tower_holes", "small_pin_holes_force", "small_pin_holes_sense"]
+        #cut_thru = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=layers_to_cut).wires().toPending().extrude(height)
+        #wp = wp.cut(cut_thru)
+
+        tp_depth = 20  # top "moat" pocket depth
+        inner_moat_xy = 50
+        wp = wp.faces(">Z[-2]").wires().toPending().cutBlind(-tp_depth)
+        wp = wp.faces(">Z[-2]").sketch().rect(inner_moat_xy,inner_moat_xy).vertices().fillet(inner_fillet).finalize().extrude(tp_depth)
+        #wp = wp.rect(inner[0], inner[1], mode="a").vertices().fillet(inner_fillet).reset()
+        #wp = wp.rect(inner[0]-20, inner[1]-20, mode="s").reset().finalize().cutBlind(-overpocket_airgap)
+        #wp = wp.finalize().cutBlind(-overpocket_airgap)
+
+        wall_hardware = cq.Assembly(None, name="wall_hardware")
+
+        pusher_win = u.import_step(wrk_dir.joinpath("components", "pusher_win.step")).findSolid().Solids()[0]
+        _win_maker = lambda p: pusher_win.moved(p)
+
+        pusher_t = 4.1
+        pusher_xy = 60
+        chamf_minor = 0.5
+        pusher = CQ().box(pusher_xy,pusher_xy,pusher_t,centered=(True,True,False)).translate((0,0,height-pusher_t)).edges("|Z").fillet(inner_fillet)
+        pusher = pusher.faces(">Z").edges("<X").chamfer(chamf_minor)
+        pusher = pusher.faces(">Z").workplane(**u.cobb).clearanceHole(fastener=pusher_screw, fit="Close", baseAssembly=wall_hardware)
+        pusher = cast(CQ, pusher)  # workaround for clearanceHole() not returning the correct type
+        pusher = pusher.rarray(30,30, 2, 2).rect(18.2,18.2).cutThruAll()
+        pusher = pusher.faces(">Z").workplane(centerOption="ProjectedOrigin").rarray(30,30,2,2).eachpoint(_win_maker, combine=True)
+
+        cv_print = u.import_step(wrk_dir.joinpath("components", "cv_print.step")).findSolid()
+        _cvcutter = lambda p: cv_print.moved(p)
+        wp = wp.faces(">Z[-2]").workplane(centerOption="ProjectedOrigin").rarray(30,30,2,2).cutEach(_cvcutter)
+
+        mnt_print = u.import_step(wrk_dir.joinpath("components", "mnt_print.step")).findSolid()
+        _mntcutter = lambda p: mnt_print.moved(p)
+        wp = wp.faces(">Z[-2]").workplane(centerOption="ProjectedOrigin").cutEach(_mntcutter)
 
         # # the fitting bump
         # sub_xy = (40, inner[1] - fitting_step_xy[1])
@@ -491,40 +528,47 @@ def main():
         # wp = wp.finalize().extrude(height)
         wp: cadquery.Workplane  # shouldn't have to do this (needed for type hints)
 
-        wall_hardware = cq.Assembly(None, name="wall_hardware")
+        check = u.import_step(wrk_dir.joinpath("components", "AKH04B-M5.STEP"))
+        check = check.translate((0,21.1,0)).rotate((0,0,0),(1,0,0), 90)
 
         # cut the top gas hole
-        gas_hole_diameter = 4.2
-        side_depth = extents[0] / 2 - 10
+        gas_hole_diameter = 4.2  # m5 threads
+        side_depth = 20
         # side_depth = 40
         top_cyl_length = 36
-        wp = wp.faces("<X").workplane(**u.cobb).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
+        wp = wp.faces("<X").workplane(**u.cobb).center(x=0,y=height/2-(height-underpocket_airgap)/2).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
+        wall_hardware.add(check.findSolid().moved(wp.faces("<X").workplane(**u.cobb).center(x=0,y=height/2-(height-underpocket_airgap)/2).plane.location))
+
 
         # cut the angle gas hole
-        cyl = wp.faces(">Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, 45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
-        wp = wp.cut(cyl)
+        #cyl = wp.faces(">Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, 45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
+        #wp = wp.cut(cyl)  # TODO: figure out why this is segfaulting today
 
         # pusher-downer secureer
-        wp = wp.faces(">Z[-2]").workplane(**u.cobb, offset=-nut.nut_thickness * 2).pushPoints([(0, 35), (0, -35)]).clearanceHole(fastener=nut, fit="Close", counterSunk=False, baseAssembly=wall_hardware)
-        wp = wp.faces(">Z[-2]").workplane(**u.cobb).sketch().push([(0, 35), (0, -35)]).rect(flat_to_flat, nut.nut_diameter, angle=90).reset().vertices().fillet(nut.nut_diameter / 4).finalize().cutBlind(-nut.nut_thickness * 2)
+        #wp = wp.faces(">Z[-2]").workplane(**u.cobb, offset=-nut.nut_thickness * 2).pushPoints([(0, 35), (0, -35)]).clearanceHole(fastener=nut, fit="Close", counterSunk=False, baseAssembly=wall_hardware)
+        #wp = wp.faces(">Z[-2]").workplane(**u.cobb).sketch().push([(0, 35), (0, -35)]).rect(flat_to_flat, nut.nut_diameter, angle=90).reset().vertices().fillet(nut.nut_diameter / 4).finalize().cutBlind(-nut.nut_thickness * 2)
 
-        secure_screws = CheeseHeadScrew(size="M5-0.8", fastener_type="iso14580", length=20, simple=no_threads)  # SHC-M5-45-A2
-        wp = wp.faces("<Z[-2]").workplane(**u.cobb).pushPoints([(0, 35), (0, -35)]).clearanceHole(fastener=secure_screws, fit="Close", baseAssembly=wall_hardware, counterSunk=False)
+        #secure_screws = CheeseHeadScrew(size="M5-0.8", fastener_type="iso14580", length=20, simple=no_threads)  # SHC-M5-45-A2
+        #wp = wp.faces("<Z[-2]").workplane(**u.cobb).pushPoints([(0, 35), (0, -35)]).clearanceHole(fastener=secure_screws, fit="Close", baseAssembly=wall_hardware, counterSunk=False)
         # wp = wp.faces("<Z[-2]").wires().toPending().extrude(corner_screw_depth, combine="cut")  # make sure the recessed screw is not buried
 
         # cut the bottom gas hole and the vent holes
-        vent_hole_spacing = 35
-        gas_hole_diameter = 4.2
-        side_depth = extents[0] / 2 - 2
+        vent_hole_spacing = 60
+        # gas_hole_diameter = 4.2  #m5 threads
+        
         # side_depth = 40
-        side_vent_depth = 25
         top_cyl_length = 18
-        wp = wp.faces(">X").workplane(**u.cobb).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
-        wp = wp.faces(">X").workplane(**u.cobb).rarray(vent_hole_spacing * 2, 1, 2, 1).circle(gas_hole_diameter / 2).cutBlind(-side_vent_depth)
+        wp = wp.faces(">X").workplane(**u.cobb).center(x=0,y=height/2-(height-underpocket_airgap)/2).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
+        #wp = wp.faces(">X").workplane(**u.cobb).center(x=0,y=-height/2+pcb_base_offset/2).rarray(vent_hole_spacing, 1, 2, 1).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
+        wall_hardware.add(check.findSolid().located(wp.faces(">X").workplane(**u.cobb).center(x=0,y=height/2-(height-underpocket_airgap)/2).plane.location))
+        wall_hardware.add(check.findSolid().located(wp.faces("-X").faces("<<X[0]").faces("<<Z[0]").workplane(**u.cobb).center(x=vent_hole_spacing/2,y=-(tp_depth+overpocket_airgap)/2+10.19).plane.location))
+        wp = wp.faces("-X").faces("<<X[0]").faces("<<Z[0]").workplane(**u.cobb).center(x=vent_hole_spacing/2,y=-(tp_depth+overpocket_airgap)/2+10.19).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
+        wall_hardware.add(check.findSolid().located(wp.faces("-X").faces("<<X[0]").faces("<<Z[0]").workplane(**u.cobb).center(x=-vent_hole_spacing/2,y=-(tp_depth+overpocket_airgap)/2+10.19).plane.location))
+        wp = wp.faces("-X").faces("<<X[0]").faces("<<Z[0]").workplane(**u.cobb).center(x=-vent_hole_spacing/2,y=-(tp_depth+overpocket_airgap)/2+10.19).circle(gas_hole_diameter / 2).cutBlind(-side_depth)
         # cut the angle gas hole
-        cyl = wp.faces("<Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, -45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
-        wp = wp.cut(cyl)
-        wp = wp.faces("<Z[-2]").workplane(**u.cobb).center(x=vent_hole_spacing, y=0).rarray(1, 2 * vent_hole_spacing, 1, 2).circle(gas_hole_diameter / 2).cutThruAll()  # cut the vertical vent holes
+        #cyl = wp.faces("<Z[-2]").workplane(**u.cobb).transformed(rotate=cq.Vector(0, -45, 0)).cylinder(height=top_cyl_length, radius=gas_hole_diameter / 2, centered=(True, True, True), combine=False)
+        #wp = wp.cut(cyl)
+        #wp = wp.faces("<Z[-2]").workplane(**u.cobb).center(x=0,y=-height/2+pcb_base_offset/2).rarray(1, vent_hole_spacing, 1, 2).circle(gas_hole_diameter / 2).cutThruAll()  # cut the vertical vent holes
 
         # cut the side slot
         side_slot_cutter_d = 2
@@ -536,13 +580,13 @@ def main():
 
         # cut the stopper holes
         # small_pin_top_layer_name = "small_pin_top_clear"  # using slots
-        small_pin_top_layer_name = "small_pin_top_clear_individual"
-        stopper_holes = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=[small_pin_top_layer_name]).wires().toPending().extrude(height).translate((0, 0, pin_stopper_drilldown))
-        wp = wp.cut(stopper_holes)
+        #small_pin_top_layer_name = "small_pin_top_clear_individual"
+        #stopper_holes = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=[small_pin_top_layer_name]).wires().toPending().extrude(height).translate((0, 0, pin_stopper_drilldown))
+        #wp = wp.cut(stopper_holes)
 
         # cut the substrate pockets
-        substrate_pockets = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["slot_plate_inner_small"]).wires().toPending().extrude(height).translate((0, 0, pocket_depth_drilldown))
-        wp = wp.cut(substrate_pockets)
+        #substrate_pockets = cadquery.importers.importDXF(str(wrk_dir / "drawings" / "2d.dxf"), include=["slot_plate_inner_small"]).wires().toPending().extrude(height).translate((0, 0, pocket_depth_drilldown))
+        #wp = wp.cut(substrate_pockets)
 
         wp = wp.faces(">Z").edges("not %CIRCLE").chamfer(chamfer)
         wp = wp.faces("<Z").edges("not %CIRCLE").chamfer(chamfer)
@@ -666,6 +710,7 @@ def main():
 
         aso.add(wall_hardware.toCompound(), name="wall_hardware", color=cadquery.Color(hardware_color))
         aso.add(wp, name=name, color=color)  # add the walls bulk
+        aso.add(pusher, name="pusher", color=cadquery.Color("red"))
 
     mkwalls(wrk_dir, asys[as_name]["assembly"], wall_height, center_shift, wall_outer, corner_hole_points, 0, outer_fillet)
 
