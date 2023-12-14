@@ -125,6 +125,14 @@ oring_grooves = {
 # id (inner diameter) and cs (cross-section) from https://www.applerubber.com/src/pdf/iso-3601-metric-size-o-rings.pdf
 # grooves from https:#www.parker.com/Literature/O-Ring Division Literature/ORD 5700.pdf
 std_orings = {
+    2587347: {
+        "id": 114.5,
+        "cs": 3,
+        "id_tol": 0.92,
+        "cs_tol": 0.09,
+        "gland_depth": 0,
+        "groove_w": 0,
+    }
     158: {
         "id": 120.32,
         "cs": 2.62,
