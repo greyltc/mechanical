@@ -599,7 +599,7 @@ if (__name__ == "__main__") or (have_so is True):
     support_t = 3
 
     # thread spec for bolts than fasten lid to base
-    corner_bolt_thread = "M5-0.8"
+    corner_bolt_thread = "M6-1"
 
     # style the corner fastener as eith "nut" with recess, or "countersink" for screw
     corner_bolt_style = "countersink"
@@ -608,19 +608,19 @@ if (__name__ == "__main__") or (have_so is True):
     corner_bolt_offset = 7.5
 
     # substrate array parameters
-    substrate_array_l = 130.35
-    substrate_array_w = 141.35
+    substrate_array_l = 50
+    substrate_array_w = 50
     substrate_array_window_buffer = 6
 
     # o-ring specs
-    oring_size = 169
+    oring_size = 2587347
 
     # window specs
-    window_aperture_offset = (4.5, 0)
+    window_aperture_offset = (0, 0)
     window_t = 3
 
     # support bolt parameters
-    min_support_bolt_spacing = 45
+    min_support_bolt_spacing = 25
 
     # build the assembly
     lid_assembly_builder = LidAssemblyBuilder(
@@ -644,7 +644,7 @@ if (__name__ == "__main__") or (have_so is True):
     assembly = lid_assembly_builder.build()
 
     # move assembly to desired location
-    assembly.loc = cq.Location(cq.Vector(-4.5, 0, 15.1))
+    assembly.loc = cq.Location(cq.Vector(0, 0, 35.3))
 
     if save_step:
         # set working directory
