@@ -132,7 +132,15 @@ std_orings = {
         "cs_tol": 0.09,
         "gland_depth": 0,
         "groove_w": 0,
-    }
+    },
+    154: {
+        "id": 94.92,
+        "cs": 2.62,
+        "id_tol": 0.710,
+        "cs_tol": 0.080,
+        "gland_depth": 0.077 * 25.4,
+        "groove_w": 0.1225 * 25.4,
+    },
     158: {
         "id": 120.32,
         "cs": 2.62,
