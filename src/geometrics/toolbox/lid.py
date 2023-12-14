@@ -88,6 +88,7 @@ class LidAssemblyBuilder:
         lid_t: float = 7,
         support_t: float = 3,
         window_t: float = 3,
+        window_size: tuple[float, float] | None = None,
         corner_bolt_thread: str = "M5-0.8",
         corner_bolt_offset: float = 7.5,
         corner_bolt_style: str = "countersink",
@@ -118,6 +119,8 @@ class LidAssemblyBuilder:
             Thickness of support.
         window_t : float
             Thickness of window.
+        window_size : None or 2-tuple
+            Tuple containing window length and width. Will be calculated if not provided.
         corner_bolt_thread : str
             Specification of corner bolt threads in cq-warehouse format e.g. M5-0.8
             (meaning size M5 with 0.8 mm thread pitch).
@@ -153,6 +156,7 @@ class LidAssemblyBuilder:
         self.lid_t = lid_t
         self.support_t = support_t
         self.window_t = window_t
+        self.window_size = window_size
         self.corner_bolt_thread = corner_bolt_thread
         self.corner_bolt_size, self.corner_bolt_pitch = corner_bolt_thread.split("-")
         self.corner_bolt_offset = corner_bolt_offset
@@ -273,8 +277,12 @@ class LidAssemblyBuilder:
             logger.warning(f"WARNING: Thin wall detected around o-ring groove (actual = {min(oring_ap_edge_gap, oring_corner_gap)} mm, minimum = {self.min_oring_edge_gap} mm).")
 
         # --- window ---
-        self.window_l = np.ceil(self.window_ap_l + 2 * self.min_oring_edge_gap + 2 * oring_ap_edge_gap + 2 * oring_gland_w)
-        self.window_w = np.ceil(self.window_ap_w + 2 * self.min_oring_edge_gap + 2 * oring_ap_edge_gap + 2 * oring_gland_w)
+        if self.window_size is not None:
+            self.window_l = self.window_size[0]
+            self.window_w = self.window_size[1]
+        else:
+            self.window_l = np.ceil(self.window_ap_l + 2 * self.min_oring_edge_gap + 2 * oring_ap_edge_gap + 2 * oring_gland_w)
+            self.window_w = np.ceil(self.window_ap_w + 2 * self.min_oring_edge_gap + 2 * oring_ap_edge_gap + 2 * oring_gland_w)
 
         logger.info(f"window length = {self.window_l} mm")
         logger.info(f"window width = {self.window_w} mm")
@@ -613,14 +621,15 @@ if (__name__ == "__main__") or (have_so is True):
     substrate_array_window_buffer = 6
 
     # o-ring specs
-    oring_size = 2587347
+    oring_size = 2556308
 
     # window specs
     window_aperture_offset = (0, 0)
     window_t = 3
+    window_size = (75, 75)
 
     # support bolt parameters
-    min_support_bolt_spacing = 25
+    min_support_bolt_spacing = 35
 
     # build the assembly
     lid_assembly_builder = LidAssemblyBuilder(
@@ -631,6 +640,7 @@ if (__name__ == "__main__") or (have_so is True):
         lid_t=lid_t,
         support_t=support_t,
         window_t=window_t,
+        window_size=window_size,
         corner_bolt_thread=corner_bolt_thread,
         corner_bolt_offset=corner_bolt_offset,
         corner_bolt_style=corner_bolt_style,

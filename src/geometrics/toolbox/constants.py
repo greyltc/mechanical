@@ -16,19 +16,19 @@ pcb_thickness = 1.6
 # https://www.engineersedge.com/hardware/iso_metric_tap_14585.htm
 std_screw_threads = {
     "m2": {"r": 2 / 2, "tap_r": 1.6 / 2, "clearance_r": 2.25 / 2, "close_r": 2.2 / 2},
-    "m3": {"r": 3 / 2, "tap_r": 2.5 / 2, "clearance_r": 3.35 / 2, "close_r": 3.2  / 2},
-    "m4": {"r": 4 / 2, "tap_r": 3.3 / 2, "clearance_r": 4.5 / 2, "close_r": 4.3  / 2},
-    "m5": {"r": 5 / 2, "tap_r": 4.2 / 2, "clearance_r": 5.5 / 2, "close_r": 5.3  / 2},
-    "m6": {"r": 6 / 2, "tap_r": 5.0 / 2, "clearance_r": 6.5 / 2, "close_r": 6.4  / 2},
+    "m3": {"r": 3 / 2, "tap_r": 2.5 / 2, "clearance_r": 3.35 / 2, "close_r": 3.2 / 2},
+    "m4": {"r": 4 / 2, "tap_r": 3.3 / 2, "clearance_r": 4.5 / 2, "close_r": 4.3 / 2},
+    "m5": {"r": 5 / 2, "tap_r": 4.2 / 2, "clearance_r": 5.5 / 2, "close_r": 5.3 / 2},
+    "m6": {"r": 6 / 2, "tap_r": 5.0 / 2, "clearance_r": 6.5 / 2, "close_r": 6.4 / 2},
 }
 
 # Standard socket screw parameters (ANSI/ASME B18.3.1M, seems equiv. to DIN 912)
 # https://www.engineersedge.com/hardware/_metric_socket_head_cap_screws_14054.htm
 # https://www.amesweb.info/Screws/CounterboreSizes_MetricSocketHeadCapScrews.aspx
 std_socket_screws = {
-    "m3": {"cap_r": 5.5  / 2, "cap_h": 3, "cbore_r": 6.50  / 2, "cbore_h": 3},
-    "m4": {"cap_r": 7.0  / 2, "cap_h": 4, "cbore_r": 8.25  / 2, "cbore_h": 4},
-    "m5": {"cap_r": 8.5  / 2, "cap_h": 5, "cbore_r": 9.75  / 2, "cbore_h": 5},
+    "m3": {"cap_r": 5.5 / 2, "cap_h": 3, "cbore_r": 6.50 / 2, "cbore_h": 3},
+    "m4": {"cap_r": 7.0 / 2, "cap_h": 4, "cbore_r": 8.25 / 2, "cbore_h": 4},
+    "m5": {"cap_r": 8.5 / 2, "cap_h": 5, "cbore_r": 9.75 / 2, "cbore_h": 5},
     "m6": {"cap_r": 10.0 / 2, "cap_h": 6, "cbore_r": 11.25 / 2, "cbore_h": 6},
 }
 
@@ -43,20 +43,14 @@ std_pan_head_screws = {
 # this just makes counterbore holes easier to do.
 # use it later like this if you want an m4 one: .cboreHole(**tb.c.cb('m4'))
 def cb(s):
-    return {
-        "diameter": std_screw_threads[s]["clearance_r"] * 2,
-        "cboreDiameter": std_socket_screws[s]["cbore_r"] * 2,
-        "cboreDepth": std_socket_screws[s]["cbore_h"]
-    }
+    return {"diameter": std_screw_threads[s]["clearance_r"] * 2, "cboreDiameter": std_socket_screws[s]["cbore_r"] * 2, "cboreDepth": std_socket_screws[s]["cbore_h"]}
+
 
 # this just makes counterbore holes easier to do.
 # use it later like this if you want an m4 one with d diameter: .cskHole(**tb.c.csk('m4', d))
 def csk(s, d):
-    return {
-        "diameter": std_screw_threads[s]["clearance_r"] * 2,
-        "cskDiameter": d,
-        "cskAngle": 90  # could also be 82?
-    }
+    return {"diameter": std_screw_threads[s]["clearance_r"] * 2, "cskDiameter": d, "cskAngle": 90}  # could also be 82?
+
 
 # Standard hex nut parameters (ANSI/ASME B18.2.4.1M, seems equiv. to DIN 934)
 # https://www.engineersedge.com/hardware/standard_metric_hex_nuts_13728.htm
@@ -132,6 +126,46 @@ std_orings = {
         "cs_tol": 0.09,
         "gland_depth": 0,
         "groove_w": 0,
+    },
+    2556303: {
+        "id": 78.0,
+        "cs": 3,
+        "id_tol": 0.68,
+        "cs_tol": 0.09,
+        "gland_depth": 0,
+        "groove_w": 0,
+    },
+    2556301: {
+        "id": 78.0,
+        "cs": 2,
+        "id_tol": 0.68,
+        "cs_tol": 0.08,
+        "gland_depth": 0,
+        "groove_w": 0,
+    },
+    2556308: {
+        "id": 79.0,
+        "cs": 2,
+        "id_tol": 0.68,
+        "cs_tol": 0.08,
+        "gland_depth": 0,
+        "groove_w": 0,
+    },
+    151: {
+        "id": 75.87,
+        "cs": 2.62,
+        "id_tol": 0.610,
+        "cs_tol": 0.080,
+        "gland_depth": 0.077 * 25.4,
+        "groove_w": 0.1225 * 25.4,
+    },
+    152: {
+        "id": 82.22,
+        "cs": 2.62,
+        "id_tol": 0.610,
+        "cs_tol": 0.080,
+        "gland_depth": 0.077 * 25.4,
+        "groove_w": 0.1225 * 25.4,
     },
     154: {
         "id": 94.92,
