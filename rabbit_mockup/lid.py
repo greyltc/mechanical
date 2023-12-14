@@ -368,7 +368,7 @@ def build(include_hardware=True, save_step=False):
     assembly.loc = cq.Location(cq.Vector(-4.5, 0, 15.1))
 
     # output
-    TwoDToThreeD.outputter({"lid": assembly}, wrk_dir, save_steps=True)
+    TwoDToThreeD.outputter({"lid": {"assembly": assembly}}, wrk_dir, save_steps=True)
     # assembly.save(str(pathlib.Path(build_dir).joinpath("lid.step")))
 
 

@@ -589,8 +589,8 @@ if (__name__ == "__main__") or (have_so is True):
     no_threads = True
 
     # --- assembly parameters (i.e. x, y extents) ---
-    length = 229.0
-    width = 180.0
+    length = 119
+    width = 119
 
     # thickness of lid plate
     lid_t = 7
