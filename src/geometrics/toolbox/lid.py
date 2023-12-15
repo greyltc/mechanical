@@ -552,7 +552,7 @@ class LidAssemblyBuilder:
         window_support = window_support.cut(window_ap)
 
         # add full thickness chamfer on window of support piece
-        window_support = window_support.faces("+Z").edges("<<Y[2]").chamfer(self.support_t-0.1)
+        window_support = window_support.faces("+Z").edges("<<Y[2]").chamfer(self.support_t - 0.1)
 
         # move up to sit above lid
         window_support = window_support.translate((0, 0, self.lid_t / 2 + self.support_t / 2))
