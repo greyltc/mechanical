@@ -26,7 +26,7 @@ width = 119
 lid_t = 7
 
 # thickness of support plate
-support_t = 3
+support_t = 4.5
 
 # thread spec for bolts than fasten lid to base
 corner_bolt_thread = "M6-1"
