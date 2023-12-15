@@ -362,7 +362,7 @@ def main():
         bot_screw = CounterSunkScrew(size="M6-1", fastener_type="iso14581", length=bot_screw_len, simple=no_threads)  # TODO: add pn
 
         c_flat_to_flat = 10
-        c_flat_to_flat = c_flat_to_flat + 0.4  # add fudge factor so it can slide in
+        c_flat_to_flat = c_flat_to_flat + 0.3  # add fudge factor so it can slide in
         c_diameter = c_flat_to_flat / (math.cos(math.tanh(1 / math.sqrt(3))))
         if version == "joe":
             coupler_len = 15
