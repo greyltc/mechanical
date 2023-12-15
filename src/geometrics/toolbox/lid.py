@@ -529,8 +529,11 @@ class LidAssemblyBuilder:
         # create window support plate
         window_support = cq.Workplane("XY").box(self.length, self.width, self.support_t)
 
+        # fillet side edges
+        window_support = window_support.edges("|Z").fillet(self.chamber_fillet)
+
         # chamfer upper side edges
-        window_support = window_support.edges("|X and >Z").chamfer(self.chamber_chamfer).edges("|Y and >Z").chamfer(self.chamber_chamfer)
+        window_support = window_support.faces(">Z").chamfer(self.chamber_chamfer)
 
         if self.corner_bolt_style == "nut":
             # cut corners for lid nut clearance
@@ -543,9 +546,6 @@ class LidAssemblyBuilder:
             for (x, y), e in zip(self.corner_bolt_xys, edges):
                 corner = cq.Workplane("XY").box(self.socket_clearance, self.socket_clearance, self.support_t).edges(e).fillet(self.socket_clearance / 2).translate((x, y, 0))
                 window_support = window_support.cut(corner)
-
-        # fillet side edges
-        window_support = window_support.edges("|Z").fillet(self.chamber_fillet)
 
         # cut window aperture
         window_ap = cq.Workplane("XY").box(self.window_ap_l, self.window_ap_w, self.support_t).edges("|Z").fillet(self.window_ap_r).translate((self.window_aperture_offset[0], self.window_aperture_offset[1], 0))
