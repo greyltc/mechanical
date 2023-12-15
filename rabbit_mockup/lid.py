@@ -51,7 +51,8 @@ window_t = 3
 window_size = (75, 75)
 
 # support bolt parameters
-min_support_bolt_spacing = 35
+min_support_bolt_spacing = 29
+support_corner_bolts = False
 
 # build the assembly
 lid_assembly_builder = LidAssemblyBuilder(
@@ -66,6 +67,7 @@ lid_assembly_builder = LidAssemblyBuilder(
     corner_bolt_thread=corner_bolt_thread,
     corner_bolt_offset=corner_bolt_offset,
     corner_bolt_style=corner_bolt_style,
+    support_corner_bolts=support_corner_bolts,
     substrate_array_window_buffer=substrate_array_window_buffer,
     oring_size=oring_size,
     window_aperture_offset=window_aperture_offset,
