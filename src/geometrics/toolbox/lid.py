@@ -92,6 +92,7 @@ class LidAssemblyBuilder:
         corner_bolt_thread: str = "M5-0.8",
         corner_bolt_offset: float = 7.5,
         corner_bolt_style: str = "countersink",
+        support_corner_bolts: bool = True,
         substrate_array_window_buffer: float = 6,
         oring_size: int = 169,
         window_aperture_offset: tuple = (0, 0),
@@ -131,6 +132,9 @@ class LidAssemblyBuilder:
             Style of the corner bolt. Valid values are "nut" (create a recess for the
             nuts in the lid and support layers) and "countersink" (create a countersink
             for a countersink bolt).
+        support_corner_bolts : bool
+            Flag whether or not to space the bolts that fasten the window support to
+            the lid with bolts in the corner.
         substrate_array_window_buffer : float
             Distance between the edge of the aperature in the window support to the
             outer edges of the substrate array.
@@ -161,6 +165,7 @@ class LidAssemblyBuilder:
         self.corner_bolt_size, self.corner_bolt_pitch = corner_bolt_thread.split("-")
         self.corner_bolt_offset = corner_bolt_offset
         self.corner_bolt_style = corner_bolt_style
+        self.support_corner_bolts = support_corner_bolts
         self.substrate_array_window_buffer = substrate_array_window_buffer
         self.oring_size = oring_size
         self.window_aperture_offset = window_aperture_offset
@@ -313,7 +318,8 @@ class LidAssemblyBuilder:
 
         # check if there's enough space along both axes of the window aperture to put
         # countersink screws
-        # if either side perpendicular a given axis is too small, don't put bolts along that side
+        # if either side perpendicular a given axis is too small, don't put bolts along
+        # that side
         support_bolts_along_y = True if ((self.length - self.window_recess_l - 2 * recess_corner_excess) / 2 - np.abs(self.window_aperture_offset[0]) > support_bolt_csink_diameter + self.csink_clearance) else False
         support_bolts_along_x = True if ((self.width - self.window_recess_w - 2 * recess_corner_excess) / 2 - np.abs(self.window_aperture_offset[1]) > support_bolt_csink_diameter + self.csink_clearance) else False
 
@@ -373,6 +379,24 @@ class LidAssemblyBuilder:
 
         # merge bolt position lists and pick out only those that are unique
         self.support_bolt_xys = set(support_bolt_xys_along_y + support_bolt_xys_along_x)
+
+        # remove support bolts in corners if required
+        if not self.support_corner_bolts:
+            # loop over a copy of the set
+            for xys in list(self.support_bolt_xys)[:]:
+                _x, _y = xys
+                if support_bolts_along_y and support_bolts_along_x:
+                    # support bolts everywhere so check all extreme points
+                    if (_x in support_bolt_xs_along_y) and (_y in support_bolt_ys_along_x):
+                        self.support_bolt_xys.remove(xys)
+                elif support_bolts_along_y:
+                    # only bolts along y so check extreme xs
+                    if _x in support_bolt_xs_along_y:
+                        self.support_bolt_xys.remove(xys)
+                else:
+                    # onlt bolts along x so check extreme ys
+                    if _y in support_bolt_ys_along_x:
+                        self.support_bolt_xys.remove(xys)
 
         # get chamber fastener
         if self.corner_bolt_style == "nut":
@@ -629,7 +653,8 @@ if (__name__ == "__main__") or (have_so is True):
     window_size = (75, 75)
 
     # support bolt parameters
-    min_support_bolt_spacing = 35
+    support_corner_bolts = False
+    min_support_bolt_spacing = 25
 
     # build the assembly
     lid_assembly_builder = LidAssemblyBuilder(
@@ -644,6 +669,7 @@ if (__name__ == "__main__") or (have_so is True):
         corner_bolt_thread=corner_bolt_thread,
         corner_bolt_offset=corner_bolt_offset,
         corner_bolt_style=corner_bolt_style,
+        support_corner_bolts=support_corner_bolts,
         substrate_array_window_buffer=substrate_array_window_buffer,
         oring_size=oring_size,
         window_aperture_offset=window_aperture_offset,
