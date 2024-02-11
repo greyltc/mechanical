@@ -125,11 +125,11 @@ class TwoDToThreeD(object):
             if t:
                 twod_faces = []
                 for fc in layers[boundary_layer_name]:
-                        if stack["dxf_scale"]:
-                            fc = fc.scale(stack["dxf_scale"])
-                        sld = CQ(fc).wires().toPending().extrude(t).findSolid()
-                        if sld:
-                            wp = wp.union(sld)
+                    if stack["dxf_scale"]:
+                        fc = fc.scale(stack["dxf_scale"])
+                    sld = CQ(fc).wires().toPending().extrude(t).findSolid()
+                    if sld:
+                        wp = wp.union(sld)
             else:  # 2d case
                 twod_faces = layers[boundary_layer_name]
                 if stack["dxf_scale"]:
@@ -161,7 +161,7 @@ class TwoDToThreeD(object):
                         if stack["dxf_scale"]:
                             fc = fc.scale(stack["dxf_scale"])
                         if make_faces:
-                            fuse_faces.append(fc)  # these faces will be fused to the solid 
+                            fuse_faces.append(fc)  # these faces will be fused to the solid
                         else:  # we're not fusing faces to the solid
                             if t:  # don't do 2d stuff here
                                 sld = cadquery.Solid.extrudeLinear(fc, cadquery.Vector(0, 0, t))
@@ -191,7 +191,7 @@ class TwoDToThreeD(object):
                                     negs.append(sld)
                             else:
                                 twod_faces.append(fc)
-                                #print(f'Discarding {drawing_layer_name} in {stack_layer["name"]} in {stack["name"]}: 2D faces can only be defined by one drawing layer')
+                                # print(f'Discarding {drawing_layer_name} in {stack_layer["name"]} in {stack["name"]}: 2D faces can only be defined by one drawing layer')
                 if t:
                     if dent_size:
                         dent_layer = stack_layer["edm_dent"]
@@ -269,7 +269,7 @@ class TwoDToThreeD(object):
                     wp = wp.cut(mnldmpd)  # this cuts the lofts and angles
                     if edge:
                         wp = edg.union(wp)
-                        #wp = wp.union(edg, tol=0.0001)
+                        # wp = wp.union(edg, tol=0.0001)
                         # to_fuse = edg.solids().vals() + wp.solids().vals()
                         # edg_fuse = to_fuse.pop().fuse(*to_fuse, glue=True).clean()
                         # wp = CQ(edg_fuse)
@@ -372,7 +372,21 @@ class TwoDToThreeD(object):
             myzip.write(filename)
 
     @classmethod
-    def outputter(cls, built: dict[str, dict[str, cadquery.Assembly]], wrk_dir: Path, save_dxfs=False, save_pdfs=False, save_stls=False, save_steps=False, save_breps=False, save_vrmls=False, edm_outputs=False, nparallel=1, show_object: Callable | None = None):
+    def outputter(
+        cls,
+        built: dict[str, dict[str, cadquery.Assembly]],
+        wrk_dir: Path,
+        save_dxfs=False,
+        save_svgs=False,
+        save_pdfs=False,
+        save_stls=False,
+        save_steps=False,
+        save_breps=False,
+        save_vrmls=False,
+        edm_outputs=False,
+        nparallel=1,
+        show_object: Callable | None = None,
+    ):
         """do output tasks on a dictionary of assemblies"""
         for stack_name, result in built.items():
             if ("instructions" in result) and ("sim_mode" in result["instructions"]):
@@ -393,7 +407,7 @@ class TwoDToThreeD(object):
                     if "cutter" in key:
                         for cutter in val.shapes:
                             cutters.append(cutter)
-                
+
                 for key, val in result["assembly"].traverse():
                     if not val.children:
                         for cutter in cutters:
@@ -478,7 +492,7 @@ class TwoDToThreeD(object):
                         shapes = val.shapes
                         if shapes != []:
                             c = cadquery.Compound.makeCompound(shapes)
-                            if c.Volume() or c.Area():  #don't output things that aren't there
+                            if c.Volume() or c.Area():  # don't output things that aren't there
                                 if save_stls == True:
                                     cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.stl"), cadquery.exporters.ExportTypes.STL)
                                 if save_steps == True:
@@ -489,16 +503,19 @@ class TwoDToThreeD(object):
                                     cadquery.Shape.exportBrep(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.brep"))
                                 if save_vrmls == True:
                                     cadquery.exporters.export(c.locate(val.loc), str(wrk_dir / "output" / f"{stack_name}-{val.name}.wrl"), cadquery.exporters.ExportTypes.VRML)
-                                if save_dxfs or save_pdfs:
+                                if save_dxfs or save_pdfs or save_svgs:
                                     cl = c.locate(val.loc)
                                     bb = cl.BoundingBox()
                                     zmid = (bb.zmin + bb.zmax) / 2
                                     nwp = CQ("XY", origin=(0, 0, zmid)).add(cl)
                                     dxface = nwp.section()
                                     outdxf_filepath = wrk_dir / "output" / f"{stack_name}-{val.name}.dxf"
-                                    cadquery.exporters.export(dxface, str(outdxf_filepath), cadquery.exporters.ExportTypes.DXF)
+                                    if save_dxfs:
+                                        cadquery.exporters.export(dxface, str(outdxf_filepath), cadquery.exporters.ExportTypes.DXF)
+                                    if save_svgs:
+                                        cadquery.exporters.export(dxface, str(wrk_dir / "output" / f"{stack_name}-{val.name}.svg"), cadquery.exporters.ExportTypes.SVG)
                                     if save_pdfs:
                                         dxf_file = ezdxf.filemanagement.readfile(outdxf_filepath)
                                         if not save_dxfs:
                                             outdxf_filepath.unlink()
-                                        matplotlib.qsave(dxf_file.modelspace(), str(outdxf_filepath)+".pdf")
+                                        matplotlib.qsave(dxf_file.modelspace(), str(outdxf_filepath) + ".pdf")
