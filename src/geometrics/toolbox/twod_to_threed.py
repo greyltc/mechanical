@@ -250,7 +250,7 @@ class TwoDToThreeD(object):
                                 bdfaces[i] = fc.scale(stack["dxf_scale"])
                         bdface_cmpd = cadquery.Compound.makeCompound(bdfaces)
                         edg = CQ().sketch().face(bdface_cmpd)
-                        edfaces = stack_layer["edge_case"]
+                        edfaces = layers[stack_layer["edge_case"]]
                         if stack["dxf_scale"]:
                             for i, fc in enumerate(edfaces):
                                 edfaces[i] = fc.scale(stack["dxf_scale"])
