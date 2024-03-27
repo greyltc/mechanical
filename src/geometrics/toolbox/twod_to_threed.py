@@ -517,7 +517,7 @@ class TwoDToThreeD(object):
                                     dxwires = max_face.Wires()
                                     for dxwire in dxwires:
                                         cut_length += dxwire.Length()
-                                    outdxf_filepath = wrk_dir / "output" / f"{stack_name}-{val.name}-c{cut_length:.1f}-x{bb.xlen:.1f}-y{bb.ylen:.1f}.dxf"
+                                    outdxf_filepath = wrk_dir / "output" / f"{stack_name}-{val.name}-c{cut_length:.1f}-x{bb.xlen:.1f}-y{bb.ylen:.1f}-z{bb.zlen:.2f}.dxf"
                                     if save_dxfs:
                                         cadquery.exporters.export(CQ(max_face), str(outdxf_filepath), cadquery.exporters.ExportTypes.DXF)
                                     if save_svgs:
