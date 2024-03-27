@@ -506,14 +506,22 @@ class TwoDToThreeD(object):
                                 if save_dxfs or save_pdfs or save_svgs:
                                     cl = c.locate(val.loc)
                                     bb = cl.BoundingBox()
-                                    zmid = (bb.zmin + bb.zmax) / 2
-                                    nwp = CQ("XY", origin=(0, 0, zmid)).add(cl)
-                                    dxface = nwp.section()
-                                    outdxf_filepath = wrk_dir / "output" / f"{stack_name}-{val.name}.dxf"
+                                    #zmid = (bb.zmin + bb.zmax) / 2
+                                    #nwp = CQ("XY", origin=(0, 0, zmid)).add(cl)
+                                    #dxface = nwp.section()
+                                    cut_length = 0
+                                    prime_shape = shapes[0]
+                                    prime_faces = prime_shape.Faces()
+                                    zs = [pf.CenterOfBoundBox().z for pf in prime_faces]
+                                    max_face = prime_faces[zs.index(max(zs))]  # TODO: there could be multiple faces at z max
+                                    dxwires = max_face.Wires()
+                                    for dxwire in dxwires:
+                                        cut_length += dxwire.Length()
+                                    outdxf_filepath = wrk_dir / "output" / f"{stack_name}-{val.name}-c{cut_length:.1f}-x{bb.xlen:.1f}-y{bb.ylen:.1f}.dxf"
                                     if save_dxfs:
-                                        cadquery.exporters.export(dxface, str(outdxf_filepath), cadquery.exporters.ExportTypes.DXF)
+                                        cadquery.exporters.export(CQ(max_face), str(outdxf_filepath), cadquery.exporters.ExportTypes.DXF)
                                     if save_svgs:
-                                        cadquery.exporters.export(dxface, str(wrk_dir / "output" / f"{stack_name}-{val.name}.svg"), cadquery.exporters.ExportTypes.SVG)
+                                        cadquery.exporters.export(CQ(max_face), str(wrk_dir / "output" / f"{stack_name}-{val.name}.svg"), cadquery.exporters.ExportTypes.SVG)
                                     if save_pdfs:
                                         dxf_file = ezdxf.filemanagement.readfile(outdxf_filepath)
                                         if not save_dxfs:
