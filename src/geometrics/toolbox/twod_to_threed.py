@@ -383,6 +383,7 @@ class TwoDToThreeD(object):
         save_steps=False,
         save_breps=False,
         save_vrmls=False,
+        save_gltf=False,
         edm_outputs=False,
         nparallel=1,
         show_object: Callable | None = None,
@@ -448,8 +449,10 @@ class TwoDToThreeD(object):
                 # result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.brep"))
                 result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.xml"), "XML")
                 # result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.vtkjs"), "VTKJS")
-                result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
-                result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.stl"), "STL")
+                if save_gltf:
+                    result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.glb"), "GLTF")
+                if save_stls:
+                    result["assembly"].save(str(wrk_dir / "output" / f"{stack_name}.stl"), "STL")
                 if not simulation_outputs:
                     if edm_outputs:
                         edm_subdir = f"{stack_name}_edm"
@@ -517,7 +520,7 @@ class TwoDToThreeD(object):
                                     dxwires = max_face.Wires()
                                     for dxwire in dxwires:
                                         cut_length += dxwire.Length()
-                                    outdxf_filepath = wrk_dir / "output" / f"{stack_name}-{val.name}-c{cut_length:.1f}-x{bb.xlen:.1f}-y{bb.ylen:.1f}-z{bb.zlen:.2f}.dxf"
+                                    outdxf_filepath = wrk_dir / "output" / f"{stack_name}-{val.name}-c{cut_length:.1f}mm-x{bb.xlen:.1f}mm-y{bb.ylen:.1f}mm-z{bb.zlen:.2f}mm.dxf"
                                     if save_dxfs:
                                         cadquery.exporters.export(CQ(max_face), str(outdxf_filepath), cadquery.exporters.ExportTypes.DXF)
                                     if save_svgs:
