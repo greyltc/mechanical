@@ -25,7 +25,7 @@ def main():
     drawings = {"2d": wrk_dir / "drawings" / "2d.dxf"}
 
     no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
-    version = "joe"  # "joe" for 12x12, "yen", "hoye" , or "snaith"
+    version = "snaith"  # "joe" for 12x12, "yen", "hoye" , or "snaith"
     flange_base_height = 0
     flange_bit_thickness = 16.9
     fil_major = 5
@@ -214,6 +214,7 @@ def main():
             cut_size = [18.2, 18.2, 10]
             pusher_win = pusher.intersect(CQ().box(cut_size[0], cut_size[1], cut_size[2], centered=(True, True, False))).translate((0,0,-pusher_height - subs_t - mask_t-pusher_t))
             #pusher_win = hpc.cut(holder).translate((0,pusher_mount_spacing/2,-void_depth)).findSolid().Solids()[0]
+            pusher_win = pusher_win.findSolid()
         else:
             pusher_win = CQ()
         pusher = pusher.faces(">Z[1]").edges("<X").chamfer(chamf_major)
@@ -407,7 +408,7 @@ def main():
         out["hardware"] = hardware
         out["cv_print"] = cv_print
         out["mnt_print"] = mount_neg
-        out["pusher_win"] = pusher_win.findSolid()
+        out["pusher_win"] = pusher_win
 
         return out
 
@@ -488,11 +489,12 @@ def main():
     # put a side mounting m4 in the single holder for henry
     if version == "snaith":
         side_screw2_len = 45
-        side_screw2 = CounterSunkScrew(size="M4-0.7", fastener_type="iso14581", length=side_screw2_len, simple=no_threads)
+        side_nut_pocket_depth = 5  # max thickness for an M4 DIN985 nyloc nut
+        side_screw2 = CounterSunkScrew(size="M4-0.7", fastener_type="iso14581", length=side_screw2_len, simple=no_threads)  # SHK-M4-45-V2-A2
         wp_single = wp_single.faces("<X").workplane(**u.cobb).clearanceHole(side_screw2, fit="Close", baseAssembly=hardware_single)
-        wp_single = wp_single.faces(">X").workplane(**u.cobb, offset=-side_nut.nut_thickness).clearanceHole(fastener=side_nut, fit="Close", counterSunk=False, baseAssembly=hardware_single)
+        wp_single = wp_single.faces(">X").workplane(**u.cobb, offset=-side_nut_pocket_depth).clearanceHole(fastener=side_nut, fit="Close", counterSunk=False, baseAssembly=hardware_single)
         wp_single = cast(CQ, wp_single)  # workaround for sketch.clearanceHole() not returning the correct type
-        wp_single = wp_single.faces(">X").workplane(**u.cobb).sketch().rect(flat_to_flat, side_nut.nut_diameter, angle=90).reset().vertices().fillet(side_nut.nut_diameter / 4).finalize().cutBlind(-side_nut.nut_thickness)
+        wp_single = wp_single.faces(">X").workplane(**u.cobb).sketch().rect(flat_to_flat, side_nut.nut_diameter, angle=90).reset().vertices().fillet(side_nut.nut_diameter / 4).finalize().cutBlind(-side_nut_pocket_depth)
         wp_single = cast(CQ, wp_single)  # workaround for sketch.clearanceHole() not returning the correct type
 
     # add the bottom standoff shrouds for the 2x1
