@@ -32,7 +32,7 @@ def main():
     chamf_major = 1
     chamf_minor = 0.5
 
-    def mk_flange_bit(drawings: dict[str, Path], components_dir: Path, flange_base_height: float, thickness: float) -> tuple[cq.Solid | cq.Compound, cq.Assembly]:
+    def mk_flange_bit(drawings: dict[str, Path], components_dir: Path, flange_base_height: float, thickness: float, whole_width: float) -> tuple[cq.Solid | cq.Compound, cq.Assembly]:
         """build the flange bit"""
         hardware = cq.Assembly()  # this being empty causes a warning on output
 
@@ -45,7 +45,7 @@ def main():
         ]
 
         basex = 26
-        basey = 58
+        basey = whole_width
         flange_hole_d = 14.8
         base = CQ().box(basex, basey, thickness, centered=(True, True, False)).circle(flange_hole_d / 2).cutThruAll()
 
@@ -413,7 +413,6 @@ def main():
         return out
 
     # make the pieces
-    flange_bit, flange_hardware = mk_flange_bit(drawings=drawings, components_dir=wrk_dir / "components", flange_base_height=flange_base_height, thickness=flange_bit_thickness)
     holder_parts = mk_single_holder(drawings=drawings, components_dir=wrk_dir / "components")
     holder = holder_parts["holder"]
     # pin_holder = holder_parts["pin_holder"]
@@ -435,6 +434,7 @@ def main():
     xlen1 = bb1x1.xlen
     ylen1 = bb1x1.ylen
     holder1x1 = holder1x1.faces("<Z").workplane(origin=(0, 0)).rect(xlen1 - 2 * shroud_width, ylen1).cutBlind(-shroud_height).findSolid()
+    flange_bit, flange_hardware = mk_flange_bit(drawings=drawings, components_dir=wrk_dir / "components", flange_base_height=flange_base_height, thickness=flange_bit_thickness, whole_width=ylen1)
 
     wp_2x2 = CQ(holder.translate((xlen1 / 2, ylen1 / 2, 0)))
     wp_2x2 = wp_2x2.union(holder.translate((+xlen1 / 2, -ylen1 / 2, 0)))
@@ -596,7 +596,7 @@ def main():
     else:
         lshow_object = None
 
-    TwoDToThreeD.outputter(asys, wrk_dir, save_steps=False, save_stls=False, show_object=lshow_object)
+    TwoDToThreeD.outputter(asys, wrk_dir, save_steps=True, save_stls=False, show_object=lshow_object)
 
 
 # temp is what we get when run via cq-editor
