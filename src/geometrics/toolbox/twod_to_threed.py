@@ -63,27 +63,34 @@ class TwoDToThreeD(object):
                 if sname == instruction["name"]:
                     build_instructions.append(instruction)
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=nparallel) as executor:
-            fs = [executor.submit(self.do_stack, instruction, layers) for instruction in build_instructions]
-            # fs = [executor.submit(self.do_stack, stack_instructions, stacks_to_build, layers) for stack_instructions in self.stacks]
+        results = []
+        if nparallel > 1:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=nparallel) as executor:
+                fs = [executor.submit(self.do_stack, instruction, layers) for instruction in build_instructions]
+                # fs = [executor.submit(self.do_stack, stack_instructions, stacks_to_build, layers) for stack_instructions in self.stacks]
             for future in concurrent.futures.as_completed(fs):
                 try:
-                    stack_done, vcuts, bwire, twire, recess, instruction_copy = future.result()
+                    results.append(future.result())
                 except Exception as e:
                     print(repr(e))
-                else:
-                    if stack_done:
-                        asy = cadquery.Assembly()
-                        asy.name = stack_done["name"]
-                        for layer in stack_done["layers"]:
-                            # wp = cq.Workplane()
-                            # wp.add(layer["solid"])
-                            # asy.add(wp, name=layer["name"], color=cadquery.Color(layer["color"]))
-                            asy.add(layer["geometry"], name=layer["name"], color=cadquery.Color(layer["color"]))
-                        stacks[stack_done["name"]] = {"assembly": asy, "vcuts": vcuts, "bwire": bwire, "twire": twire, "recess": recess, "instructions": instruction_copy}
-                        # stacks.append(stack_done)
-                        # key, val = stack_done
-                        # stacks[key] = val
+        else:
+            for instruction in build_instructions:
+                results.append(self.do_stack(instruction, layers))
+
+        for result in results:
+            stack_done, vcuts, bwire, twire, recess, instruction_copy = result
+            if stack_done:
+                asy = cadquery.Assembly()
+                asy.name = stack_done["name"]
+                for layer in stack_done["layers"]:
+                    # wp = cq.Workplane()
+                    # wp.add(layer["solid"])
+                    # asy.add(wp, name=layer["name"], color=cadquery.Color(layer["color"]))
+                    asy.add(layer["geometry"], name=layer["name"], color=cadquery.Color(layer["color"]))
+                stacks[stack_done["name"]] = {"assembly": asy, "vcuts": vcuts, "bwire": bwire, "twire": twire, "recess": recess, "instructions": instruction_copy}
+                # stacks.append(stack_done)
+                # key, val = stack_done
+                # stacks[key] = val
 
         return stacks
         # asy.save(str(Path(__file__).parent / "output" / f"{stack_instructions['name']}.step"))
@@ -295,11 +302,11 @@ class TwoDToThreeD(object):
                     geometry = cadquery.Compound.makeCompound(twod_faces)
                 geometry = geometry.moved(cadquery.Location((0, 0, z_base)))
             else:
-                new = wp.translate((0, 0, z_base))
-                sld_prt = new.findSolid().Solids()[0]
+                base_shifted = wp.translate((0, 0, z_base))
+                one_solid = base_shifted.findSolid().Solids()[0]
                 if fuse_faces:
-                    faces_list = sld_prt.Faces()
-                    bottom_face = sld_prt.faces("<Z")
+                    faces_list = one_solid.Faces()
+                    bottom_face = one_solid.faces("<Z")
                     ibot = faces_list.index(bottom_face)
                     faces_list.remove(bottom_face)
                     for ff in fuse_faces:
@@ -308,7 +315,7 @@ class TwoDToThreeD(object):
                     shell = cadquery.Shell.makeShell(faces_list)
                     geometry = cadquery.Solid.makeSolid(shell)
                 else:
-                    geometry = sld_prt
+                    geometry = one_solid
 
             new_layer = {"name": stack_layer["name"], "color": stack_layer["color"], "geometry": geometry}
             stack["layers"].append(new_layer)
