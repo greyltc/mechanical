@@ -303,8 +303,8 @@ class TwoDToThreeD(object):
                 geometry = geometry.moved(cadquery.Location((0, 0, z_base)))
             else:
                 base_shifted = wp.translate((0, 0, z_base))
-                one_solid = base_shifted.findSolid().Solids()[0]
                 if fuse_faces:
+                    one_solid = base_shifted.findSolid().Solids()[0]  # TODO: does it really make sense to discard all solids except the first?
                     faces_list = one_solid.Faces()
                     bottom_face = one_solid.faces("<Z")
                     ibot = faces_list.index(bottom_face)
@@ -315,7 +315,7 @@ class TwoDToThreeD(object):
                     shell = cadquery.Shell.makeShell(faces_list)
                     geometry = cadquery.Solid.makeSolid(shell)
                 else:
-                    geometry = one_solid
+                    geometry = base_shifted
 
             new_layer = {"name": stack_layer["name"], "color": stack_layer["color"], "geometry": geometry}
             stack["layers"].append(new_layer)
