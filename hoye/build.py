@@ -325,9 +325,10 @@ def main():
         if (version == "joe") or (version == "hoye12"):
             if version == "joe":
                 pcbvx = 10  # v2=10, v1=25
+                pcbvy = 10  # v2=10, v1=20
             elif version == "hoye12":
-                pcbvx = 14
-            pcbvy = 10  # v2=10, v1=20
+                pcbvx = 21
+                pcbvy = 8  # v2=10, v1=20
             pcbvr = 2  # v2=2, v1=5
         else:
             pcbvx = 25  # v2=10, v1=25
@@ -344,7 +345,7 @@ def main():
                 pcbx = 13  # v2=13, v1=30
                 pcby = 13  # v2=13, v1=30
             elif version == "hoye12":
-                pcbx = 15
+                pcbx = 21.5
                 pcby = 15
             pcbt = 1.6
             pcbpinr = 0.4  # v2=0.4, v1=0.8
@@ -360,36 +361,47 @@ def main():
         pcb = pcb.extrude(pcbt, combine=False).findSolid()
         pcb = CQ(pcb).faces("<Z").workplane(origin=(0, 0)).add(pin_spots).circle(pcbpinr).extrude(pcbt + holder_base_height, combine="cut")
 
+        # secondary bottom void to ensure spring pin solder doesn't get to the holder
+        if version != "joe":
+            pcb_bot_void2_d = 2
+            offset_from_pcb = 1
+            holder = holder.faces("<Z").workplane(origin=(0, 0)).sketch().rect(pcbx-offset_from_pcb, pcby-offset_from_pcb).vertices().fillet(pcbvr).finalize()
+            holder = cast(CQ, holder)  # workaround for sketch.finalize() not returning the correct type
+            holder = holder.cutBlind(-pcb_bot_void2_d)
+
         # pcb header pin holes
         if (version == "joe") or (version == "hoye12"):
             if version == "joe":
                 hph_dia = 0.9  # header pin hole diameter
                 hps = 2
                 major_spacing = 4.8 + 0.3  # this accounts for the fact that the housing is 4.8 wide and the ramp sticks off an additional 0.3
+                hpnx = 5
             elif version == "hoye12":
                 hph_dia = 1  # header pin hole diameter
                 hps = 2.54
-                major_spacing = hps*2 + 0.5  # this accounts for the fact that the housing is 4.8 wide and the ramp sticks off an additional 0.3
-            hpnx = 5
-            
+                hpnx = 8
         else:
             hph_dia = 1  # header pin hole diameter
             hps = 2.54
             hpnx = 6
             major_spacing = 10.16  # this accounts for the fact that the housing is 4.8 wide and the ramp sticks off an additional 0.3
 
-        pcb = pcb.faces("<Z").workplane(origin=(0, 0)).center(0, +major_spacing / 2).rarray(hps, hps, hpnx, 2).circle(hph_dia / 2).extrude(-pcbt, combine="cut")
-        pcb = pcb.faces("<Z").workplane(origin=(0, 0)).center(0, -major_spacing / 2).rarray(hps, hps, hpnx, 2).circle(hph_dia / 2).extrude(-pcbt, combine="cut")
+        if version == "hoye12":
+            pcb = pcb.faces("<Z").workplane(origin=(0, 0)).rarray(hps, hps, hpnx, 2).circle(hph_dia / 2).extrude(-pcbt, combine="cut")
+        else:
+            pcb = pcb.faces("<Z").workplane(origin=(0, 0)).center(0, +major_spacing / 2).rarray(hps, hps, hpnx, 2).circle(hph_dia / 2).extrude(-pcbt, combine="cut")
+            pcb = pcb.faces("<Z").workplane(origin=(0, 0)).center(0, -major_spacing / 2).rarray(hps, hps, hpnx, 2).circle(hph_dia / 2).extrude(-pcbt, combine="cut")
 
         if not no_threads:
             if (version == "joe") or (version == "hoye12"):
                 if version == "joe":
                     # add in the pin header and connector stack, for use with cable assembly part number 2185091101
                     header_stack = u.import_step(components_dir / "877581017+511101060.stp").findSolid().translate((0, 0, -1.5))
+                    hardware.add(header_stack.located(cq.Location((0, +major_spacing / 2, -holder_base_height - pcbt))))
+                    hardware.add(header_stack.located(cq.Location((0, -major_spacing / 2, -holder_base_height - pcbt))))
                 elif version == "hoye12":
-                    header_stack = u.import_step(components_dir / "010897100.stp").findSolid().rotate((0, 0, 0), (1, 0, 0), -90).translate((0, 0, -1.14))
-                hardware.add(header_stack.located(cq.Location((0, +major_spacing / 2, -holder_base_height - pcbt))))
-                hardware.add(header_stack.located(cq.Location((0, -major_spacing / 2, -holder_base_height - pcbt))))
+                    header_stack = u.import_step(components_dir / "702461602.stp").findSolid().rotate((0, 0, 0), (1, 0, 0), -90).translate((0, 0, -5.71))
+                    hardware.add(header_stack.located(cq.Location((0, 0, -holder_base_height - pcbt))))
             else:
                 # add in the header and IDC connector stack
                 header_stack = u.import_step(components_dir / "SFH213-PPPC-D06-ID-BK+HIF3FB-16DA-2.54DSA(71).step").findSolid().rotate((0, 0, 0), (1, 0, 0), -180)
