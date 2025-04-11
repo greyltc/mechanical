@@ -25,7 +25,7 @@ def main():
     drawings = {"2d": wrk_dir / "drawings" / "2d.dxf"}
 
     no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
-    version = "snaith"  # "joe" for 12x12, "yen", "hoye" , or "snaith"
+    version = "hoye12"  # "joe" for 12x12, "yen", "hoye", "snaith" or hoye12
     flange_base_height = 0
     flange_bit_thickness = 16.9
     fil_major = 5
@@ -84,7 +84,7 @@ def main():
     def mk_single_holder(drawings, components_dir=wrk_dir / "components") -> dict[str, cq.Assembly | cq.Solid | cq.Compound]:
         hardware = cq.Assembly()  # this being empty causes a warning on output
 
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             subs_xy = 12
         else:
             subs_xy = 30
@@ -97,7 +97,7 @@ def main():
             subs_t_max = 2.2
 
         # minimum substrate thickness to handle
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             subs_t_min = 1.1
         elif version == "hoye":
             subs_t_min = 2.2
@@ -113,14 +113,14 @@ def main():
         subs = CQ().box(subs_xy, subs_xy, subs_t, centered=(True, True, False)).findSolid()
         hardware.add(subs, name="substrate")
 
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             mask_t = 0.4  # worst case mask thickness, v2=0.4, v1=0.2
         else:
             mask_t = 0.2  # worst case mask thickness, v2=0.4, v1=0.2
         mask = CQ().box(subs_xy, subs_xy, mask_t, centered=(True, True, False)).findSolid()
         hardware.add(mask.translate((0, 0, subs_t)), name="mask")
 
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             big_pin = False  # 2.54mm spacing pins, v2=false, v1=true
         else:
             big_pin = True  # 2.54mm spacing pins, v2=false, v1=true
@@ -161,7 +161,7 @@ def main():
 
         void_depth = subs_t_max + mask_t + pin_nominal_frac * pin_travel
 
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             pusher_screw_len = 10  # v2=10, v1=15
             holder_base_height = total_sleeve_length + pin_nom_offset - 1.6/2
         else:
@@ -174,11 +174,14 @@ def main():
         pusher_t = pusher_aperture_chamfer + 0.1  # the extra 0.1 here is to give a sharp edge for mask registration
         pusher_shrink = 0.4  # shrink the x+y so that zero spaced holders don't have interfering pushers
 
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             pusher_aperture_fillet = 2  # v2=2, v1=5
             pusher_mount_offset = 7.9  # center from top edge of fillet
             y_blocks_total = 2  # pusher_downer blocks, with of both together v2=2, v1=6
-            x_blocks_total = 2  # pusher_downer blocks, with of both together v2=2, v1=0
+            if version == "joe":
+                x_blocks_total = 2  # pusher_downer blocks, with of both together v2=2, v1=0
+            elif version == "hoye12":
+                x_blocks_total = 0
         else:
             pusher_aperture_fillet = 5  # v2=2, v1=5
             pusher_mount_offset = 5.9  # center from top edge of fillet
@@ -205,11 +208,11 @@ def main():
         pusher = pusher.faces("<Z").workplane().rect(subs_xy, subs_xy).extrude(pusher_height)
         pusher = pusher.sketch().rect(light_aperture_x, light_aperture_y).vertices().fillet(pusher_aperture_fillet).finalize().cutThruAll()
         pusher = cast(CQ, pusher)  # workaround for sketch.finalize() not returning the correct type
-        if not version == "joe":
+        if not (version == "joe") or (version == "hoye12"):
             pusher = pusher.faces("<Z").workplane().rect(light_aperture_x, light_aperture_y).cutBlind(-pusher_height)  # make the pusher blocks square
         pusher = pusher.edges("|Z and (<X or >X)").fillet(fil_major)
         pusher = pusher.faces(">Z").edges("<<X[2]").chamfer(pusher_aperture_chamfer)
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             # extract the pusher windows
             cut_size = [18.2, 18.2, 10]
             pusher_win = pusher.intersect(CQ().box(cut_size[0], cut_size[1], cut_size[2], centered=(True, True, False))).translate((0,0,-pusher_height - subs_t - mask_t-pusher_t))
@@ -225,7 +228,7 @@ def main():
         else:
             pusher = pusher.faces(">Z").workplane().rarray(1, pusher_mount_spacing, 1, 2).clearanceHole(pusher_screw, fit="Close", baseAssembly=hardware)
 
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             corner_round_radius = 4  # v2=4, v1=10
         else:
             corner_round_radius = 10  # v2=4, v1=10
@@ -237,7 +240,7 @@ def main():
         holder_box = holder_box.union(void_box)
 
         # pin array parameters
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             pmajor_x = 3
             pminor_x = 1.27
             nx = 3  # v2=3, v1=5
@@ -255,7 +258,7 @@ def main():
         # dev_pocket_d = head_length + 0.2
         dev_pocket_d = pin_nom_offset
 
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             holder = holder.faces(">Z").workplane().undercutRelief2D(py, py, corner_round_radius)
         else:
             holder = holder.faces(">Z").workplane().undercutRelief2D(light_aperture_x, py, corner_round_radius)
@@ -276,13 +279,38 @@ def main():
         pin_spotsA = CQ().center(-pminor_x / 2, 0).rarray(pmajor_x, py, nx, 2).vals()
         pin_spotsB = CQ().center(+pminor_x / 2, 0).rarray(pmajor_x, py, nx, 2).vals()
         pin_spots = pin_spotsA + pin_spotsB
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             pin_spotsC = CQ().rarray(py, pminor_x, 2, 2).vals()
             pin_spots += pin_spotsC
 
+        if version == "hoye12":
+            pin_psots = []
+            y = 5.6350
+            x = 5.3850
+            pin_psots.append((x, y, 0))
+            pin_psots.append((x-1.27, y, 0))
+            pin_psots.append((x, -y, 0))
+            pin_psots.append((x-1.27, -y, 0))
+            x = 0.6350
+            pin_psots.append((x, y, 0))
+            pin_psots.append((x-1.27, y, 0))
+            pin_psots.append((x, -y, 0))
+            pin_psots.append((x-1.27, -y, 0))
+            x = -1.8650
+            pin_psots.append((x, y, 0))
+            pin_psots.append((x-1.27, y, 0))
+            pin_psots.append((x, -y, 0))
+            pin_psots.append((x-1.27, -y, 0))
+            x = -4.3650
+            pin_psots.append((x, y, 0))
+            pin_psots.append((x-1.27, y, 0))
+            pin_psots.append((x, -y, 0))
+            pin_psots.append((x-1.27, -y, 0))
+            pin_spots = [cq.Vector(p) for p in pin_psots]
+
         holder = holder.workplane(origin=(0, 0)).add(pin_spots).cutEach(pvf)
 
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             # make a print of the central void
             cv_print = holder_box.cut(holder).translate((0,0,-void_depth)).findSolid()
         else:
@@ -294,8 +322,11 @@ def main():
 
         # bottom PCB through hole clearance void
         pcb_bot_void_d = 5
-        if version == "joe":
-            pcbvx = 10  # v2=10, v1=25
+        if (version == "joe") or (version == "hoye12"):
+            if version == "joe":
+                pcbvx = 10  # v2=10, v1=25
+            elif version == "hoye12":
+                pcbvx = 14
             pcbvy = 10  # v2=10, v1=20
             pcbvr = 2  # v2=2, v1=5
         else:
@@ -308,9 +339,13 @@ def main():
             holder = cast(CQ, holder)  # workaround for sketch.finalize() not returning the correct type
             holder = holder.cutBlind(-pcb_bot_void_d)
 
-        if version == "joe":
-            pcbx = 13  # v2=13, v1=30
-            pcby = 13  # v2=13, v1=30
+        if (version == "joe") or (version == "hoye12"):
+            if version == "joe":
+                pcbx = 13  # v2=13, v1=30
+                pcby = 13  # v2=13, v1=30
+            elif version == "hoye12":
+                pcbx = 15
+                pcby = 15
             pcbt = 1.6
             pcbpinr = 0.4  # v2=0.4, v1=0.8
             pcbr = 2  # corner fillet radius, v2=2, v1=5
@@ -326,11 +361,17 @@ def main():
         pcb = CQ(pcb).faces("<Z").workplane(origin=(0, 0)).add(pin_spots).circle(pcbpinr).extrude(pcbt + holder_base_height, combine="cut")
 
         # pcb header pin holes
-        if version == "joe":
-            hph_dia = 0.9  # header pin hole diameter
-            hps = 2
+        if (version == "joe") or (version == "hoye12"):
+            if version == "joe":
+                hph_dia = 0.9  # header pin hole diameter
+                hps = 2
+                major_spacing = 4.8 + 0.3  # this accounts for the fact that the housing is 4.8 wide and the ramp sticks off an additional 0.3
+            elif version == "hoye12":
+                hph_dia = 1  # header pin hole diameter
+                hps = 2.54
+                major_spacing = hps*2 + 0.5  # this accounts for the fact that the housing is 4.8 wide and the ramp sticks off an additional 0.3
             hpnx = 5
-            major_spacing = 4.8 + 0.3  # this accounts for the fact that the housing is 4.8 wide and the ramp sticks off an additional 0.3
+            
         else:
             hph_dia = 1  # header pin hole diameter
             hps = 2.54
@@ -341,9 +382,12 @@ def main():
         pcb = pcb.faces("<Z").workplane(origin=(0, 0)).center(0, -major_spacing / 2).rarray(hps, hps, hpnx, 2).circle(hph_dia / 2).extrude(-pcbt, combine="cut")
 
         if not no_threads:
-            if version == "joe":
-                # add in the pin header and connector stack, for use with cable assembly part number 2185091101
-                header_stack = u.import_step(components_dir / "877581017+511101060.stp").findSolid().translate((0, 0, -1.5))
+            if (version == "joe") or (version == "hoye12"):
+                if version == "joe":
+                    # add in the pin header and connector stack, for use with cable assembly part number 2185091101
+                    header_stack = u.import_step(components_dir / "877581017+511101060.stp").findSolid().translate((0, 0, -1.5))
+                elif version == "hoye12":
+                    header_stack = u.import_step(components_dir / "010897100.stp").findSolid().rotate((0, 0, 0), (1, 0, 0), -90).translate((0, 0, -1.14))
                 hardware.add(header_stack.located(cq.Location((0, +major_spacing / 2, -holder_base_height - pcbt))))
                 hardware.add(header_stack.located(cq.Location((0, -major_spacing / 2, -holder_base_height - pcbt))))
             else:
@@ -354,7 +398,7 @@ def main():
                 hardware.add(header_stack.located(cq.Location((0, -2 * 2.54, -holder_base_height - pcbt))))
 
         # pusher screw interface stuff here
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             bot_screw_len = 10
         # elif version == "yen":
         #    bot_screw_len = 25
@@ -365,7 +409,7 @@ def main():
         c_flat_to_flat = 10
         c_flat_to_flat = c_flat_to_flat + 0.3  # add fudge factor so it can slide in
         c_diameter = c_flat_to_flat / (math.cos(math.tanh(1 / math.sqrt(3))))
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             coupler_len = 15
             coupler = u.import_step(components_dir / "Download_STEP_970150611 (rev1).stp").findSolid().translate((0, 0, -coupler_len / 2))
         else:
@@ -393,7 +437,7 @@ def main():
 
         holder = holder.faces("<Z").workplane(origin=(0, 0)).rarray(*rarray_args).clearanceHole(bot_screw, fit="Close", baseAssembly=hardware)
 
-        if version == "joe":
+        if (version == "joe") or (version == "hoye12"):
             # extract the mounting hole negative
             mount_neg = hpc.cut(holder).translate((0,pusher_mount_spacing/2,-void_depth)).findSolid().Solids()[0]
         else:
@@ -423,7 +467,7 @@ def main():
     wp_single = CQ(holder)
 
     # mod the 1x1 holder with bottom shrouds
-    if version == "joe":
+    if (version == "joe") or (version == "hoye12"):
         shroud_width = 3.5  # sum of both together, v2=3.5, v1=4
     else:
         shroud_width = 4  # sum of both together, v2=3.5, v1=4
@@ -486,9 +530,12 @@ def main():
     wp_1x1 = wp_1x1.faces(">X").workplane(origin=(0, 0)).center(0, bb1x1.zmin + flange_bit_thickness / 2 + shroud_height).sketch().rect(flat_to_flat, side_nut.nut_diameter, angle=90).reset().vertices().fillet(side_nut.nut_diameter / 4).finalize().cutBlind(-side_nut.nut_thickness * 2)
     wp_1x1 = cast(CQ, wp_1x1)  # workaround for sketch.clearanceHole() not returning the correct type
 
-    # put a side mounting m4 in the single holder for henry
-    if version == "snaith":
-        side_screw2_len = 45
+    # put a side mounting m4 in the single holder for henry or hoye12
+    if (version == "snaith") or (version == "hoye12"):
+        if version == "snaith":
+            side_screw2_len = 45
+        elif version == "hoye12":
+            side_screw2_len = 25
         side_nut_pocket_depth = 5  # max thickness for an M4 DIN985 nyloc nut
         side_screw2 = CounterSunkScrew(size="M4-0.7", fastener_type="iso14581", length=side_screw2_len, simple=no_threads)  # SHK-M4-45-V2-A2
         wp_single = wp_single.faces("<X").workplane(**u.cobb).clearanceHole(side_screw2, fit="Close", baseAssembly=hardware_single)
