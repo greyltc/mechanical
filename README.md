@@ -3,24 +3,24 @@ A python module with some helpful tools for 3d design
 
 ## Development workflow
 1) Use git to clone this repo and cd into its folder
-1) Install dependancies system-wide using your favorite python package manager. View those like this:
+1) Install dependancies system-wide using your favorite python package manager. You could view those like this:
     ```bash
     hatch project metadata | jq -r '.dependencies | .[]'
     ```
     also install python's build[1], installer[2] and wheel[3] packages
-1) Package the project
+1) Prepare an editable wheel
    ```bash
-   rm -f dist/*.whl && python -m build --editable --no-isolation
+   python -c 'import build; build.ProjectBuilder(".").build("editable", "dist")'
    ```
 1) Setup a virtual environment for development/testing
     ```bash
     python -m venv --without-pip --system-site-packages --clear venv
     ```
-1) Activate the venv (this step is os/shell-dependant, see [4] for non-linux/bash)
+1) Activate the venv (see [4] for alternative non-linux/bash instructions)
     ```bash
     source venv/bin/activate
     ```
-1) Install the package in editable mode into the venv
+1) Install the editable wheel into the venv
     ```bash
     python -m installer dist/*.whl
     ```

@@ -24,8 +24,8 @@ def main():
     print(f"Working directory is {wrk_dir}")
     drawings = {"2d": wrk_dir / "drawings" / "2d.dxf"}
 
-    no_threads = False  # set true to make all the hardware have no threads (much faster, smaller)
-    version = "hoye12"  # "joe" for 12x12, "yen", "hoye", "snaith" or hoye12
+    no_threads = True  # set true to make all the hardware have no threads (much faster, smaller)
+    version = "hoye12"  # "joe" for 12x12, "yen", "hoye", "snaith" or "hoye12"
     flange_base_height = 0
     flange_bit_thickness = 16.9
     fil_major = 5
@@ -143,6 +143,8 @@ def main():
             pin_void = CQ(upper_pin_void).union(lower_pin_void).findSolid()
 
         else:  # 1.27mm spacing pins
+            mfg_help_d = 2  # these long thin holes are too hard to manufacture, so we'll partially bore them out with this
+            mfg_help_collar_offset = 2  # the small part of the hole will honly be this long
             pin_travel = 2.65
             head_length = 0.9
             pin_nominal_frac = 2 / 3  # fraction of total travel for nominal deflection
@@ -151,13 +153,17 @@ def main():
             sleeve_length = 12.75  # length before bottom taper
             total_sleeve_length = 17.75
             drill_diameter = 0.95
+
             pin = u.import_step(components_dir / "P13-4023+S13-503.step").findSolid().rotate((0, 0, 0), (1, 0, 0), 90)
             pin_nom_offset = head_length + (1 - pin_nominal_frac) * pin_travel
             pin = pin.translate((0, 0, -pin_nom_offset))
-            void_head_offset = 0.2  # make the pin void diameter this much larger than that of the pin head
+            void_head_offset = 0.2  # make the upper pin void diameter this much larger than that of the pin head
             upper_pin_void = cq.Solid.makeCylinder((head_diameter + void_head_offset) / 2, head_length + pin_travel + retaining_ring_offset + 10).move(cq.Location((0, 0, -pin_nom_offset - retaining_ring_offset)))
             lower_pin_void = cq.Solid.makeCylinder(drill_diameter / 2, head_length + pin_travel + total_sleeve_length + pin_nom_offset).move(cq.Location((0, 0, -total_sleeve_length - pin_nom_offset)))
-            pin_void = CQ(upper_pin_void).union(lower_pin_void).findSolid()
+            dod = 2
+            elpv_offset = 5  # this is so the thin parts of the holes aren't so long
+            extra_lower_pin_void = cq.Solid.makeCylinder(dod / 2, head_length + pin_travel + total_sleeve_length + pin_nom_offset - elpv_offset).move(cq.Location((0, 0, -total_sleeve_length - pin_nom_offset - elpv_offset)))
+            pin_void = CQ(upper_pin_void).union(lower_pin_void).union(extra_lower_pin_void).findSolid()
 
         void_depth = subs_t_max + mask_t + pin_nominal_frac * pin_travel
 
@@ -200,7 +206,10 @@ def main():
             walls_y = subs_xy + subs_tol + 2 * pusher_aperture_chamfer + 2 * short_wall_thickness - x_blocks_total
         else:
             walls_y = pusher_mount_spacing + 14 - long_wall_fudge
-            walls_x = subs_xy + subs_tol + 2 * pusher_aperture_chamfer + 2 * short_wall_thickness - x_blocks_total
+            if version == "hoye12":
+                walls_x = subs_xy + subs_tol + 2 * pusher_aperture_chamfer + 2 * short_wall_thickness - x_blocks_total + 2
+            else:
+                walls_x = subs_xy + subs_tol + 2 * pusher_aperture_chamfer + 2 * short_wall_thickness - x_blocks_total
         pusher_x = walls_x - pusher_shrink
         pusher_y = walls_y - pusher_shrink
         pusher_height = void_depth - subs_t_min  # the length of the push downer bits, this should be void_depth to accept 0 thickness substrates, but can be less to allow wider acceptance angle
@@ -345,7 +354,7 @@ def main():
                 pcbx = 13  # v2=13, v1=30
                 pcby = 13  # v2=13, v1=30
             elif version == "hoye12":
-                pcbx = 21.5
+                pcbx = 21.7
                 pcby = 15
             pcbt = 1.6
             pcbpinr = 0.4  # v2=0.4, v1=0.8
@@ -433,7 +442,10 @@ def main():
             dev1 = (-pusher_mount_spacing / 2, -walls_y / 4)
         else:
             rarray_args = (1, pusher_mount_spacing, 1, 2)
-            dev1 = (-walls_x / 4, -pusher_mount_spacing / 2)
+            if version == "hoye12":
+                dev1 = (-walls_x / 4, -pusher_mount_spacing / 4)
+            else:
+                dev1 = (-walls_x / 4, -pusher_mount_spacing / 2)
         hpc = holder
         holder = holder.faces(">Z").workplane(origin=(0, 0)).sketch().rarray(*rarray_args).rect(c_diameter, c_flat_to_flat).reset().vertices().fillet(c_diameter / 4).finalize().cutBlind(-coupler_len)
         holder = cast(CQ, holder)  # workaround for sketch.finalize() not returning the correct type
@@ -446,6 +458,12 @@ def main():
         #    shroud_major = 9.6
         #    holder = holder.faces("<Z").wires().toPending().extrude(-shroud_major)
         #    holder = holder.faces("<Z").workplane(origin=(0, 0)).sketch().rect(pcbx, pcby).vertices().fillet(pcbr).offset(0.5).finalize().cutBlind(-shroud_major)
+
+        # sink in the hoye12 PCB because the pins can't hold it in X-Y this case
+        if version == "hoye12":
+            pcb_pocketd = 1.5
+            holder = holder.faces("<Z").wires().toPending().extrude(-pcb_pocketd)
+            holder = holder.faces("<Z").workplane(origin=(0, 0)).sketch().rect(pcbx+0.2, pcby+0.2).vertices().fillet(pcbr+0.1).offset(0).finalize().cutBlind(-pcb_pocketd)
 
         holder = holder.faces("<Z").workplane(origin=(0, 0)).rarray(*rarray_args).clearanceHole(bot_screw, fit="Close", baseAssembly=hardware)
 

@@ -84,7 +84,7 @@ def mk_groove(
         # make the squished o-ring hardware
         if (ring_cs > 0) and (hardware is not None):
             ring_sweep_wire = CQ(build_plane).center(-gland_height / 2, 0).ellipse(gland_height / 2, ring_cs / 2 * (1 + _compression_ratio)).wires().toPending()
-            hardware.add(ring_sweep_wire.sweep(_wire, combine=True, transition="round", isFrenet=True).findSolid())
+            hardware.add(ring_sweep_wire.sweep(_wire, combine=True, transition="round", isFrenet=True))
 
         to_sweep = CQ(cutter_crosssection).wires().toPending()
         return to_sweep.sweep(_wire).findSolid()
