@@ -8,21 +8,21 @@ A python module with some helpful tools for 3d design
     hatch project metadata | jq -r '.dependencies | .[]'
     ```
     also install python's build[1], installer[2] and wheel[3] packages
-1) Prepare an editable wheel
-   ```bash
-   python -c 'import build; build.ProjectBuilder(".").build("editable", "dist")'
-   ```
-1) Setup a virtual environment for development/testing
+1) Setup a clean virtual environment for development/testing
     ```bash
     python -m venv --without-pip --system-site-packages --clear venv
     ```
+1) Prepare an editable wheel
+   ```bash
+   python -c 'import build; print(build.ProjectBuilder(".").build("editable", "venv"))'
+   ```
 1) Activate the venv (see [4] for alternative non-linux/bash instructions)
     ```bash
     source venv/bin/activate
     ```
 1) Install the editable wheel into the venv
     ```bash
-    python -m installer dist/*.whl
+    python -m installer venv/*.whl
     ```
 1) Develop! When you're finished with it, you can deactivate the virtual environment with `deactivate`
 
