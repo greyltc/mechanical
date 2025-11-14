@@ -450,38 +450,38 @@ class TwoDToThreeD(object):
                     step_mode = "default"  # "fused" makes the volumes difficult to split in the simulation
                 else:
                     step_mode = "default"
-                result["assembly"].save(stepfile, mode=step_mode)
+                result["assembly"].save(str(stepfile), mode=step_mode)
                 TwoDToThreeD.ensmall(stepfile)
 
                 # result["assembly"].save(out_dir / f"{stack_name}.brep")
-                result["assembly"].save(out_dir / f"{stack_name}.xml", "XML")
+                result["assembly"].save(str(out_dir / f"{stack_name}.xml"), "XML")
                 # result["assembly"].save(out_dir / f"{stack_name}.vtkjs", "VTKJS")
                 if save_gltf:
-                    result["assembly"].save(out_dir / f"{stack_name}.glb", "GLTF")
+                    result["assembly"].save(str(out_dir / f"{stack_name}.glb"), "GLTF")
                 if save_stls:
-                    result["assembly"].save(out_dir / f"{stack_name}.stl", "STL")
+                    result["assembly"].save(str(out_dir / f"{stack_name}.stl"), "STL")
                 if not simulation_outputs:
                     if edm_outputs:
                         edm_subdir = f"{stack_name}_edm"
                         Path.mkdir(out_dir / edm_subdir, exist_ok=True)
                         shutil.copy(stepfile, out_dir / edm_subdir / f"expected_result_shape.step")
                         if "vcuts" in result and result["vcuts"]:
-                            cadquery.exporters.export(CQ().add(result["vcuts"]), out_dir / edm_subdir / f"vertical_wire_paths.dxf")
+                            cadquery.exporters.export(CQ().add(result["vcuts"]), str(out_dir / edm_subdir / f"vertical_wire_paths.dxf"))
                         if "twire" in result and result["twire"]:
                             t_wire_faces = result["twire"]
                             first_face = t_wire_faces[0]
                             ffbb = first_face.BoundingBox()
                             h = round(ffbb.zmax, 6)
-                            cadquery.exporters.export(CQ().add(t_wire_faces), out_dir / edm_subdir / f"angled_wire_paths_z={h}mm.dxf")
+                            cadquery.exporters.export(CQ().add(t_wire_faces), str(out_dir / edm_subdir / f"angled_wire_paths_z={h}mm.dxf"))
                         if "bwire" in result and result["bwire"]:
                             b_wire_faces = result["bwire"]
                             first_face = b_wire_faces[0]
                             ffbb = first_face.BoundingBox()
                             h = round(ffbb.zmin, 6)
-                            cadquery.exporters.export(CQ().add(b_wire_faces), out_dir / edm_subdir / f"angled_wire_paths_z={h}mm.dxf")
+                            cadquery.exporters.export(CQ().add(b_wire_faces), str(out_dir / edm_subdir / f"angled_wire_paths_z={h}mm.dxf"))
                         if "recess" in result and result["recess"]:
                             depth = result["recess"][0]
-                            cadquery.exporters.export(CQ().add(result["recess"][1:]), out_dir / edm_subdir / f"recess_from_z=0_to_z={depth}mm.dxf")
+                            cadquery.exporters.export(CQ().add(result["recess"][1:]), str(out_dir / edm_subdir / f"recess_from_z=0_to_z={depth}mm.dxf"))
 
                     # # stupid workaround for gltf export bug: https://github.com/CadQuery/cadquery/issues/993
                     # asy2 = None
@@ -504,15 +504,15 @@ class TwoDToThreeD(object):
                             c = cadquery.Compound.makeCompound(shapes)
                             if c.Volume() or c.Area():  # don't output things that aren't there
                                 if save_stls == True:
-                                    cadquery.exporters.export(c.locate(val.loc), out_dir / f"{stack_name}-{val.name}.stl", cadquery.exporters.ExportTypes.STL)
+                                    cadquery.exporters.export(c.locate(val.loc), str(out_dir / f"{stack_name}-{val.name}.stl"), cadquery.exporters.ExportTypes.STL)
                                 if save_steps == True:
                                     stepfile = out_dir / f"{stack_name}-{val.name}.step"
-                                    cadquery.exporters.export(c.locate(val.loc), stepfile, cadquery.exporters.ExportTypes.STEP)
+                                    cadquery.exporters.export(c.locate(val.loc), str(stepfile), cadquery.exporters.ExportTypes.STEP)
                                     TwoDToThreeD.ensmall(stepfile)
                                 if save_breps == True:
-                                    cadquery.Shape.exportBrep(c.locate(val.loc), out_dir / f"{stack_name}-{val.name}.brep")
+                                    cadquery.Shape.exportBrep(c.locate(val.loc), str(out_dir / f"{stack_name}-{val.name}.brep"))
                                 if save_vrmls == True:
-                                    cadquery.exporters.export(c.locate(val.loc), out_dir / f"{stack_name}-{val.name}.wrl", cadquery.exporters.ExportTypes.VRML)
+                                    cadquery.exporters.export(c.locate(val.loc), str(out_dir / f"{stack_name}-{val.name}.wrl"), cadquery.exporters.ExportTypes.VRML)
                                 if save_dxfs or save_pdfs or save_svgs:
                                     cl = c.locate(val.loc)
                                     bb = cl.BoundingBox()
@@ -529,9 +529,9 @@ class TwoDToThreeD(object):
                                         cut_length += dxwire.Length()
                                     outdxf_filepath = out_dir / f"{stack_name}-{val.name}-c{cut_length:.1f}mm-x{bb.xlen:.1f}mm-y{bb.ylen:.1f}mm-z{bb.zlen:.2f}mm.dxf"
                                     if save_dxfs:
-                                        cadquery.exporters.export(CQ(max_face), outdxf_filepath, cadquery.exporters.ExportTypes.DXF)
+                                        cadquery.exporters.export(CQ(max_face), str(outdxf_filepath), cadquery.exporters.ExportTypes.DXF)
                                     if save_svgs:
-                                        cadquery.exporters.export(CQ(max_face), out_dir / f"{stack_name}-{val.name}.svg", cadquery.exporters.ExportTypes.SVG)
+                                        cadquery.exporters.export(CQ(max_face), str(out_dir / f"{stack_name}-{val.name}.svg"), cadquery.exporters.ExportTypes.SVG)
                                     if save_pdfs:
                                         dxf_file = ezdxf.filemanagement.readfile(outdxf_filepath)
                                         if not save_dxfs:
